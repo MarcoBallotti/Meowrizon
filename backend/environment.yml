@@ -17,6 +17,10 @@ dependencies:
   - shapely>=2,<3           # celle dentro il poligono di una regione
   # HTTP verso Horizons, Moon Trek e PDS (anche per il TestClient di FastAPI)
   - httpx>=0.27,<1
+  # Acquisizione e preparazione dei dati (/api/data, comandi fetch/prepare)
+  - requests>=2.32,<3
+  - pyarrow>=18,<30
+  - filelock>=3.16,<4
   # Sviluppo
   - pytest>=8
   - ruff>=0.8

@@ -334,7 +334,7 @@ Già fatto:
 - il CORS per `localhost:5173` resta per le chiamate dirette.
 
 Da chiarire nel team:
-- **framework:** `backend/API_CONTRACT.md` prevede **Flask**, il backend attuale usa **FastAPI**. Il contratto HTTP si può rispettare con entrambi;
+- **framework: risolto (15/11/2026).** `backend/API_CONTRACT.md` ora prevede FastAPI. Il backend di Kevin (branch `backend`) è integrato nella stessa applicazione: rotte `/api/data/...` per acquisizione, preparazione (JSON, Parquet) e job persistenti, con i dati in `backend/data/`;
 - **`GET /api/sites`:** nel contratto restituisce un `SiteCatalog` in camelCase, con `coordinateStatus` e siti anche equatoriali (Apollo). Il nostro restituisce GeoJSON dei siti di `sites.toml`, limitati al settore polare. Il frontend oggi non lo legge, ma i due formati vanno unificati;
 - **regioni:** `/api/regions` e la classifica delle regioni non sono nel contratto. Vanno aggiunte come estensione concordata.
 

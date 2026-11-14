@@ -1,10 +1,10 @@
-# Meowrizon — contratto API per il backend Flask
+# Meowrizon — contratto API per il backend FastAPI
 
 Data di ricognizione: **14 novembre 2026**. Versione del contratto: **1.0 proposta**.
 
 Questo documento è la specifica di consegna allo sviluppatore backend: inventaria i dati dimostrativi presenti nel simulatore, assegna ciascun dato a un endpoint e definisce parametri, risposte JSON, validazioni e responsabilità di elaborazione.
 
-Il backend sarà **Python con Flask**, come richiesto. Le citazioni a FastAPI in `backend/README.md`, `backend/environment.yml` e nella documentazione precedente descrivono lo scaffolding iniziale, non la tecnologia richiesta per questa implementazione. Qui si definisce il contratto HTTP; non si implementano server o modifiche al frontend.
+Decisione aggiornata del team: **Python con FastAPI e archiviazione su file, senza database**. Il backend è autonomo nella cartella `backend/`, con configurazioni e dati locali. Dispone di endpoint `/api/data` per acquisizione, preparazione JSON/Parquet, job e filtro dei dati salvati; gli endpoint scientifici di questo documento restano una proposta da implementare. I raster restano GeoTIFF. Il contratto HTTP è indipendente dai formati interni di salvataggio.
 
 ## 1. Compatibilità e perimetro
 
@@ -109,7 +109,7 @@ Definiti `startMs`, `stopMs` e `stepMs = stepMinutes × 60000`:
 5. Le effemeridi coprono l'intero periodo. Se non è disponibile, errore esplicito; nessuna estrapolazione sintetica.
 6. L'ultimo campione è un riferimento di bordo per l'interpolazione. Gli intervalli restano semiaperti: il client deve gestire il cursore a `stopMs` come fine periodo, senza inventare un tramonto o una scomparsa a quel punto.
 
-Limiti di servizio proposti per la prima implementazione, da applicare in Flask:
+Limiti di servizio proposti per la prima implementazione, da applicare in FastAPI:
 
 | Parametro | Limite |
 |---|---|
@@ -640,7 +640,7 @@ Non ricavare la luce del globo dall'azimut topocentrico di un singolo sito. La c
 
 ## 11. Mappe: configurazione e tessere (V)
 
-Le immagini sono già reali; questa parte elimina la dipendenza diretta del frontend dagli URL NASA hardcoded e realizza il punto unico Flask richiesto.
+Le immagini sono già reali; questa parte elimina la dipendenza diretta del frontend dagli URL NASA hardcoded e realizza il punto unico FastAPI richiesto.
 
 ### `GET /api/visualization-config`
 
@@ -770,9 +770,9 @@ Questi punti non si risolvono semplicemente sviluppando i cinque endpoint C:
 
 Non sono necessari endpoint per velocità di riproduzione, lente/FOV, azimut della camera, selezione Student/Teacher/Planner, icone, stelle decorative, creste vicine o campioni del Brand kit. Questi restano stato/presentazione locale e non entrano nelle cache scientifiche.
 
-## 13. Errori HTTP e validazione Flask
+## 13. Errori HTTP e validazione FastAPI
 
-Il client esistente estrae **`detail` come stringa** dalle risposte non-2xx. Per compatibilità usare sempre questo envelope per errori HTTP, anche quelli generati da Flask o dal reverse proxy applicativo:
+Il client esistente estrae **`detail` come stringa** dalle risposte non-2xx. Per compatibilità usare sempre questo envelope per errori HTTP, anche quelli generati da FastAPI o dal reverse proxy applicativo:
 
 ```json
 {
@@ -866,7 +866,7 @@ La documentazione distingue `.png` e `.jpg` e richiede di leggere gli identifica
 - LROC QuickMap può servire al confronto manuale dei risultati; questo contratto non dipende da API private non documentate o da scraping del portale.
 - Non sono previsti endpoint per CSA, missioni, news, classifiche dei migliori siti, pendenza/sicurezza di atterraggio, power budget o agente AI: non alimentano modelli mock consumati dalle schermate attuali.
 
-## 15. Cache, riproducibilità e responsabilità Flask
+## 15. Cache, riproducibilità e responsabilità FastAPI
 
 ### Cache e job
 
@@ -884,15 +884,15 @@ Conservare separatamente ID dei job e ID dei risultati. Per il primo rilascio ma
 
 Timeout e retry delle fonti devono essere limitati, con backoff; non lanciare chiamate upstream per ogni tick del cursore. Registrare origine, richiesta normalizzata, versione dei dati e tempi, evitando di esporre dettagli interni nei messaggi pubblici.
 
-### Implementazione Flask
+### Implementazione FastAPI
 
-- Esporre route JSON tramite Blueprint `/api`; la separazione fra moduli HTTP, adapter delle fonti e calcolo rimane interna al backend.
-- Spostare download lunghi e calcolo terreno in worker separati dal processo HTTP; salvare lo stato dei job in un archivio condiviso/persistente. Un dizionario Python in memoria non basta con più processi o riavvii.
+- Esporre route JSON tramite `APIRouter(prefix="/api")`; la separazione fra moduli HTTP, adapter delle fonti e calcolo rimane interna al backend.
+- Spostare download lunghi e calcolo terreno in worker separati dal processo HTTP; salvare lo stato dei job in file JSON persistenti con aggiornamenti atomici e lock; usare risultati immutabili referenziati dai manifest. Un dizionario Python in memoria non basta con più processi o riavvii.
 - I GET dei job devono leggere lo stato, non avviare nuovamente il calcolo.
 - Validare/serializzare esplicitamente il contratto, compresi errori 404/405/500 per le route API. Serializzare in camelCase anche se il codice Python usa snake_case.
-- Supportare `OPTIONS`, `GET`, `POST` e gli header `Accept`/`Content-Type` se frontend e Flask hanno origini diverse; in sviluppo è preferibile il proxy Vite già predisposto. Il client aggiunge Content-Type anche ai GET, quindi richieste cross-origin possono richiedere preflight.
+- Supportare `OPTIONS`, `GET`, `POST` e gli header `Accept`/`Content-Type` se frontend e FastAPI hanno origini diverse; in sviluppo è preferibile il proxy Vite già predisposto. Il client aggiunge Content-Type anche ai GET, quindi richieste cross-origin possono richiedere preflight.
 - Con una sola origine pubblica, esporre frontend e `/api` dietro lo stesso ingresso. Il proxy delle tessere evita che il browser debba gestire dettagli dei servizi remoti.
-- Non avviare l'ambiente FastAPI preesistente pensando che contenga le route: `backend/app` attualmente contiene soltanto gli `__init__.py`; dipendenze e avvio devono essere predisposti per Flask.
+- Avvio del server: `python -m uvicorn app:app --port 8000` dalla cartella `backend/`. Sono disponibili `/health` e le route `/api/data` documentate nel README locale; le route scientifiche descritte qui non sono ancora implementate.
 
 ## 16. Sequenza di integrazione frontend/backend
 
@@ -911,7 +911,7 @@ VITE_DATA_SOURCE=api
 VITE_API_BASE_URL=/api
 ```
 
-In sviluppo Vite inoltra `/api` a `http://localhost:8000`, modificabile con `MEOWRIZON_API_ORIGIN`. Il processo Flask deve ascoltare all'indirizzo configurato. Queste variabili **non** collegano automaticamente le aggiunte V: per esse servono nuove chiamate e tipi nel frontend.
+In sviluppo Vite inoltra `/api` a `http://localhost:8000`, modificabile con `MEOWRIZON_API_ORIGIN`. Il processo FastAPI deve ascoltare all'indirizzo configurato. Queste variabili **non** collegano automaticamente le aggiunte V: per esse servono nuove chiamate e tipi nel frontend.
 
 ## 17. Criteri di consegna per lo sviluppatore backend
 
