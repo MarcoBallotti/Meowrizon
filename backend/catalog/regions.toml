@@ -1,0 +1,143 @@
+# Regioni di atterraggio di Meowrizon: solo le regioni candidate di Artemis III.
+#
+# Qui si decide QUALI regioni usare. I contorni non si scrivono a mano: li scarica da Moon Trek
+#   docker compose run --rm backend python -m app.cli init-regions
+# Fonti tra parentesi quadre: elenco in docs/piano-logica.md.
+#
+# Campi di ogni regione:
+#   id              identificativo stabile, minuscolo con trattini
+#   name            nome NASA
+#   moontrek_label  etichetta ESATTA del layer Moon Trek A3_Named_regions_SP [F3];
+#                   assente se la NASA non ha pubblicato il contorno
+#   lists           liste NASA in cui compare: "2022" (13 regioni) [F3], "2024" (9 regioni) [F4]
+#   active          true = il programma la valuta; false = nota, ma non calcolata
+
+[sector]
+name = "Polo sud"
+# Entro 6° di latitudine dal polo sud: requisito di atterraggio Artemis III [F1, slide 21].
+# Decisione D1. Una regione è accettata se almeno una parte sta a sud di questo limite.
+lat_limit = -84.0
+
+[grid]
+# Pendenza di atterraggio misurata su 100 m e precisione di atterraggio di 100 m [F1, slide 21 e 28].
+cell_size_m = 100
+
+# --- Regioni con contorno pubblicato (layer Moon Trek, lista 2022) ---------------------------
+
+[[region]]
+id = "connecting-ridge"
+name = "Connecting Ridge"
+moontrek_label = "Connecting Ridge"
+lists = ["2022"]
+active = false
+
+[[region]]
+id = "connecting-ridge-extension"
+name = "Connecting Ridge Extension"
+moontrek_label = "Connecting Ridge Extension"
+lists = ["2022"]
+active = false
+
+[[region]]
+id = "peak-near-shackleton"
+name = "Peak Near Shackleton"
+moontrek_label = "Peak Near Shakleton"  # scritto così su Moon Trek
+lists = ["2022"]
+active = false
+
+[[region]]
+id = "de-gerlache-rim-1"
+name = "de Gerlache Rim 1"
+moontrek_label = "de Gerlache Rim"
+lists = ["2022"]
+active = false
+
+[[region]]
+id = "de-gerlache-rim-2"
+name = "de Gerlache Rim 2"
+moontrek_label = "de Gerlache Rim 2"
+lists = ["2022", "2024"]
+active = true  # regione di sviluppo (docs/piano-logica.md, 2.2)
+
+[[region]]
+id = "faustini-rim-a"
+name = "Faustini Rim A"
+moontrek_label = "Faustini Rim A"
+lists = ["2022"]
+active = false
+
+[[region]]
+id = "haworth"
+name = "Haworth"
+moontrek_label = "Haworth"
+lists = ["2022", "2024"]
+active = false
+
+[[region]]
+id = "malapert-massif"
+name = "Malapert Massif"
+moontrek_label = "Malapert Massif"
+lists = ["2022", "2024"]
+active = true  # regione di sviluppo (docs/piano-logica.md, 2.2)
+
+[[region]]
+id = "de-gerlache-kocher-massif"
+name = "de Gerlache-Kocher Massif"
+moontrek_label = "de Gerlache-Kocher Massif"
+lists = ["2022"]
+active = false
+
+[[region]]
+id = "nobile-rim-1"
+name = "Nobile Rim 1"
+moontrek_label = "Nobile Rim 1"
+lists = ["2022", "2024"]
+active = false
+
+[[region]]
+id = "leibnitz-beta-plateau"
+name = "Leibnitz Beta Plateau"
+moontrek_label = "Leibnitz Beta Plateau"
+lists = ["2022"]
+active = false
+
+[[region]]
+id = "amundsen-rim"
+name = "Amundsen Rim"
+moontrek_label = "Amundsen Rim"
+lists = ["2022"]
+active = false
+
+[[region]]
+id = "nobile-rim-2"
+name = "Nobile Rim 2"
+moontrek_label = "Nobile Rim 2"
+lists = ["2022", "2024"]
+active = false
+
+# --- Regioni della lista 2024 senza contorno pubblicato [F4] ---------------------------------
+# Restano qui per poterle mostrare come "note ma non valutabili". Non possono essere attive.
+
+[[region]]
+id = "peak-near-cabeus-b"
+name = "Peak near Cabeus B"
+lists = ["2024"]
+active = false
+
+[[region]]
+id = "mons-mouton-plateau"
+name = "Mons Mouton Plateau"
+lists = ["2024"]
+active = false
+
+[[region]]
+id = "mons-mouton"
+name = "Mons Mouton"
+lists = ["2024"]
+active = false
+
+[[region]]
+id = "slater-plain"
+name = "Slater Plain"
+lists = ["2024"]
+active = false

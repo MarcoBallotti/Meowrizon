@@ -29,7 +29,3 @@ data/**
 !data/**/
 !data/**/.gitkeep
 !data/README.md
-*.sqlite
-*.sqlite3
-*.sqlite-*
-*.sqlite3-*

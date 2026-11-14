@@ -1,0 +1,17 @@
+# Le dipendenze sono in environment.yml (conda-forge); qui solo la configurazione degli strumenti.
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+# Niente .pytest_cache nella cartella montata; i test di rete vanno chiesti con -m network.
+addopts = "-p no:cacheprovider -m 'not network'"
+markers = [
+    "network: chiama servizi esterni (Horizons). Eseguire con: pytest -m network",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]

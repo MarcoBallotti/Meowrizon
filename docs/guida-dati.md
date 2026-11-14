@@ -10,7 +10,7 @@ Le chiamate marcate ✅ sono state provate il 2026-11-14 e hanno risposto corret
 
 Per ogni coppia **(sito, intervallo di date)** bisogna sapere, istante per istante:
 
-1. **dove sono Sole e Terra nel cielo del sito** (azimut ed elevazione): lo dà Horizons, oppure SPICE;
+1. **dove sono Sole e Terra nel cielo del sito** (azimut ed elevazione): lo dà l'API di Horizons;
 2. **quanto è alto l'orizzonte del terreno in quella direzione**: lo dà il DEM LOLA di Moon Trek;
 3. **se l'astro è sopra o sotto quell'orizzonte**. È un confronto tra 1 e 2, ed è il calcolo che dobbiamo fare noi.
 
@@ -86,19 +86,13 @@ Dall'intestazione si capisce come Horizons modella il sito:
 - **Salvare ogni risposta su disco** in `data/cache/`, con chiave = parametri della richiesta, e non rifare mai la stessa chiamata. Horizons è un servizio condiviso: niente richieste in parallelo aggressive.
 - **Non passare latitudine esattamente −90°.** Al polo l'azimut non è definito; meglio usare ad esempio −89.99°.
 
-### Alternativa offline: SPICE con SpiceyPy (consigliata in produzione)
+### Solo l'API di Horizons, niente SPICE
 
-Lo stesso calcolo si fa in locale con SpiceyPy, già previsto in `backend/app/services/ephemerides/`. È più veloce, funziona senza rete e non ha limiti di richieste. La funzione `spiceypy.azlcpo` calcola direttamente azimut ed elevazione da un punto di superficie. In alternativa si prende il vettore Sole o Terra nel frame `MOON_ME` con `spkpos` e lo si proietta sul sistema locale, come nella sezione 5.
+Il team ha deciso (14/11/2026) di usare **solo l'API di Horizons**, senza SpiceyPy e senza kernel NAIF.
 
-Kernel NAIF da scaricare da https://naif.jpl.nasa.gov/pub/naif/generic_kernels/ e da mettere in `data/kernels/` ⚠️ (i nomi esatti dei file vanno verificati sul sito):
+Per non fare una richiesta per ogni punto si usa la **tabella globale** descritta nel `README.md`: una sola serie con i punti sub-solare e sub-terrestre e la distanza Terra-Luna (`COMMAND='301'`, `CENTER='500@399'`, `QUANTITIES='14,15,20'`). Da questa si ricavano azimut ed elevazione per qualsiasi cella.
 
-- **tempo:** `lsk/naif0012.tls` (secondi intercalari);
-- **effemeridi:** `spk/planets/de440s.bsp` o `de440.bsp` (posizioni di Sole, Terra e Luna);
-- **costanti:** `pck/pck00011.tpc` (costanti dei corpi);
-- **orientamento della Luna:** `pck/moon_pa_de440_*.bpc` (orientamento preciso, frame PA);
-- **definizione dei frame:** `fk/satellites/moon_de440_*.tf` (frame `MOON_ME` e `MOON_PA`).
-
-**Strategia:** sviluppare con SPICE e confrontare qualche caso con Horizons. Se le differenze restano sotto 0,01°, l'implementazione è corretta.
+La richiesta topocentrica di questa sezione (`CENTER='coord@301'`) resta come **controllo**: per qualche punto i due risultati devono coincidere, con una differenza sotto 0,01°.
 
 ---
 
@@ -167,7 +161,7 @@ Esempio funzionante: `https://trek.nasa.gov/tiles/Moon/EQ/LRO_WAC_Mosaic_Global_
   - **Create Panorama**: la vista dell'orizzonte da un punto;
   - **globo 3D con terreno**;
   - **Export Image / Download PNG+VRT**: ritagli georeferenziati.
-- **Uso per noi:** **solo verifica manuale**. Dopo aver calcolato la maschera d'orizzonte di un sito, la si confronta con il Panorama di QuickMap nello stesso punto. Se profili e picchi combaciano, il calcolo è giusto. Per l'automazione si usano Moon Trek e Horizons o SPICE.
+- **Uso per noi:** **solo verifica manuale**. Dopo aver calcolato la maschera d'orizzonte di un sito, la si confronta con il Panorama di QuickMap nello stesso punto. Se profili e picchi combaciano, il calcolo è giusto. Per l'automazione si usano Moon Trek e Horizons.
 
 ---
 
@@ -184,7 +178,7 @@ Esempio funzionante: `https://trek.nasa.gov/tiles/Moon/EQ/LRO_WAC_Mosaic_Global_
             └─────────┬─────────┘
                       ▼
  date ─────►┌───────────────────┐
-            │ 3. Effemeridi     │──► az/el di Sole e Terra nel tempo (SPICE o Horizons, cache)
+            │ 3. Effemeridi     │──► az/el di Sole e Terra nel tempo (API Horizons, cache)
             └─────────┬─────────┘
                       ▼
             ┌───────────────────┐
@@ -225,11 +219,11 @@ Per ogni sito si produce una tabella `azimut → elevazione minima visibile`, ad
    - azimut = `atan2(d·east, d·north)`, da nord verso est come Horizons.
 5. Per ogni intervallo di azimut, l'orizzonte è il **massimo** delle elevazioni. Con NumPy si vettorializza tutto. In alternativa si lanciano raggi a passo fisso di azimut, campionando il DEM a distanze crescenti.
 
-Il risultato si salva su disco o in SQLite. È piccolo: circa 1440 numeri per sito.
+Il risultato si salva su disco, in file NumPy. È piccolo: circa 1440 numeri per sito.
 
 ### Passo 3: effemeridi
 
-Per l'intervallo richiesto si calcolano azimut ed elevazione di Sole e Terra, con passo da 10 a 60 minuti, tramite SPICE (oppure Horizons con cache). Anche questi risultati vanno salvati: sono indipendenti dal terreno e si possono riusare per siti vicini solo se la differenza di posizione è trascurabile. Per sicurezza si ricalcolano per sito, che costa poco.
+Per l'intervallo richiesto si calcolano azimut ed elevazione di Sole e Terra, con passo da 10 a 60 minuti, a partire dalla tabella globale di Horizons salvata in cache. Anche questi risultati vanno salvati: sono indipendenti dal terreno e si possono riusare per siti vicini solo se la differenza di posizione è trascurabile. Per sicurezza si ricalcolano per sito, che costa poco.
 
 ### Passo 4: confronto con l'orizzonte
 
@@ -262,7 +256,7 @@ Per ogni istante si confronta l'elevazione dell'astro con il valore della masche
 
 ### Passo 6: validazione
 
-- **Effemeridi:** SPICE contro Horizons in alcuni istanti, con differenza attesa sotto 0,01°.
+- **Effemeridi:** az/el ricavati dalla tabella globale contro la richiesta topocentrica di Horizons in alcuni istanti, con differenza attesa sotto 0,01°.
 - **Maschera d'orizzonte:** confronto con il **Panorama di QuickMap** nello stesso punto.
 - **Statistiche:** le % calcolate su lunghi periodi vanno confrontate con i prodotti già pronti di Moon Trek:
   - `AVGVISIB_85S_060M_201608_EARTH_SP` (visibilità media della Terra, 60 m/px);
@@ -318,7 +312,7 @@ Conviene partire dalla **regione del polo sud** (entro 87,5°S con il DEM a 5 m,
 
 **Effemeridi**
 - Horizons API: `EPHEM_TYPE=OBSERVER`, `CENTER=coord@301`, `COMMAND` 10 e 399, `QUANTITIES=4` (più 20 se si vuole il diametro apparente esatto).
-- SpiceyPy con i kernel NAIF elencati sopra: motore di calcolo in produzione.
+- Horizons, tabella globale (`COMMAND='301'`, `CENTER='500@399'`, `QUANTITIES='14,15,20'`): una sola serie valida per tutte le celle.
 
 **Terreno, servizio raster di Moon Trek**
 - `LRO_LOLA_DEM_SPole875_5mp_v04`: DEM a 5 m entro circa 87,5°S, per l'orizzonte vicino e la visualizzazione 3D dei siti polari.
@@ -395,7 +389,7 @@ Perché il CAD combaci con i dati, servono quattro accorgimenti:
 
 ## 8. Ordine di lavoro suggerito
 
-1. **Effemeridi:** modulo con SpiceyPy più una verifica contro Horizons, per un sito di prova (ad esempio Shackleton Rim).
+1. **Effemeridi:** modulo che scarica e salva la tabella globale di Horizons, più una verifica contro la richiesta topocentrica per un punto di prova (ad esempio Shackleton Rim).
 2. **Terreno:** download di DEM multi-risoluzione e cache da Moon Trek per lo stesso sito.
 3. **Orizzonte:** calcolo della maschera e confronto con il Panorama di QuickMap.
 4. **Confronto e metriche** su un mese.

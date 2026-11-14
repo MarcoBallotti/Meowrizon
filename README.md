@@ -8,7 +8,9 @@ disponibilità di energia solare e le finestre di comunicazione diretta con la T
 soprattutto al Polo Sud lunare.
 
 Stato attuale: frontend React + TypeScript + Vite con CesiumJS installato ma non ancora
-integrato. Backend e dati hanno solo la struttura delle cartelle.
+integrato. Backend FastAPI in Docker: regioni Artemis III scaricate da Moon Trek e servite da
+`GET /regions`; la valutazione non è ancora implementata (piano in
+[docs/piano-logica.md](docs/piano-logica.md)). Nessun database: i dati stanno in file in `data/`.
 
 ## Avvio del frontend
 
@@ -28,30 +30,64 @@ npm run lint
 npm run preview
 ```
 
+## Avvio del backend
+
+Prerequisito: Docker Desktop avviato.
+
+```sh
+docker compose up --build backend
+docker compose run --rm backend python -m app.cli init-regions
+```
+
+Il secondo comando, da lanciare la prima volta, scarica le regioni Artemis III da Moon Trek e
+crea `data/regions/`. L'API risponde su http://localhost:8000, con la documentazione su
+http://localhost:8000/docs. Test, configurazione e altri comandi sono in
+[backend/README.md](backend/README.md).
+
+## Ripartizione del lavoro
+
+Tutta la logica è in **Python**; **TypeScript** serve solo all'interfaccia.
+
+| Parte | Linguaggio | Cosa fa |
+|---|---|---|
+| Backend (`backend/`) | Python, FastAPI | Download dei dati (Horizons, Moon Trek, PDS), horizon mask, valutazione e classifica delle regioni, API, agente AI |
+| Frontend (`frontend/`) | TypeScript, React, CesiumJS | Globo 3D, mappe, grafici, linea del tempo e animazione di Sole e Terra a partire dai dati del backend |
+
+Il contratto tra i due è lo schema OpenAPI che FastAPI genera da solo su `/openapi.json`: da lì
+si ricavano i tipi TypeScript del frontend. In sviluppo il backend accetta richieste dal server
+di Vite (`localhost:5173`); altri indirizzi si aggiungono con `CORS_ORIGINS` in `.env`.
+
 ## Struttura
 
 ```text
 frontend/                     React + TypeScript + Vite + CesiumJS
 backend/
   app/
-    api/                      Endpoint e schemi FastAPI
-    core/                     Configurazione
-    db/                       SQLite
+    main.py                   Applicazione FastAPI (CORS, router)
+    cli.py                    Comandi da terminale (init-regions)
+    api/                      Endpoint (health, regions)
+    core/                     Configurazione, riferimento lunare e proiezione, registro dei download
     services/
-      terrain/                Horizon mask dai DEM LOLA (GDAL, Rasterio, NumPy)
-      ephemerides/            Posizione di Sole e Terra (Horizons / SpiceyPy)
+      regions/                Catalogo, download da Moon Trek, costruzione dei GeoJSON
+      terrain/                DEM LOLA e horizon mask (GDAL, Rasterio, NumPy)
+      ephemerides/            Posizione di Sole e Terra (API Horizons)
+  catalog/                    Regioni e siti da usare (regions.toml, sites.toml), in Git
+  tests/                      Test pytest, con la risposta reale di Moon Trek in fixtures/
+  Dockerfile                  Immagine del backend (micromamba + conda-forge)
   environment.yml             Dipendenze Python e native
+docker-compose.yml            Servizio backend per lo sviluppo
+.env.example                  Variabili configurabili (copiare in .env)
 data/
+  sources/                    Download grezzi dalle fonti e registro manifest.json
+  regions/                    regions.geojson, sites.geojson e, in seguito, dati per regione
   rasters/                    DEM LOLA e ritagli locali
-  kernels/                    Kernel SPICE (opzionali)
-  cache/                      Effemeridi, horizon mask e prodotti per sito
-  scenarios/                  Scenari salvati
-  sqlite/                     Database locali
+  cache/                      Effemeridi e risultati intermedi rigenerabili
+  scenarios/                  Scenari salvati (file JSON)
 docs/                         Documentazione
 ```
 
-Le dipendenze Python sono dichiarate ma non installate. Vedere
-[backend/README.md](backend/README.md) per creare l'ambiente.
+Le dipendenze Python si installano nell'immagine Docker del backend. Vedere
+[backend/README.md](backend/README.md), che spiega anche come creare l'ambiente senza Docker.
 
 ## Fonti dei dati
 
@@ -85,7 +121,7 @@ COMMAND='301'  CENTER='500@399'  QUANTITIES='14,15,20'
 Azimut ed elevazione per un sito qualsiasi si ricavano poi con un cambio di frame locale.
 Lo scarto rispetto alla query topocentrica di Horizons è inferiore a 0,001°. Due anni a
 passo orario sono circa 17.500 righe, ~1 MB, scaricati in una richiesta da pochi secondi.
-La stessa tabella si può calcolare offline con SpiceyPy e i kernel in `data/kernels/`.
+Si usa solo l'API di Horizons: SpiceyPy e i kernel SPICE non fanno parte del progetto.
 
 ### Terreno: dal DEM alla horizon mask
 
@@ -126,8 +162,10 @@ come visibile quando il suo centro lo supera.
 
 ## Agente AI
 
-L'agente non legge serie temporali né DEM: chiama strumenti (function calling) che lavorano
-sui prodotti compatti e restituiscono pochi numeri.
+L'agente sta nel backend Python, accanto ai dati: i suoi strumenti chiamano direttamente le
+stesse funzioni usate dalle API. Non legge serie temporali né DEM: chiama strumenti (function
+calling) che lavorano sui prodotti compatti e restituiscono pochi numeri. I nomi qui sotto
+pensano ancora ai siti e vanno adattati alle regioni.
 
 - `list_sites()`
 - `site_summary(site_id, month?)`
@@ -155,6 +193,7 @@ Verifiche fatte:
 Limiti noti:
 
 - i siti a nord di 75°S non hanno terreno e usano l'orizzonte della sfera;
-- mancano le coordinate verificate delle regioni Artemis III e dei target CLPS;
+- le regioni Artemis III ora arrivano da Moon Trek (`init-regions`); mancano ancora i siti di
+  atterraggio, da definire in `backend/catalog/sites.toml` con la loro fonte;
 - le coordinate personalizzate richiedono il calcolo al volo della horizon mask, non ancora
   implementato.

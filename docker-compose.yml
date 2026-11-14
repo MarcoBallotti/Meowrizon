@@ -1,0 +1,24 @@
+name: meowrizon
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    image: meowrizon-backend:dev
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      MEOWRIZON_DATA_DIR: /app/data
+      # Su Windows le modifiche ai file montati non arrivano come eventi:
+      # il ricaricamento automatico controlla i file a intervalli.
+      WATCHFILES_FORCE_POLLING: "true"
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      # Codice montato per il ricaricamento automatico in sviluppo.
+      - ./backend:/app/backend
+      # Dati scaricati e cache: restano sul disco, fuori dall'immagine e fuori da Git.
+      - ./data:/app/data
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

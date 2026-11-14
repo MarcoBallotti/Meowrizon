@@ -1,0 +1,22 @@
+# Siti di atterraggio di Meowrizon: punti valutati come una cella di 100 × 100 m
+# (precisione di atterraggio richiesta da Artemis III [F1, slide 28]).
+#
+# Elenco ancora da definire con il team. Regole per aggiungere un sito:
+#   - "source" è obbligatoria: il comando init-regions rifiuta un sito senza fonte;
+#   - coordinate planetocentriche nel sistema Mean Earth (quelle pubblicate da LROC e LOLA),
+#     in gradi decimali: latitudine negativa a sud, longitudine Est in 0…360 o −180…180;
+#   - il sito deve stare nel settore definito in regions.toml;
+#   - la quota non si scrive: si leggerà dal DEM.
+#
+# Campi: id, name, lat, lon, kind ("atterrato" | "previsto" | "personalizzato"), source, note (facoltativa)
+#
+# Esempio di formato (da verificare sulla fonte prima di attivarlo):
+#
+# [[site]]
+# id = "im-2-target"
+# name = "IM-2 (Athena), punto previsto"
+# lat = -84.78
+# lon = 29.13
+# kind = "previsto"
+# source = "https://www.lroc.asu.edu/images/1401"
+# note = "Ha toccato il suolo a circa 250 m dal punto previsto"

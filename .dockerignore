@@ -1,0 +1,16 @@
+# Il contesto di build è la radice del repository: entra solo il backend.
+.git
+.github
+.vscode
+.idea
+node_modules
+**/node_modules
+frontend
+docs
+data
+.env
+.env.*
+**/__pycache__
+**/*.py[cod]
+**/.pytest_cache
+**/.ruff_cache
