@@ -279,6 +279,20 @@ class DataStore:
             raise PreparationError(f"Dataset is not prepared for {kind or 'analysis'}: {dataset_id}")
         return row
 
+    def raw_response(self, dataset_id):
+        """Resolve a complete original response and verify its stored checksum."""
+        row = self._catalog()["datasets"].get(dataset_id)
+        if row is None:
+            raise KeyError(dataset_id)
+        if row["status"] not in {"prepared", "archived"}:
+            raise PreparationError("Dataset is not available")
+        path = self._raw_path(row["raw_path"])
+        if not path.is_file():
+            raise FileNotFoundError("Original response is missing; collect this source again")
+        if _sha256(path) != row["sha256"]:
+            raise PreparationError("Original response checksum mismatch; collect this source again")
+        return path, row
+
     def series(self, dataset_id, *, start_ms=None, stop_ms=None):
         """Inclusive sample bounds, not visibility intervals. No interpolation/extrapolation."""
         dataset = self._require(dataset_id)

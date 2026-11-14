@@ -3,6 +3,7 @@
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, HTTPException, Path, Query, Request
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 from .services.jobs import QueueFullError
@@ -75,6 +76,39 @@ def job(job_id: str, request: Request):
 def datasets(request: Request, name: str | None = None):
     """List saved dataset versions and their preparation status."""
     return _store(request).datasets(name)
+
+
+def _raw_response(request, dataset_id):
+    try:
+        path, metadata = _store(request).raw_response(dataset_id)
+    except (KeyError, FileNotFoundError) as exc:
+        raise HTTPException(404, "Saved response not found; collect the source first") from exc
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from exc
+    media_types = {"json": "application/json", "tiff": "image/tiff", "jpeg": "image/jpeg",
+                   "png": "image/png", "xml": "application/xml"}
+    return FileResponse(path, media_type=media_types[metadata["metadata"]["request"]["format"]],
+                        headers={"X-Dataset-Id": dataset_id, "X-Source-Name": metadata["name"],
+                                 "ETag": f'"{metadata["sha256"]}"'})
+
+
+@router.get("/datasets/{dataset_id}/raw", response_class=FileResponse)
+def raw_dataset(dataset_id: DatasetId, request: Request):
+    """Return the unchanged upstream response for one saved dataset version."""
+    return _raw_response(request, dataset_id)
+
+
+@router.get("/sources/{source_name}/data", response_class=FileResponse)
+def source_data(source_name: str, request: Request, request_sha256: str | None = None):
+    """Return the latest saved response; select a request hash when parameters differ."""
+    rows = [row for row in _store(request).datasets(source_name)
+            if row["status"] in {"prepared", "archived"}
+            and (request_sha256 is None or row["request_sha256"] == request_sha256)]
+    if not rows:
+        raise HTTPException(404, "Saved response not found; POST /api/data/collect first")
+    if len({row["request_sha256"] for row in rows}) > 1:
+        raise HTTPException(409, "Multiple parameter sets: provide request_sha256 or use the dataset raw endpoint")
+    return _raw_response(request, rows[-1]["id"])
 
 
 @router.get("/datasets/{dataset_id}/samples")

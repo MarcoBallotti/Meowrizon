@@ -71,6 +71,13 @@ class AppTests(unittest.IsolatedAsyncioTestCase):
             network.assert_called_once()
         self.assertTrue((self.settings.jobs / f"{job['id']}.json").is_file())
         dataset = (await self.client.get("/api/data/datasets", params={"name": "horizons_sun_observer"})).json()[0]
+        raw = await self.client.get("/api/data/sources/horizons_sun_observer/data")
+        self.assertEqual(raw.status_code, 200)
+        self.assertEqual(raw.content, json.dumps(BODY).encode())
+        self.assertEqual(raw.headers["content-type"], "application/json")
+        self.assertEqual(raw.headers["x-dataset-id"], dataset["id"])
+        exact = await self.client.get(f"/api/data/datasets/{dataset['id']}/raw")
+        self.assertEqual(exact.content, raw.content)
         path = f"/api/data/datasets/{dataset['id']}/samples"
         samples = await self.client.get(path, params={"start_ms": 1796086800000})
         self.assertEqual(samples.status_code, 200)
@@ -94,6 +101,21 @@ class AppTests(unittest.IsolatedAsyncioTestCase):
                 response = await self.client.post("/api/data/collect", json=body)
                 self.assertEqual(response.status_code, 422)
         self.assertFalse(list(self.settings.jobs.glob("*.json")))
+
+    async def test_raw_endpoint_serves_archived_binary_and_rejects_corruption(self):
+        body = b'\xff\xd8\xffimage-fixture'
+        with patch.object(Collector, "_request", return_value=(body, {})):
+            response = await self.client.post("/api/data/collect", json={"names": ["moon_imagery_sample"]})
+            job = await self.wait_job(response.json()["id"])
+            self.assertEqual(job["status"], "completed")
+        url = "/api/data/sources/moon_imagery_sample/data"
+        response = await self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content, body)
+        self.assertEqual(response.headers["content-type"], "image/jpeg")
+        next(self.settings.raw.glob("*/*/*/response.jpg")).write_bytes(b"corrupt")
+        self.assertEqual((await self.client.get(url)).status_code, 409)
+        self.assertEqual((await self.client.get("/api/data/sources/missing/data")).status_code, 404)
 
     async def test_collection_failure_is_a_terminal_persistent_job(self):
         with patch.object(Collector, "_request", side_effect=DownloadError("source unavailable")):
