@@ -1,32 +1,52 @@
-# React + TypeScript + Vite
+# Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+React 19 + TypeScript + Vite + CesiumJS. Tre viste sincronizzate:
 
-Currently, two official plugins are available:
+- **Globo lunare**: scelta del punto.
+- **Orizzonte locale**: profilo del terreno, Sole e Terra.
+- **Timeline**: finestre di illuminazione e visibilità terrestre.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Avvio
 
-## React Compiler
+Dalla radice del repository, con Node indicato in `.nvmrc`:
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```sh
+nvm use
+npm install
+npm run dev
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Altri comandi: `npm run build` (type-check + build), `npm run lint`, `npm run preview`.
+
+## Fonte dei dati
+
+| `VITE_DATA_SOURCE` | Comportamento |
+|---|---|
+| `demo` (predefinito) | `DemoProvider`: orizzonte procedurale ed effemeridi analitiche approssimate. Il badge «Dati dimostrativi» resta sempre visibile. |
+| `api` | `HttpProvider` verso `VITE_API_BASE_URL` (predefinito `/api`). In sviluppo Vite inoltra `/api` a `MEOWRIZON_API_ORIGIN`, predefinito `http://localhost:8000`. |
+
+Vedere [`.env.example`](.env.example) e il contratto in [`docs/api-contract.md`](../docs/api-contract.md).
+
+## Struttura
+
+```text
+src/
+  api/          types.ts (contratto), httpProvider, demoProvider, jobs (polling)
+  domain/       siti di esempio, formattazione, lettura di campioni e intervalli
+  state/        store esterno (useSyncExternalStore) e runner dei lavori
+  components/   ControlPanel, GlobeView (lazy), HorizonView, TimelineView, …
+```
+
+## Scelte implementative
+
+- **Cesium** viene caricato in modo differito, in un chunk separato da circa 1,1 MB gzip. Il plugin in `vite.config.ts` serve `Workers`, `Assets`, `Widgets` e `ThirdParty` dal pacchetto installato in sviluppo e li copia in `dist/cesium` durante la build. Non serve un token Cesium ion.
+- **Globo**: ellissoide `Ellipsoid.MOON` (sfera da 1737,4 km), senza atmosfera né nebbia. Immagini LRO WAC (NASA/GSFC/ASU) via WMTS Moon Trek, schema geografico 2×1. Il globo serve solo alla visualizzazione: non c’è terreno 3D e nessuna classificazione deriva dal rendering.
+- **Cursore temporale**: aggiorna le viste interpolando i campioni già caricati e leggendo la visibilità dagli intervalli forniti dal motore. Non genera richieste.
+- **Richieste**: partono 350 ms dopo l’ultima modifica di uno scenario. Una richiesta superata viene annullata e i risultati precedenti restano visibili, attenuati, finché arrivano quelli nuovi.
+- **Confronto A/B**: durata e passo sono condivisi. L’asse della timeline è il tempo trascorso dall’inizio di ciascuno scenario e la scala verticale dell’orizzonte è comune.
+
+## Limiti noti
+
+- Nessun backend: con `demo` i numeri non hanno valore scientifico.
+- Le immagini equirettangolari si deformano vicino ai poli. Un mosaico polare stereografico richiederebbe tessere preparate apposta.
+- Le coperture DEM mostrate sul globo sono fasce di latitudine dichiarate, non la disponibilità effettiva dei dati.

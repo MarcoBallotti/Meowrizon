@@ -1,111 +1,189 @@
+/* =====================================================================
+   Meowrizon brand tokens
+   Light classroom ground, white cards, one dark "space window".
+   Two meaning colours only: amber = Sun / light, blue = Earth / link.
+   Indigo is the action colour and never means Sun or Earth.
+   ===================================================================== */
+
 :root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+  /* Ground and surfaces */
+  --ground: #eceef6;
+  --card: #ffffff;
+  --card-sunk: #f5f6fb;
+  --line: #c9cde0;
+  --line-soft: #e3e5f0;
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
+  /* Ink */
+  --ink: #171a2b;
+  --ink-2: #4a4f66;
+  --ink-3: #5f6480;
 
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light dark;
-  color: var(--text);
-  background: var(--bg);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  /* Action */
+  --primary: #2b2fa8;
+  --primary-hover: #23268c;
+  --primary-press: #1b1d6e;
+  --primary-soft: #e5e7fa;
+  --on-primary: #ffffff;
 
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
+  /* Meaning */
+  --sun: #f5a300;
+  --sun-ink: #8a5a00;
+  --sun-soft: #fff1d1;
+  --earth: #2f6fed;
+  --earth-sky: #5b93ff;
+  --earth-night: #1a2e66;
+  --earth-ink: #1f55c4;
+  --earth-soft: #e2ecff;
+  --both: #171a2b;
+  --danger: #c4314b;
+  --danger-soft: #fce6ea;
+
+  /* Space window */
+  --space: #0b0d1a;
+  --space-2: #15182b;
+  --space-line: #2c3050;
+  --space-ink: #e9eaf5;
+  --space-ink-2: #a7aac4;
+  --rock-far-top: #3a3b55;
+  --rock-far-bottom: #22233a;
+  --rock-mid-top: #55546a;
+  --rock-mid-bottom: #1a1b2c;
+  --rock-near-top: #8e8ca0;
+  --rock-near-bottom: #17182a;
+
+  /* Type */
+  --font-display: 'Bricolage Grotesque', system-ui, sans-serif;
+  --font-text: 'Figtree', system-ui, sans-serif;
+  --font-data: 'JetBrains Mono', ui-monospace, monospace;
+  --text-xs: 14px;
+  --text-s: 16px;
+  --text-m: 18px;
+  --text-l: 20px;
+  --title-s: 24px;
+  --title-m: 30px;
+  --display-s: 44px;
+  --display-m: 56px;
+
+  /* Shape */
+  --r-window: 32px;
+  --r-card: 24px;
+  --r-control: 16px;
+  --r-small: 10px;
+  --r-pill: 999px;
+
+  /* Space scale */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 20px;
+  --s-6: 24px;
+  --s-7: 28px;
+  --s-8: 32px;
+  --s-10: 48px;
+
+  /* Touch targets: classroom first */
+  --target-s: 44px;
+  --target-m: 60px;
+  --target-l: 72px;
+
+  /* Motion */
+  --t-fast: 120ms;
+  --t-base: 220ms;
+  --t-slow: 600ms;
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+
+  --focus-ring: 0 0 0 3px var(--card), 0 0 0 6px var(--primary);
+
+  color-scheme: light;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
-
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
+/* Planner density: same brand, tighter scale for desks instead of projectors. */
+[data-audience='planner'] {
+  --text-xs: 13px;
+  --text-s: 14px;
+  --text-m: 16px;
+  --text-l: 17px;
+  --title-s: 20px;
+  --title-m: 26px;
+  --display-s: 32px;
+  --display-m: 40px;
+  --r-card: 20px;
+  --target-m: 52px;
+  --target-l: 60px;
 }
 
-#root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
-  display: flex;
-  flex-direction: column;
+* {
   box-sizing: border-box;
 }
 
-body {
+html,
+body,
+#root {
   margin: 0;
+  min-height: 100%;
+}
+
+body {
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--font-text);
+  font-size: var(--text-m);
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+a {
+  color: var(--primary);
+}
+
+a:hover {
+  color: var(--ink);
+}
+
+:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
-}
-
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
-  }
-}
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
-  }
-}
+h2,
+h3,
 p {
   margin: 0;
 }
 
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
+.tabular {
+  font-variant-numeric: tabular-nums;
 }
 
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
+.mono {
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    transition-duration: 1ms !important;
+  }
 }

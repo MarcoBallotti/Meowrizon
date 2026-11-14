@@ -7,8 +7,11 @@ Mostra la posizione di Sole e Terra rispetto all'orizzonte reale del sito, per s
 disponibilità di energia solare e le finestre di comunicazione diretta con la Terra,
 soprattutto al Polo Sud lunare.
 
-Stato attuale: frontend React + TypeScript + Vite con CesiumJS installato ma non ancora
-integrato. Backend e dati hanno solo la struttura delle cartelle.
+Stato attuale: il frontend React + TypeScript + Vite + CesiumJS è funzionante con tre viste
+sincronizzate (globo, orizzonte e timeline) e con il confronto A/B. **Il motore numerico non è
+ancora collegato:** per impostazione predefinita il frontend usa un provider di **dati
+dimostrativi**, segnalato nell'interfaccia. Il client HTTP verso il motore segue il contratto in
+[docs/api-contract.md](docs/api-contract.md). Dettagli in [frontend/README.md](frontend/README.md).
 
 ## Avvio del frontend
 
@@ -27,6 +30,8 @@ npm run build
 npm run lint
 npm run preview
 ```
+
+Per collegare il motore, quando sarà disponibile: `VITE_DATA_SOURCE=api npm run dev`. Vedere `frontend/.env.example`.
 
 ## Struttura
 
@@ -47,7 +52,7 @@ data/
   cache/                      Effemeridi, horizon mask e prodotti per sito
   scenarios/                  Scenari salvati
   sqlite/                     Database locali
-docs/                         Documentazione
+docs/                         Guida ai dati e contratto API
 ```
 
 Le dipendenze Python sono dichiarate ma non installate. Vedere
