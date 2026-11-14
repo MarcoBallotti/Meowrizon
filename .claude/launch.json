@@ -6,6 +6,12 @@
       "runtimeExecutable": "bash",
       "runtimeArgs": ["-lc", "source ~/.nvm/nvm.sh && nvm use >/dev/null && cd frontend && npx vite --port 5180 --strictPort"],
       "port": 5180
+    },
+    {
+      "name": "frontend-alt",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-lc", "source ~/.nvm/nvm.sh && nvm use >/dev/null && cd frontend && npx vite --port 5181 --strictPort"],
+      "port": 5181
     }
   ]
 }

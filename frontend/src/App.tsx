@@ -1,12 +1,10 @@
-import { lazy, Suspense, useEffect, useRef } from 'react'
-import { provider } from './api'
-import { ControlPanel } from './components/ControlPanel'
-import { HorizonView } from './components/HorizonView'
-import { TimelineView } from './components/TimelineView'
+import { useEffect, useRef } from 'react'
+import { KitScreen } from './screens/KitScreen'
+import { MoonScreen } from './screens/MoonScreen'
+import { SiteScreen } from './screens/SiteScreen'
 import { loadCoverage, runScenario } from './state/runner'
-import { getState, setState, useStore, type ScenarioKey } from './state/store'
-
-const GlobeView = lazy(() => import('./components/GlobeView'))
+import { getState, screenFromHash, setState, useStore, type ScenarioKey } from './state/store'
+import './screens/screens.css'
 
 /** Re-run a scenario shortly after its inputs settle; superseded runs are aborted. */
 function useAutoRun() {
@@ -31,11 +29,13 @@ function useAutoRun() {
   }, [A, B, compare, durationDays, stepMinutes])
 }
 
+/** Space toggles playback on the site view, outside form controls. */
 function useKeyboard() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement
-      if (t.closest('input, select, textarea, button, [role="slider"]')) return
+      if (getState().screen !== 'site') return
+      if (t.closest('input, select, textarea, button, a, [role="slider"]')) return
       if (e.code === 'Space') {
         e.preventDefault()
         setState({ playing: !getState().playing })
@@ -46,58 +46,36 @@ function useKeyboard() {
   }, [])
 }
 
-function BrandMark() {
-  return (
-    <svg viewBox="0 0 32 32" className="brand-mark" aria-hidden="true">
-      <circle cx="16" cy="16" r="15" className="brand-disc" />
-      <path d="M2 19 L8 15 L12 17 L17 12 L22 16 L26 14 L30 18 V31 H2 Z" className="brand-terrain" />
-      <circle cx="23" cy="8" r="2.6" className="brand-sun" />
-    </svg>
-  )
+function useHashRoute() {
+  useEffect(() => {
+    const onHash = () => setState({ screen: screenFromHash(location.hash), playing: false })
+    window.addEventListener('popstate', onHash)
+    window.addEventListener('hashchange', onHash)
+    return () => {
+      window.removeEventListener('popstate', onHash)
+      window.removeEventListener('hashchange', onHash)
+    }
+  }, [])
 }
 
 export default function App() {
-  const compare = useStore((s) => s.compare)
+  const screen = useStore((s) => s.screen)
+  const audience = useStore((s) => s.audience)
   useAutoRun()
   useKeyboard()
+  useHashRoute()
   useEffect(() => {
     void loadCoverage()
   }, [])
+  useEffect(() => {
+    document.documentElement.dataset.audience = audience
+  }, [audience])
 
   return (
-    <div className="app">
-      <header className="topbar">
-        <div className="brand">
-          <BrandMark />
-          <div>
-            <h1>Meowrizon</h1>
-            <p className="brand-sub">Navigatore dei siti di atterraggio lunare</p>
-          </div>
-        </div>
-        {provider.kind === 'demo' ? (
-          <div className="demo-badge" role="note">
-            <span className="demo-badge-dot" aria-hidden="true" />
-            <span>
-              <strong>Dati dimostrativi</strong> — orizzonte ed effemeridi sintetici, motore numerico non collegato
-            </span>
-          </div>
-        ) : (
-          <div className="source-badge">Motore numerico collegato</div>
-        )}
-      </header>
-
-      <ControlPanel />
-
-      <main className={`stage${compare ? ' is-compare' : ''}`}>
-        <section className="view view-globe" aria-label="Globo lunare">
-          <Suspense fallback={<div className="globe-loading">Caricamento del globo…</div>}>
-            <GlobeView />
-          </Suspense>
-        </section>
-        <HorizonView />
-      </main>
-
-      <TimelineView />
+    <div className="app" data-screen={screen}>
+      {screen === 'moon' && <MoonScreen />}
+      {screen === 'site' && <SiteScreen />}
+      {screen === 'kit' && <KitScreen />}
     </div>
   )
 }

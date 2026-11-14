@@ -4,6 +4,16 @@ import { EXAMPLE_SITES } from '../domain/sites'
 
 export type ScenarioKey = 'A' | 'B'
 
+/** Who is reading: the whole tool adapts its copy, density and data. */
+export type Audience = 'student' | 'teacher' | 'planner'
+export const AUDIENCES: { id: Audience; label: string; hint: string }[] = [
+  { id: 'student', label: 'Student', hint: 'Plain words, big pictures, no jargon.' },
+  { id: 'teacher', label: 'Teacher', hint: 'Numbers with explanations and prompts for the class.' },
+  { id: 'planner', label: 'Planner', hint: 'Full technical data, exact times, A/B comparison.' },
+]
+
+export type Screen = 'moon' | 'site' | 'kit'
+
 export interface ScenarioInput {
   site: SiteCoordinates
   /** Name of the example site when chosen from the list; null for free picks. */
@@ -31,6 +41,8 @@ export interface Scenario {
 }
 
 export interface AppState {
+  screen: Screen
+  audience: Audience
   scenarios: Record<ScenarioKey, Scenario>
   active: ScenarioKey
   compare: boolean
@@ -55,7 +67,25 @@ const startOfTodayUtc = (() => {
 const first = EXAMPLE_SITES[0]
 const second = EXAMPLE_SITES[2]
 
+function storedAudience(): Audience {
+  try {
+    const v = localStorage.getItem('meowrizon.audience')
+    if (v === 'student' || v === 'teacher' || v === 'planner') return v
+  } catch {
+    // Storage unavailable (private mode, blocked site data): use the default.
+  }
+  return 'student'
+}
+
+export function screenFromHash(hash: string): Screen {
+  if (hash.startsWith('#/site')) return 'site'
+  if (hash.startsWith('#/kit')) return 'kit'
+  return 'moon'
+}
+
 const initialState: AppState = {
+  screen: screenFromHash(typeof location === 'undefined' ? '' : location.hash),
+  audience: storedAudience(),
   scenarios: {
     A: {
       input: { site: { latDeg: first.latDeg, lonEastDeg: first.lonEastDeg }, siteName: first.name, observerHeightM: 2, startMs: startOfTodayUtc },
@@ -100,6 +130,22 @@ export function updateScenario(key: ScenarioKey, fn: (s: Scenario) => Scenario):
 
 export function setScenarioInput(key: ScenarioKey, patch: Partial<ScenarioInput>): void {
   updateScenario(key, (s) => ({ input: { ...s.input, ...patch }, run: { ...s.run, stale: true } }))
+}
+
+export function setAudience(audience: Audience): void {
+  try {
+    localStorage.setItem('meowrizon.audience', audience)
+  } catch {
+    // Not persisted; the choice still applies to this visit.
+  }
+  setState({ audience })
+}
+
+export function goTo(screen: Screen): void {
+  const hash = screen === 'moon' ? '#/' : `#/${screen}`
+  if (location.hash !== hash) history.pushState(null, '', hash)
+  setState({ screen, playing: false })
+  window.scrollTo(0, 0)
 }
 
 function subscribe(l: Listener): () => void {

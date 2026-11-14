@@ -22,22 +22,22 @@ import type {
   TimeInterval,
 } from './types'
 import { bestProductFor } from '../domain/coverage'
+import { subEarthPoint, subSolarPoint } from '../domain/approxEphemeris'
 
 const DEG = Math.PI / 180
 const MOON_RADIUS_KM = 1737.4
-const DAY_MS = 86_400_000
 
 /** Real product descriptions; `available: false` because no engine is connected. */
 export const DEM_CATALOG: DemProduct[] = [
   {
     id: 'lola-gdr-global',
-    title: 'LOLA GDR globale (es. LDEM_128)',
+    title: 'LOLA GDR global (e.g. LDEM_128)',
     pixelSizeM: 237,
     latMinDeg: -90,
     latMaxDeg: 90,
     source: 'NASA LRO / LOLA',
     url: 'https://imbrium.mit.edu/BROWSE/LOLA_GDR/',
-    notes: 'Copertura di base. Formati PDS .IMG/.LBL o .JP2 da normalizzare. Densità di misura non uniforme.',
+    notes: 'Baseline coverage. PDS .IMG/.LBL or .JP2 formats still to normalise. Uneven measurement density.',
     available: false,
   },
   {
@@ -48,29 +48,29 @@ export const DEM_CATALOG: DemProduct[] = [
     latMaxDeg: 60,
     source: 'NASA GSFC PGDA',
     url: 'https://pgda.gsfc.nasa.gov/products/54',
-    notes: 'Solo fascia 60°S–60°N.',
+    notes: '60°S–60°N band only.',
     available: false,
   },
   {
     id: 'LDEM_80S_20MPP_ADJ',
-    title: 'LOLA Polo Sud 20 m/pixel (LDEM_80S_20MPP_ADJ)',
+    title: 'LOLA south pole 20 m/pixel (LDEM_80S_20MPP_ADJ)',
     pixelSizeM: 20,
     latMinDeg: -90,
     latMaxDeg: -80,
     source: 'NASA GSFC PGDA',
     url: 'https://pgda.gsfc.nasa.gov/products/90',
-    notes: 'COG/BigTIFF; accesso HTTP Range verificato, contenuto non ancora decodificato.',
+    notes: 'COG/BigTIFF; HTTP Range access verified, content not decoded yet.',
     available: false,
   },
   {
     id: 'lola-sp-5mpp',
-    title: 'LOLA Polo Sud 5 m/pixel',
+    title: 'LOLA south pole 5 m/pixel',
     pixelSizeM: 5,
     latMinDeg: -90,
     latMaxDeg: -87,
     source: 'NASA GSFC PGDA',
     url: 'https://pgda.gsfc.nasa.gov/products/81',
-    notes: 'Elencato per 87°–90°S; accesso non ancora verificato.',
+    notes: 'Listed for 87°–90°S; access not verified yet.',
     available: false,
   },
 ]
@@ -110,7 +110,8 @@ function syntheticHorizon(req: TerrainAnalysisRequest): HorizonProfile {
   const { latDeg, lonEastDeg } = req.site
   const rand = mulberry32(seedFrom(latDeg, lonEastDeg))
   const polar = Math.min(1, Math.max(0, (Math.abs(latDeg) - 70) / 18))
-  const relief = 0.6 + 2.4 * polar + 1.2 * rand()
+  // Tuned so polar demo sites alternate between light and shadow, as real rims do.
+  const relief = 0.5 + 1.6 * polar + 0.8 * rand()
 
   const harmonics = Array.from({ length: 9 }, (_, i) => ({
     k: i + 1,
@@ -120,7 +121,7 @@ function syntheticHorizon(req: TerrainAnalysisRequest): HorizonProfile {
   const ridges = Array.from({ length: 2 + Math.floor(rand() * 3) }, () => ({
     center: rand() * 360,
     width: 6 + rand() * 25,
-    height: relief * (0.6 + rand() * 1.6),
+    height: relief * (0.5 + rand() * 1.2),
   }))
 
   const step = req.config.azimuthStepDeg
@@ -129,7 +130,7 @@ function syntheticHorizon(req: TerrainAnalysisRequest): HorizonProfile {
   const elevationDeg: number[] = []
   // A taller mast sees slightly over the nearby terrain (purely illustrative).
   const heightDrop = Math.min(0.8, Math.sqrt(Math.max(0, req.observerHeightM)) * 0.08)
-  const offset = 0.3 * relief - heightDrop
+  const offset = -0.1 * relief - heightDrop
 
   for (let i = 0; i < n; i++) {
     const az = i * step
@@ -156,28 +157,11 @@ function syntheticHorizon(req: TerrainAnalysisRequest): HorizonProfile {
     dem: { productIds: [product.id], effectivePixelSizeM: product.pixelSizeM, noDataFraction: 0 },
     params: { ...req.config },
     algorithmVersion: 'demo-procedural-0',
-    warnings: ['Orizzonte generato proceduralmente: non deriva da un DEM.'],
+    warnings: ['Procedurally generated horizon: not derived from a DEM.'],
   }
 }
 
 // ---------------------------------------------------------------- ephemeris
-
-const NEW_MOON_EPOCH_MS = Date.UTC(2000, 0, 6, 18, 14)
-const SYNODIC_DAYS = 29.530589
-
-function subSolarPoint(tMs: number): [number, number] {
-  const days = (tMs - NEW_MOON_EPOCH_MS) / DAY_MS
-  const lon = 180 - (360 * days) / SYNODIC_DAYS
-  const lat = 1.543 * Math.sin((2 * Math.PI * days) / 346.62)
-  return [lat, lon]
-}
-
-function subEarthPoint(tMs: number): [number, number] {
-  const days = (tMs - NEW_MOON_EPOCH_MS) / DAY_MS
-  const lon = 7.9 * Math.sin((2 * Math.PI * days) / 27.5546)
-  const lat = 6.7 * Math.sin((2 * Math.PI * days) / 27.2122 + 1.0)
-  return [lat, lon]
-}
 
 /** Az/el of a body at infinity whose sub-point is (latB, lonB). */
 function topocentric(latDeg: number, lonDeg: number, latB: number, lonB: number): [number, number] {
@@ -274,7 +258,7 @@ const MAX_SAMPLES = 20_000
 
 export class DemoProvider implements DataProvider {
   readonly kind = 'demo' as const
-  readonly label = 'Dati dimostrativi'
+  readonly label = 'Demo data'
   private jobs = new Map<string, DemoJob<unknown>>()
   private byKey = new Map<string, string>()
   private analyses = new Map<string, TerrainAnalysis>()
@@ -293,7 +277,7 @@ export class DemoProvider implements DataProvider {
 
   private advance<T>(id: string): JobState<T> {
     const job = this.jobs.get(id) as DemoJob<T> | undefined
-    if (!job) return { id, status: 'failed', error: { code: 'not_found', message: 'Lavoro inesistente.' } }
+    if (!job) return { id, status: 'failed', error: { code: 'not_found', message: 'Job not found.' } }
     if (job.state.status !== 'completed') {
       const remaining = job.readyAt - Date.now()
       if (remaining <= 0) {
@@ -328,7 +312,7 @@ export class DemoProvider implements DataProvider {
       return {
         id: 'invalid',
         status: 'failed',
-        error: { code: 'unknown_analysis', message: 'Analisi del terreno non trovata.' },
+        error: { code: 'unknown_analysis', message: 'Terrain analysis not found.' },
       }
     }
     const start = Date.parse(req.startUtc)
@@ -338,7 +322,7 @@ export class DemoProvider implements DataProvider {
       return {
         id: 'invalid',
         status: 'failed',
-        error: { code: 'invalid_range', message: `Intervallo non valido o oltre ${MAX_SAMPLES} campioni.` },
+        error: { code: 'invalid_range', message: `Invalid range or more than ${MAX_SAMPLES} samples.` },
       }
     }
     return this.submit(`eval:${key(req)}`, 350, () => {
@@ -359,15 +343,15 @@ export class DemoProvider implements DataProvider {
         intervals: { sun: sunI, earth: earthI, both: intersect(sunI, earthI) },
         visibilityModel: 'body-center',
         ephemeris: {
-          source: 'Modello analitico dimostrativo',
+          source: 'Demo analytic model',
           version: 'demo-0',
           kernels: [],
-          corrections: 'Nessuna (corpi all’infinito, senza parallasse né aberrazione)',
+          corrections: 'None (bodies at infinity, no parallax or aberration)',
         },
         approximations: [
-          'Orizzonte sintetico, non calcolato da un DEM.',
-          'Direzioni di Sole e Terra da moto sinodico medio e librazione sinusoidale: errori di alcuni gradi.',
-          'Visibilità riferita al solo centro del disco.',
+          'Synthetic horizon, not computed from a DEM.',
+          'Sun and Earth directions from mean synodic motion and sinusoidal libration: errors of several degrees.',
+          'Visibility refers to the centre of the disc only.',
         ],
       }
     })

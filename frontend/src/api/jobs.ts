@@ -42,11 +42,11 @@ export async function runJob<T>(
   for (;;) {
     onUpdate(state)
     if (state.status === 'completed') {
-      if (!state.result) throw new JobFailedError('empty_result', 'Il lavoro è completato ma non contiene risultati.')
+      if (!state.result) throw new JobFailedError('empty_result', 'The job completed without a result.')
       return state.result
     }
     if (state.status === 'failed') {
-      throw new JobFailedError(state.error?.code ?? 'failed', state.error?.message ?? 'Elaborazione non riuscita.')
+      throw new JobFailedError(state.error?.code ?? 'failed', state.error?.message ?? 'Processing failed.')
     }
     await sleep(delay, signal)
     delay = Math.min(delay * 1.6, 3000)

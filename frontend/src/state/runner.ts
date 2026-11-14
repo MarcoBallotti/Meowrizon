@@ -6,7 +6,7 @@ const controllers: Partial<Record<ScenarioKey, AbortController>> = {}
 
 function describe(err: unknown): string {
   if (err instanceof Error) return err.message
-  return 'Errore sconosciuto.'
+  return 'Unknown error.'
 }
 
 /**

@@ -24,7 +24,7 @@ export class HttpError extends Error {
  */
 export class HttpProvider implements DataProvider {
   readonly kind = 'api' as const
-  readonly label = 'Motore numerico'
+  readonly label = 'Numerical engine'
   private readonly base: string
 
   constructor(baseUrl: string) {
