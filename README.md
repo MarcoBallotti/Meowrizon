@@ -7,12 +7,64 @@ Mostra la posizione di Sole e Terra rispetto all'orizzonte reale del sito, per s
 disponibilità di energia solare e le finestre di comunicazione diretta con la Terra,
 soprattutto al Polo Sud lunare.
 
-Stato attuale: frontend React + TypeScript + Vite con CesiumJS installato ma non ancora
-integrato. Backend FastAPI in Docker: regioni Artemis III scaricate da Moon Trek e servite da
-`GET /regions`; la valutazione non è ancora implementata (piano in
-[docs/piano-logica.md](docs/piano-logica.md)). Nessun database: i dati stanno in file in `data/`.
+Stato attuale:
 
-## Avvio del frontend
+- **frontend** React + TypeScript + Vite + CesiumJS funzionante con tre viste sincronizzate
+  (globo, orizzonte e timeline) e con il confronto A/B. **Il motore numerico non è ancora
+  collegato:** per impostazione predefinita il frontend usa un provider di **dati dimostrativi**,
+  segnalato nell'interfaccia. Il client HTTP verso il motore segue il contratto in
+  [docs/api-contract.md](docs/api-contract.md) e [backend/API_CONTRACT.md](backend/API_CONTRACT.md).
+  Dettagli in [frontend/README.md](frontend/README.md);
+- **backend** FastAPI: regioni Artemis III scaricate da Moon Trek e servite da `GET /api/regions`;
+  gli endpoint del contratto e la valutazione non sono ancora implementati (piano in
+  [docs/piano-logica.md](docs/piano-logica.md)). Nessun database: i dati stanno in file in `data/`.
+  Il contratto prevede Flask, il backend attuale usa FastAPI: scelta da confermare nel team.
+
+## Avvio con Docker (consigliato)
+
+Prerequisiti: Docker Desktop avviato e npm (per lanciare i comandi qui sotto; ogni comando è un
+alias di `docker compose`, che si può usare anche direttamente). Dalla radice del repository:
+
+```sh
+npm run setup    # la prima volta: costruisce le immagini e scarica le regioni da Moon Trek
+npm start        # avvia backend e frontend
+```
+
+| Servizio | Indirizzo | Cosa fa |
+|---|---|---|
+| `frontend` | http://localhost:5173 | Server di sviluppo Vite, si ricarica a ogni modifica in `frontend/` |
+| `backend` | http://localhost:8000/api, documentazione su http://localhost:8000/api/docs | API FastAPI, si riavvia a ogni modifica in `backend/` |
+| `web` (solo `npm run prod`) | http://localhost:8080 | Frontend compilato servito da nginx, come in produzione |
+
+Il frontend inoltra le chiamate `/api` al backend dentro la rete Docker. Per usare il motore al
+posto dei dati dimostrativi: `VITE_DATA_SOURCE=api` in `.env` (vedere `.env.example`).
+
+Comandi disponibili (`npm run <nome>`):
+
+| Comando | Cosa fa | Equivale a |
+|---|---|---|
+| `setup` | Costruisce le immagini e inizializza i dati | `docker compose build` + `data:init` |
+| `start` | Avvia backend e frontend in primo piano | `docker compose up --build` |
+| `start:bg` | Come `start`, in background | `docker compose up --build --detach` |
+| `stop` | Ferma e rimuove i container | `docker compose down` |
+| `logs` | Segue i log di tutti i servizi | `docker compose logs --follow` |
+| `status` | Stato dei container | `docker compose ps` |
+| `prod` | Versione di produzione su :8080 | `docker compose --profile prod up --build web` |
+| `prod:stop` | Ferma anche la versione di produzione | `docker compose --profile prod down` |
+| `data:init` | Scarica le regioni Artemis III e crea `data/regions/` | `docker compose run --rm backend python -m app.cli init-regions` |
+| `data:init:offline` | Come sopra, riusando l'ultimo download | … `init-regions --offline` |
+| `check` | Tutti i controlli: backend e frontend | `check:backend` + `check:frontend` |
+| `check:backend` | ruff e pytest nel container | `docker compose run --rm backend …` |
+| `check:frontend` | oxlint e controllo dei tipi nel container | `docker compose run --rm frontend …` |
+| `test:network` | Verifica che il backend raggiunga Horizons | `docker compose run --rm backend pytest -m network` |
+| `dev`, `build`, `lint`, `preview` | Frontend senza Docker (vedi sotto) | `npm run … --workspace @meowrizon/frontend` |
+
+Dopo aver cambiato le dipendenze (`package.json` o `backend/environment.yml`):
+`docker compose up --build -V`, che ricostruisce le immagini e rinnova i volumi delle dipendenze.
+
+Altri dettagli in [backend/README.md](backend/README.md) e [frontend/README.md](frontend/README.md).
+
+## Avvio del frontend senza Docker
 
 Prerequisiti: Node.js compatibile con `.nvmrc` e npm.
 
@@ -30,19 +82,7 @@ npm run lint
 npm run preview
 ```
 
-## Avvio del backend
-
-Prerequisito: Docker Desktop avviato.
-
-```sh
-docker compose up --build backend
-docker compose run --rm backend python -m app.cli init-regions
-```
-
-Il secondo comando, da lanciare la prima volta, scarica le regioni Artemis III da Moon Trek e
-crea `data/regions/`. L'API risponde su http://localhost:8000, con la documentazione su
-http://localhost:8000/docs. Test, configurazione e altri comandi sono in
-[backend/README.md](backend/README.md).
+Per collegare il motore, quando sarà disponibile: `VITE_DATA_SOURCE=api npm run dev`. Vedere `frontend/.env.example`.
 
 ## Ripartizione del lavoro
 
@@ -53,14 +93,19 @@ Tutta la logica è in **Python**; **TypeScript** serve solo all'interfaccia.
 | Backend (`backend/`) | Python, FastAPI | Download dei dati (Horizons, Moon Trek, PDS), horizon mask, valutazione e classifica delle regioni, API, agente AI |
 | Frontend (`frontend/`) | TypeScript, React, CesiumJS | Globo 3D, mappe, grafici, linea del tempo e animazione di Sole e Terra a partire dai dati del backend |
 
-Il contratto tra i due è lo schema OpenAPI che FastAPI genera da solo su `/openapi.json`: da lì
-si ricavano i tipi TypeScript del frontend. In sviluppo il backend accetta richieste dal server
-di Vite (`localhost:5173`); altri indirizzi si aggiungono con `CORS_ORIGINS` in `.env`.
+Il contratto tra i due è descritto in [docs/api-contract.md](docs/api-contract.md) e, in
+dettaglio, in [backend/API_CONTRACT.md](backend/API_CONTRACT.md): tutte le API stanno sotto
+`/api`, con JSON in camelCase. FastAPI pubblica anche lo schema OpenAPI su `/api/openapi.json`.
+Il frontend chiama `/api` sul proprio indirizzo e Vite (o nginx in produzione) inoltra al backend;
+per chiamate dirette dal browser il backend accetta anche il server di Vite (`localhost:5173`),
+altri indirizzi si aggiungono con `CORS_ORIGINS` in `.env`.
 
 ## Struttura
 
 ```text
 frontend/                     React + TypeScript + Vite + CesiumJS
+  Dockerfile                  Immagine di sviluppo (Vite) e di produzione (nginx)
+  nginx.conf                  Configurazione nginx: file statici e inoltro di /api al backend
 backend/
   app/
     main.py                   Applicazione FastAPI (CORS, router)
@@ -75,7 +120,7 @@ backend/
   tests/                      Test pytest, con la risposta reale di Moon Trek in fixtures/
   Dockerfile                  Immagine del backend (micromamba + conda-forge)
   environment.yml             Dipendenze Python e native
-docker-compose.yml            Servizio backend per lo sviluppo
+docker-compose.yml            Servizi backend e frontend; web (nginx) con il profilo prod
 .env.example                  Variabili configurabili (copiare in .env)
 data/
   sources/                    Download grezzi dalle fonti e registro manifest.json
@@ -83,7 +128,7 @@ data/
   rasters/                    DEM LOLA e ritagli locali
   cache/                      Effemeridi e risultati intermedi rigenerabili
   scenarios/                  Scenari salvati (file JSON)
-docs/                         Documentazione
+docs/                         Guida ai dati, piano, regioni e contratto API
 ```
 
 Le dipendenze Python si installano nell'immagine Docker del backend. Vedere
