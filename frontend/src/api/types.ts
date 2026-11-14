@@ -1,0 +1,169 @@
+/**
+ * Contract between the frontend and the numerical engine.
+ *
+ * Conventions (shared by every provider):
+ * - Angles in degrees. Azimuth measured from local North, clockwise
+ *   (N 0°, E 90°, S 180°, W 270°). Elevation relative to the local
+ *   horizontal plane of the observer.
+ * - Longitudes are planetocentric East longitudes normalised to [-180, 180).
+ * - Times are UTC, transported as ISO 8601 strings in requests and as
+ *   Unix epoch milliseconds in sampled series.
+ * - Heights in metres unless the field name says otherwise.
+ *
+ * Every result carries `origin`: 'demo' results are synthetic and must never be
+ * presented as scientific analysis; 'engine' results come from the backend.
+ */
+
+export type DataOrigin = 'demo' | 'engine'
+
+export interface SiteCoordinates {
+  latDeg: number
+  lonEastDeg: number
+}
+
+// ---------------------------------------------------------------- coverage
+
+export interface DemProduct {
+  id: string
+  title: string
+  /** Declared pixel size. Not the same as the measured detail. */
+  pixelSizeM: number
+  /** Latitude band covered, inclusive. */
+  latMinDeg: number
+  latMaxDeg: number
+  source: string
+  url: string
+  /** Free-text caveats about quality, interpolation, availability. */
+  notes: string
+  /** Whether the engine currently has this product prepared on disk. */
+  available: boolean
+}
+
+export interface CoverageCatalog {
+  origin: DataOrigin
+  products: DemProduct[]
+}
+
+// ---------------------------------------------------------------- jobs
+
+export type JobStatus = 'queued' | 'running' | 'completed' | 'failed'
+
+export interface JobState<T> {
+  id: string
+  status: JobStatus
+  /** 0..1 when the engine can estimate it. */
+  progress?: number
+  message?: string
+  result?: T
+  error?: { code: string; message: string }
+}
+
+// ---------------------------------------------------------------- terrain
+
+export interface TerrainAnalysisRequest {
+  site: SiteCoordinates
+  /** Height of the observer (panel, antenna, camera) above the DEM surface. */
+  observerHeightM: number
+  config: {
+    azimuthStepDeg: number
+    maxDistanceKm: number
+  }
+}
+
+export interface HorizonProfile {
+  /** Strictly increasing, covering [0, 360). */
+  azimuthDeg: number[]
+  /** Terrain horizon angle H(azimuth). Can be negative. */
+  elevationDeg: number[]
+  observer: {
+    site: SiteCoordinates
+    /** DEM surface height relative to the product reference. */
+    surfaceHeightM: number | null
+    heightAboveSurfaceM: number
+    referenceRadiusKm: number
+  }
+  dem: {
+    productIds: string[]
+    effectivePixelSizeM: number
+    noDataFraction: number
+  }
+  params: {
+    azimuthStepDeg: number
+    maxDistanceKm: number
+  }
+  algorithmVersion: string
+  warnings: string[]
+}
+
+export interface TerrainAnalysis {
+  id: string
+  origin: DataOrigin
+  /** True for a lower-resolution preview superseded by a later result. */
+  preview: boolean
+  profile: HorizonProfile
+}
+
+// ---------------------------------------------------------------- scenario
+
+export interface ScenarioEvaluationRequest {
+  terrainAnalysisId: string
+  startUtc: string
+  stopUtc: string
+  stepMinutes: number
+}
+
+export interface BodyTrack {
+  azimuthDeg: number[]
+  elevationDeg: number[]
+  /** Terrain horizon along the body azimuth at each sample. */
+  horizonDeg: number[]
+  /** Engine classification of the body centre: above the terrain horizon. */
+  centerVisible: boolean[]
+}
+
+export interface TimeInterval {
+  startMs: number
+  endMs: number
+}
+
+export type BodyId = 'sun' | 'earth'
+
+export interface ScenarioEvaluation {
+  id: string
+  origin: DataOrigin
+  terrainAnalysisId: string
+  timeScale: 'UTC'
+  timesMs: number[]
+  sun: BodyTrack
+  earth: BodyTrack
+  /** Engine-refined intervals; the timeline draws these, not the samples. */
+  intervals: {
+    sun: TimeInterval[]
+    earth: TimeInterval[]
+    both: TimeInterval[]
+  }
+  /** Which geometric condition `centerVisible` and `intervals` describe. */
+  visibilityModel: 'body-center'
+  ephemeris: {
+    source: string
+    version: string
+    kernels: string[]
+    corrections: string
+  }
+  approximations: string[]
+}
+
+// ---------------------------------------------------------------- provider
+
+export interface DataProvider {
+  readonly kind: 'demo' | 'api'
+  readonly label: string
+  getCoverage(signal?: AbortSignal): Promise<CoverageCatalog>
+  submitTerrainAnalysis(req: TerrainAnalysisRequest, signal?: AbortSignal): Promise<JobState<TerrainAnalysis>>
+  getTerrainAnalysis(id: string, signal?: AbortSignal): Promise<JobState<TerrainAnalysis>>
+  submitScenarioEvaluation(
+    req: ScenarioEvaluationRequest,
+    signal?: AbortSignal,
+  ): Promise<JobState<ScenarioEvaluation>>
+  getScenarioEvaluation(id: string, signal?: AbortSignal): Promise<JobState<ScenarioEvaluation>>
+}

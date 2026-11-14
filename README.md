@@ -1,6 +1,8 @@
 # Meowrizon
 
-Repository iniziale con frontend React, TypeScript e Vite. CesiumJS è installato come dipendenza, senza integrazione nell'interfaccia. Backend e dati hanno una struttura predisposta per lo sviluppo successivo.
+Web application per confrontare siti e date lunari: scegli un punto sul globo e un periodo, e osserva Sole e Terra rispetto all'orizzonte topografico, con le finestre di illuminazione e di visibilità terrestre.
+
+Stato attuale: il frontend è funzionante con tre viste sincronizzate (globo, orizzonte e timeline) e con il confronto A/B. **Il motore numerico Python non è ancora implementato.** Per questo il frontend usa per impostazione predefinita un provider di **dati dimostrativi**, segnalato nell'interfaccia. Il client HTTP verso il motore segue il contratto in [docs/api-contract.md](docs/api-contract.md). Dettagli in [frontend/README.md](frontend/README.md).
 
 ## Avvio del frontend
 
@@ -20,7 +22,7 @@ npm run lint
 npm run preview
 ```
 
-Il frontend usa lo scaffold ufficiale Vite React + TypeScript, senza funzionalità applicative aggiunte.
+Per collegare il motore, quando sarà disponibile: `VITE_DATA_SOURCE=api npm run dev`. Vedere `frontend/.env.example`.
 
 ## Struttura
 
@@ -41,7 +43,7 @@ data/
   cache/                      Cache su disco
   scenarios/                  Scenari salvati
   sqlite/                     Database locali
-docs/                         Documentazione futura
+docs/                         Contratto API e documentazione
 ```
 
 Le dipendenze Python sono dichiarate ma non installate. Vedere [backend/README.md](backend/README.md) per la creazione dell'ambiente. Nessun dataset scientifico è incluso.
