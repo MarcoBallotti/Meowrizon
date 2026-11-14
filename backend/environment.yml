@@ -6,7 +6,11 @@ dependencies:
   - python=3.12
   - fastapi>=0.115,<1
   - uvicorn>=0.30,<1
+  - requests>=2.32,<3
   - gdal>=3.10,<4
   - rasterio>=1.4,<2
   - numpy>=2,<3
+  - pyarrow>=18,<30
+  - filelock>=3.16,<4
+  - httpx>=0.27,<1
   - spiceypy>=8,<9
