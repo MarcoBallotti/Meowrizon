@@ -1,0 +1,35 @@
+# JavaScript
+node_modules/
+dist/
+*.tsbuildinfo
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Local configuration
+.env
+.env.*
+!.env.example
+*.local
+.DS_Store
+.idea/
+.vscode/
+
+# Local datasets and runtime files; keep the directory structure tracked.
+data/**
+!data/**/
+!data/**/.gitkeep
+!data/README.md
+*.sqlite
+*.sqlite3
+*.sqlite-*
+*.sqlite3-*

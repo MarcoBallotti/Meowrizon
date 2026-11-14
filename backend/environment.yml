@@ -1,0 +1,12 @@
+name: meowrizon
+channels:
+  - conda-forge
+  - nodefaults
+dependencies:
+  - python=3.12
+  - fastapi>=0.115,<1
+  - uvicorn>=0.30,<1
+  - gdal>=3.10,<4
+  - rasterio>=1.4,<2
+  - numpy>=2,<3
+  - spiceypy>=8,<9
