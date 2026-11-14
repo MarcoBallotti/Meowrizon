@@ -111,7 +111,7 @@ Il primo requisito di atterraggio di Artemis III è "atterrare entro 6° di lati
 | Mons Mouton | no | sì | **no** |
 | Slater Plain | no | sì | **no** |
 
-Per le 4 regioni nuove del 2024 **non abbiamo trovato poligoni pubblici**: la NASA le ha annunciate con un'immagine [F4] e Moon Trek ha solo il layer del 2022. Non si possono disegnare a mano senza inventare i confini, quindi restano fuori finché non si trova una geometria ufficiale.
+Per le 4 regioni nuove del 2024 **non abbiamo trovato poligoni pubblici**: la NASA le ha annunciate con un'immagine [F4] e Moon Trek ha solo il layer del 2022. Non si possono disegnare a mano senza inventare i confini, quindi **non entrano nel catalogo** (decisione del team, 14/11/2026): non si possono né rappresentare sulla mappa né valutare. Si aggiungono quando esce una geometria ufficiale. Mons Mouton resta comunque presente come zona bersaglio di Griffin-1, tra i siti.
 
 **Opzioni (decisione D2):**
 
@@ -130,7 +130,7 @@ Connecting Ridge, consigliata in `docs/siti-e-regioni.md`, non è più nella lis
 **Stato (14/11/2026): fatto**, con il comando `python -m app.cli init-regions`.
 
 1. **Catalogo versionato** in `backend/catalog/`:
-    - `regions.toml` decide quali regioni usare: le 13 con contorno più le 4 del 2024 senza contorno, con le liste di appartenenza e `active`. Contiene anche il limite del settore e la dimensione delle celle;
+    - `regions.toml` decide quali regioni usare: le 13 con contorno, con le liste di appartenenza (2022, 2024) e `active`. Le 4 regioni del 2024 senza contorno non ci sono. Contiene anche il limite del settore e la dimensione delle celle;
     - `sites.toml` contiene i siti di atterraggio, ognuno con fonte obbligatoria. Per ora è vuoto: l'elenco è da definire.
 2. **Download** dei poligoni da Moon Trek (`A3_Named_regions_SP`, `f=json`) [F3]. La risposta grezza è salvata in `data/sources/` con il registro `manifest.json` (URL, data, dimensione, SHA-256). `--offline` riusa l'ultimo download dopo averne controllato lo SHA-256.
 3. **Conversione** dalla stereografica polare sud (sfera di 1 737 400 m) a latitudine e longitudine con pyproj, verificata contro la formula scritta a mano. Lati infittiti ogni 250 m per disegnarli in gradi; longitudine Est tra −180 e 180.
@@ -140,13 +140,20 @@ Connecting Ridge, consigliata in `docs/siti-e-regioni.md`, non è più nella lis
     - regione tutta fuori dal settore;
     - regione che attraversa ±180°;
     - nessun DEM che la copre;
-    - sito senza fonte o fuori dal settore.
+    - sito senza fonte, con coordinate fuori intervallo o con data non valida.
 
     Un'etichetta presente su Moon Trek ma non nel catalogo produce solo un avviso.
 5. **Risultato** in `data/regions/regions.geojson` e `sites.geojson`. Per ogni regione: area sulla sfera, centro, angoli in metri, griglia di celle (le regioni sono quadrati con gli angoli su multipli di 100 m, quindi la griglia combacia con i bordi) e DEM LOLA che la copre. Per ogni sito: posizione in metri, cella di 100 × 100 m, regione Artemis in cui cade, DEM.
 6. **API:** `GET /api/regions` (con `?active=true`) e `GET /api/sites`.
 
-**Siti di atterraggio (decisione del team, 14/11/2026):** ogni sito si valuta come **una cella di 100 × 100 m** attorno al punto, con gli stessi vincoli e metriche delle celle delle regioni, e compare in una tabella separata dalla classifica delle regioni. IM-2 (punto previsto, LROC [F14]) è un candidato; IM-1 (80,13°S) è fuori dal settore a 84°S e il catalogo lo rifiuterebbe.
+**Siti di atterraggio (decisione del team, 14/11/2026):** ogni sito si valuta come **una cella di 100 × 100 m** attorno al punto, con gli stessi vincoli e metriche delle celle delle regioni, e compare in una tabella separata dalla classifica delle regioni.
+
+**Quali siti (decisione del team, 14/11/2026):** all'apertura la mappa mostra le regioni Artemis III e 16 siti, tutti valutabili. L'elenco completo, con le coordinate, è in `docs/siti-e-regioni.md` (8.4) e in `backend/catalog/sites.toml`:
+
+- **12 atterraggi riusciti tra i più famosi**: Apollo 11, 12, 14, 15, 16 e 17, Luna 9, Luna 17 / Lunokhod 1, Chang'e 4 e 6, Chandrayaan-3, Blue Ghost M1. Coordinate dal layer di Moon Trek *Lunar Anthropogenic Impacts and Spacecraft Sites* (dati NSSDCA) [F16] e dalle pagine LROC [F17]. Niente atterraggi falliti o riusciti in parte, quindi niente IM-1, IM-2 e SLIM;
+- **4 missioni CLPS future**: Griffin-1, Blue Moon MK1 Pathfinder, IM-3, Blue Ghost M2. Il punto è il centro della formazione bersaglio, dal Gazetteer IAU [F18] o dalla regione Artemis.
+
+**Il limite di 84°S vale solo per le regioni.** I siti possono stare ovunque: quelli fuori dal settore (14 su 16) hanno `in_sector = false` e servirà un **DEM globale** per il loro orizzonte (vedi Fase 3).
 
 Errore corretto durante il lavoro: i centri delle regioni nella prima versione di `docs/siti-e-regioni.md` erano medie di latitudini e longitudini dei vertici, sbagliate vicino al polo. Ora sono il centro geometrico calcolato in metri.
 
@@ -165,11 +172,18 @@ Errore corretto durante il lavoro: i centri delle regioni nella prima versione d
 | Illuminazione media | PGDA / PDS [F7] | `avgvisib_85s_060m_201608` (Sole) e `avgvisib_85s_060m_201608_earth` (Terra); per le regioni a nord di 85°S le versioni `75s_120m`. Medie su 18,6 anni a passo orario | Validazione; eventuale prefiltro (D11) |
 | Illuminazione osservata | LROC, Moon Trek [F8] | `WAC_POLE_ILL_PCT_SOUTH_100M`: % di illuminazione da immagini reali, 88–90°S, febbraio 2010 – febbraio 2011 | Validazione indipendente dal nostro modello |
 | Regioni | Moon Trek [F3] | `A3_Named_regions_SP` | Poligoni |
+| Siti | Moon Trek [F16], LROC [F17], Gazetteer IAU [F18] | `Lunar_Landing_Impact_Sites`, pagine LROC, `MOON_nomenclature_center_pts` | Coordinate dei 16 siti |
+| Terreno fuori dal settore | Moon Trek, ImageServer (`exportImage`) | `LRO_LOLA_DEM_Global_128ppd_v04`: tutta la Luna, ~237 m all'equatore, float32. Provato il 14/11/2026: un ritaglio di 6,3° × 6,3° attorno ad Apollo 15 (806 × 806 pixel, 3 MB) arriva in ~5 s. Per 45–90°S c'è anche `LRO_LOLA_DEM_SPole45_100mp_v04_EQ` (100 m), che copre Chandrayaan-3 | Horizon mask dei siti con `in_sector = false`, ritagli attorno a ogni sito |
 
 Note:
 
 - Il layer `PSR_SP` di Moon Trek contiene solo le **164 ombre permanenti più grandi di 10 km²** [F9]: per celle da 100 m non basta, perché le ombre piccole nei fondi dei crateri mancano. Per questo si usa la mappa raster `lpsr_*` [F7].
 - Per ogni file scaricato si scrive un **manifest** con URL, versione, data, dimensione e SHA-256, come previsto da `data/README.md`.
+- ⚠️ **Alternativa più recente per il terreno del polo sud [F19]** (trovata il 14/11/2026 guardando le fonti dati di QuickMap): i DEM LOLA "ADJ" di Barker et al. (PGDA, prodotto 90), con orbite ricalcolate e meno artefatti rispetto ai `ldem_*` della PDS. Ci sono:
+    - DEM `LDEM_83S_10MPP_ADJ`, `LDEM_80S_20/40/80MPP_ADJ`, `LDEM_75S_30MPP_ADJ`, `LDEM_60S_60/120/240MPP_ADJ`. Le versioni a 60°S coprono anche Chandrayaan-3;
+    - mappe di pendenza `LDSM_*`, ombre permanenti `LPSR_80S_20MPP_ADJ`, errore di quota `*_ERR` e risoluzione effettiva `*_EFFRES`.
+
+  Sono **GeoTIFF ottimizzati per il cloud (COG)** in stereografica polare sud sulla sfera di 1737,4 km, quindi GDAL ne legge solo il pezzo che serve, senza scaricare il file intero. Provato: una finestra di 10 × 10 km a 20 m su Malapert Massif (500 × 500 pixel) arriva in pochi secondi, con quote tra 2,95 e 5,17 km. Da decidere se sostituiscono i `ldem_*` della PDS.
 
 ---
 
@@ -372,7 +386,7 @@ Le decisioni D1, D2 e D7 cambiano `docs/siti-e-regioni.md`: una volta prese, va 
 
 1. Fase 1: Docker funzionante con `/health`.
 2. Decisioni D1–D7.
-3. Fase 2: poligoni delle regioni convertiti e salvati. **Fatto.** Restano da scegliere i siti di atterraggio.
+3. Fase 2: poligoni delle regioni convertiti e salvati, siti scelti e scritti in `sites.toml`. **Fatto.**
 4. Fase 3: download con manifest, prima per le 2 regioni di sviluppo.
 5. Portare il prototipo del README in `backend/app/services/` (effemeridi e horizon mask), con i suoi test.
 6. Fase 5 sulle 2 regioni, misurando i tempi, poi decisione D8.
@@ -398,4 +412,8 @@ Le decisioni D1, D2 e D7 cambiano `docs/siti-e-regioni.md`: una volta prese, va 
 - **[F12]** NASA Space Apps Challenge 2026, *Lunar Landing Site Navigator*: https://www.spaceappschallenge.org/2026/challenges/lunar-landing-site-navigator/
 - **[F13]** `README.md` del repository Meowrizon: criteri, riduzione dei dati, prototipo e verifiche del team.
 - **[F14]** IM-2: LROC, https://www.lroc.asu.edu/images/1401. IM-1: catalogo di Moon Trek.
+- **[F16]** NASA Moon Trek, layer *Lunar Anthropogenic Impacts and Spacecraft Sites* (`Lunar_Landing_Impact_Sites`, 7/11/2022), dati NSSDCA: https://trek.nasa.gov/moon/trekarcgis2/rest/services/Lunar_Landing_Impact_Sites/MapServer (sottolayer 1: atterraggi morbidi, 2: con equipaggio). Fonte dei dati: https://nssdc.gsfc.nasa.gov/planetary/lunar/lunar_artifact_impacts.html
+- **[F17]** LROC, posizione dei lander misurata nelle immagini di LRO: Chandrayaan-3 https://www.lroc.asu.edu/images/1314, Chang'e 6 https://www.lroc.asu.edu/images/1374, Blue Ghost M1 https://www.lroc.asu.edu/images/1407
+- **[F18]** USGS / IAU, *Gazetteer of Planetary Nomenclature*, centri delle formazioni lunari: https://planetarynames.wr.usgs.gov/shapefiles/MOON_nomenclature_center_pts.zip
+- **[F19]** M. K. Barker, NASA GSFC PGDA, *A New View of the Lunar South Pole from LOLA* (prodotto 90): https://pgda.gsfc.nasa.gov/products/90. File in https://pgda.gsfc.nasa.gov/data/LOLA_20mpp/. Riferimento: https://iopscience.iop.org/article/10.3847/PSJ/acf3e1
 - **[F15]** Immagine Docker `mambaorg/micromamba`: https://hub.docker.com/r/mambaorg/micromamba (tag verificati il 14/11/2026).

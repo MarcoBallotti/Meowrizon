@@ -22,17 +22,10 @@ def _props(collection, region_id):
 
 def test_all_catalog_regions_built(built):
     collection, regions, warnings = built
-    assert len(collection["features"]) == 17
+    assert len(collection["features"]) == 13
     assert warnings == []
-    without = [f for f in collection["features"] if f["geometry"] is None]
-    assert {f["id"] for f in without} == {
-        "peak-near-cabeus-b",
-        "mons-mouton-plateau",
-        "mons-mouton",
-        "slater-plain",
-    }
-    assert all(f["properties"]["status"] == "senza_poligono" for f in without)
-    assert sum(1 for r in regions if r.polygon_m is not None) == 13
+    assert all(f["geometry"]["type"] == "Polygon" for f in collection["features"])
+    assert len(regions) == 13
 
 
 @pytest.mark.parametrize(
@@ -119,3 +112,29 @@ def test_sites_are_placed_in_regions(catalog, built):
     xmin, ymin, xmax, ymax = inside["cell_bounds_m"]
     assert (xmax - xmin, ymax - ymin) == pytest.approx((100.0, 100.0))
     assert im2["dem_near"] == "ldem_85s_10m"
+    assert inside["in_sector"] and im2["in_sector"]
+
+
+def test_sites_outside_sector_have_no_polar_terrain(catalog, built):
+    apollo = SiteEntry(
+        "apollo-11",
+        "Apollo 11",
+        0.67416,
+        23.47314,
+        "atterrato",
+        "test",
+        None,
+        date="1969-07-20",
+        in_sector=False,
+    )
+    change6 = SiteEntry(
+        "change-6", "Chang'e 6", -41.6385, 206.0148, "atterrato", "test", None, in_sector=False
+    )
+    collection = build_sites(dataclasses.replace(catalog, sites=(apollo, change6)), built[1])
+    a11, ce6 = collection["features"]
+    assert a11["properties"]["date"] == "1969-07-20"
+    for f in (a11, ce6):
+        p = f["properties"]
+        assert not p["in_sector"]
+        assert p["dem_near"] is None and p["dem_covering"] == [] and p["x_m"] is None
+    assert ce6["geometry"]["coordinates"][0] == pytest.approx(-153.9852)

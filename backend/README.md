@@ -34,7 +34,7 @@ Il comando:
 
 Va rilanciato dopo ogni modifica al catalogo.
 
-I siti di atterraggio si aggiungono a `catalog/sites.toml`, sempre con una fonte: il comando rifiuta un sito senza fonte o fuori dal settore. Ogni sito sarà valutato come una cella di 100 × 100 m.
+I siti si aggiungono a `catalog/sites.toml`, sempre con una fonte: il comando rifiuta un sito senza fonte. I siti possono stare ovunque sulla Luna, perché il limite del settore vale solo per le regioni. Quelli fuori dal settore hanno `in_sector: false` e non hanno ancora un DEM. Ogni sito sarà valutato come una cella di 100 × 100 m.
 
 ## Avvio con Docker
 

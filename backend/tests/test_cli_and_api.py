@@ -31,11 +31,15 @@ def test_init_offline_then_api(data_env, moontrek_bytes, capsys):
     assert "malapert-massif" in capsys.readouterr().out
 
     all_regions = client.get("/api/regions").json()
-    assert len(all_regions["features"]) == 17
+    assert len(all_regions["features"]) == 13
     assert all_regions["meowrizon"]["source"]["sha256"]
     active = client.get("/api/regions", params={"active": "true"}).json()
     assert {f["id"] for f in active["features"]} == {"de-gerlache-rim-2", "malapert-massif"}
-    assert client.get("/api/sites").json()["features"] == []
+    sites = client.get("/api/sites").json()["features"]
+    assert len(sites) == 16
+    polar = {f["id"]: f["properties"] for f in sites if f["properties"]["in_sector"]}
+    assert set(polar) == {"griffin-1", "blue-moon-mk1-pathfinder"}
+    assert polar["blue-moon-mk1-pathfinder"]["region"] == "connecting-ridge"
 
 
 def test_offline_without_download_fails(data_env, capsys):

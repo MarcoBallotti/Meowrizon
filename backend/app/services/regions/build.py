@@ -43,7 +43,7 @@ class RegionBuildError(ValueError):
 @dataclass(frozen=True)
 class BuiltRegion:
     entry: RegionEntry
-    polygon_m: Polygon | None
+    polygon_m: Polygon
 
 
 def build_regions(
@@ -51,7 +51,7 @@ def build_regions(
 ) -> tuple[dict[str, Any], list[BuiltRegion], list[str]]:
     """Restituisce (FeatureCollection, regioni con poligono in metri, avvisi)."""
     by_label = {f["attributes"]["label"]: f for f in moontrek["features"]}
-    used_labels = {r.moontrek_label for r in catalog.regions if r.moontrek_label}
+    used_labels = {r.moontrek_label for r in catalog.regions}
     warnings = [
         f"Moon Trek contiene '{label}', che non è nel catalogo"
         for label in sorted(set(by_label) - used_labels)
@@ -59,10 +59,6 @@ def build_regions(
 
     features, built = [], []
     for entry in catalog.regions:
-        if entry.moontrek_label is None:
-            features.append(_region_without_polygon(entry))
-            built.append(BuiltRegion(entry, None))
-            continue
         feature = by_label.get(entry.moontrek_label)
         if feature is None:
             raise RegionBuildError(
@@ -77,22 +73,31 @@ def build_regions(
 
 
 def build_sites(catalog: Catalog, regions: list[BuiltRegion]) -> dict[str, Any]:
-    half = catalog.cell_size_m / 2
     features = []
     for site in catalog.sites:
-        x, y = lonlat_to_stereo(site.lon, site.lat)
-        cell = (x - half, y - half, x + half, y + half)
-        inside = next(
-            (
-                r.entry.id
-                for r in regions
-                if r.polygon_m is not None and r.polygon_m.contains(ShapelyPoint(x, y))
-            ),
-            None,
-        )
-        dems = covering_products(*cell)
-        if not dems:
-            raise RegionBuildError(f"Sito '{site.id}': nessun DEM LOLA polare lo copre")
+        properties: dict[str, Any] = {
+            "id": site.id,
+            "name": site.name,
+            "kind": site.kind,
+            "date": site.date,
+            "source": site.source,
+            "note": site.note,
+            "in_sector": site.in_sector,
+            "cell_size_m": catalog.cell_size_m,
+        }
+        if site.in_sector:
+            properties |= _polar_site_terrain(site.id, site.lon, site.lat, catalog, regions)
+        else:
+            # Fuori dal settore la stereografica polare e i DEM polari non servono:
+            # il terreno arriverà da un DEM globale, ancora da scegliere.
+            properties |= {
+                "x_m": None,
+                "y_m": None,
+                "cell_bounds_m": None,
+                "region": None,
+                "dem_near": None,
+                "dem_covering": [],
+            }
         features.append(
             {
                 "type": "Feature",
@@ -101,23 +106,33 @@ def build_sites(catalog: Catalog, regions: list[BuiltRegion]) -> dict[str, Any]:
                     "type": "Point",
                     "coordinates": [_r(normalize_lon(site.lon)), _r(site.lat)],
                 },
-                "properties": {
-                    "id": site.id,
-                    "name": site.name,
-                    "kind": site.kind,
-                    "source": site.source,
-                    "note": site.note,
-                    "x_m": round(x, CORNER_DECIMALS),
-                    "y_m": round(y, CORNER_DECIMALS),
-                    "cell_size_m": catalog.cell_size_m,
-                    "cell_bounds_m": [round(v, CORNER_DECIMALS) for v in cell],
-                    "region": inside,
-                    "dem_near": dems[0],
-                    "dem_covering": dems,
-                },
+                "properties": properties,
             }
         )
     return _collection("sites", features, catalog, None)
+
+
+def _polar_site_terrain(
+    site_id: str, lon: float, lat: float, catalog: Catalog, regions: list[BuiltRegion]
+) -> dict[str, Any]:
+    half = catalog.cell_size_m / 2
+    x, y = lonlat_to_stereo(lon, lat)
+    cell = (x - half, y - half, x + half, y + half)
+    inside = next(
+        (r.entry.id for r in regions if r.polygon_m.contains(ShapelyPoint(x, y))),
+        None,
+    )
+    dems = covering_products(*cell)
+    if not dems:
+        raise RegionBuildError(f"Sito '{site_id}': nessun DEM LOLA polare lo copre")
+    return {
+        "x_m": round(x, CORNER_DECIMALS),
+        "y_m": round(y, CORNER_DECIMALS),
+        "cell_bounds_m": [round(v, CORNER_DECIMALS) for v in cell],
+        "region": inside,
+        "dem_near": dems[0],
+        "dem_covering": dems,
+    }
 
 
 def _region_feature(
@@ -163,7 +178,6 @@ def _region_feature(
             "moontrek_label": entry.moontrek_label,
             "lists": list(entry.lists),
             "active": entry.active,
-            "status": "con_poligono",
             "area_km2": round(ring_area_km2(lonlat), 3),
             "center_lon": _r(center_lon),
             "center_lat": _r(center_lat),
@@ -180,22 +194,6 @@ def _region_feature(
         },
     }
     return feature, polygon_m
-
-
-def _region_without_polygon(entry: RegionEntry) -> dict[str, Any]:
-    return {
-        "type": "Feature",
-        "id": entry.id,
-        "geometry": None,
-        "properties": {
-            "id": entry.id,
-            "name": entry.name,
-            "moontrek_label": None,
-            "lists": list(entry.lists),
-            "active": False,
-            "status": "senza_poligono",
-        },
-    }
 
 
 def _collection(

@@ -18,7 +18,7 @@ L'utente inserisce **data e ora di atterraggio** (e la durata della missione, di
 
 Il programma dice **in quale regione conviene atterrare**, non in quale punto preciso dentro la regione: la scelta del punto esatto resta alla missione.
 
-Oltre alle regioni, il programma valuta anche dei **siti di atterraggio**: punti con coordinate precise e una fonte, ognuno valutato come una cella di 100 × 100 m (la precisione di atterraggio richiesta da Artemis III) con gli stessi criteri delle regioni. I siti compaiono in una tabella separata dalla classifica delle regioni, perché un punto e un'area di 400 km² non si confrontano. L'elenco dei siti è ancora da definire.
+Oltre alle regioni, il programma valuta anche dei **siti di atterraggio**: punti con coordinate precise e una fonte, ognuno valutato come una cella di 100 × 100 m (la precisione di atterraggio richiesta da Artemis III) con gli stessi criteri delle regioni. I siti compaiono in una tabella separata dalla classifica delle regioni, perché un punto e un'area di 400 km² non si confrontano. Sono 16, elencati nella sezione 8.4: 12 atterraggi famosi del passato e 4 missioni CLPS future, anche fuori dal polo sud.
 
 ---
 
@@ -28,7 +28,7 @@ Oltre alle regioni, il programma valuta anche dei **siti di atterraggio**: punti
 |---|---|---|---|
 | **Settore** | La grande area della Luna su cui lavoriamo | Definito da noi sulla base del requisito Artemis III "entro 6° dal polo sud" | Polo sud: a sud di 84°S (`lat_limit` in `regions.toml`) |
 | **Regione** | Zona di atterraggio di 16–30 km di lato: è l'oggetto che il programma valuta e ordina | Solo regioni candidate di Artemis III, con il contorno scaricato da Moon Trek | Malapert Massif, de Gerlache Rim 2… |
-| **Sito** | Punto preciso, valutato come una cella di 100 × 100 m | Coordinate scritte da noi in `sites.toml`, sempre con una fonte | Da definire |
+| **Sito** | Punto preciso, valutato come una cella di 100 × 100 m | Coordinate scritte da noi in `sites.toml`, sempre con una fonte; anche fuori dal settore | Apollo 11, Chang'e 4, Griffin-1… |
 
 Per ora c'è **un solo settore**: il polo sud, dove la challenge si concentra e dove scelta del luogo e della data contano davvero. Il programma va però pensato con un elenco di settori, per poterne aggiungere altri in futuro.
 
@@ -173,7 +173,7 @@ https://trek.nasa.gov/moon/trekarcgis2/rest/services/A3_Named_regions_SP/MapServ
 - Si convertono in latitudine e longitudine con `pyproj`: verificato contro la formula della stereografica scritta a mano.
 - Con `f=geojson` il servizio rifiuta il sistema di riferimento lunare: va usato `f=json` e convertito noi.
 - Su Moon Trek una regione si chiama "Peak Near Shakleton" (senza la "c"): il catalogo tiene separati il nome corretto e l'etichetta esatta.
-- Il layer contiene **13 regioni, la lista NASA del 2022**. Nel 2024 la NASA ha ridotto la lista a **9 regioni**: Peak near Cabeus B, Haworth, Malapert Massif, Mons Mouton Plateau, Mons Mouton, Nobile Rim 1, Nobile Rim 2, de Gerlache Rim 2 e Slater Plain. Cinque sono anche nella lista 2022; per le altre quattro la NASA non ha pubblicato i contorni, quindi restano nel catalogo come "senza poligono" e non si possono valutare.
+- Il layer contiene **13 regioni, la lista NASA del 2022**. Nel 2024 la NASA ha ridotto la lista a **9 regioni**: Peak near Cabeus B, Haworth, Malapert Massif, Mons Mouton Plateau, Mons Mouton, Nobile Rim 1, Nobile Rim 2, de Gerlache Rim 2 e Slater Plain. Cinque sono anche nella lista 2022; per le altre quattro la NASA non ha pubblicato i contorni, quindi **non sono nel catalogo**: non si possono rappresentare né valutare (decisione del team, 14/11/2026).
 
 ### 8.2 Le 13 regioni candidate di Artemis III (dal layer di Moon Trek)
 
@@ -210,35 +210,55 @@ Nel catalogo sono attive (`active = true`) due regioni presenti in entrambe le l
 
 Connecting Ridge, proposta in una prima versione, non è più nella lista 2024. Due regioni con comportamenti diversi bastano a far vedere che la classifica cambia con la data. Le altre si attivano nel catalogo quando la pipeline funziona.
 
-### 8.4 Siti di atterraggio (da definire)
+### 8.4 Siti
 
-Ogni sito si aggiunge a `backend/catalog/sites.toml` con:
+**Decisione del team (14/11/2026).** All'apertura dell'app la mappa mostra le regioni Artemis III e **16 siti**, tutti valutabili:
 
-- nome e coordinate planetocentriche in gradi decimali, nel sistema Mean Earth;
-- tipo: atterrato, previsto o personalizzato;
-- **fonte obbligatoria**.
+- **12 atterraggi riusciti tra i più conosciuti dal pubblico**: tutti quelli con equipaggio, più le missioni robotiche con un primato storico. Niente atterraggi falliti né riusciti solo in parte: IM-1, IM-2 e SLIM si sono rovesciati;
+- **4 missioni CLPS future**. Non hanno ancora un punto di atterraggio pubblicato, quindi il punto è il **centro della formazione bersaglio**: indica la zona, non il punto in cui atterreranno.
 
-Il comando `init-regions`:
+I siti possono stare ovunque sulla Luna: **il limite di 84°S vale solo per le regioni**. Un sito fuori dal settore ha `in_sector = false` e il suo terreno verrà da un DEM globale, ancora da scegliere (⚠️).
 
-- rifiuta un sito senza fonte o fuori dal settore;
-- lo converte in metri;
-- dice in quale regione Artemis cade (se cade in una);
-- sceglie il DEM che lo copre.
+Ogni sito sta in `backend/catalog/sites.toml` con nome, coordinate planetocentriche (sistema Mean Earth, sfera di 1737,4 km), tipo (`atterrato`, `previsto`, `personalizzato`), data di atterraggio e **fonte obbligatoria**. Il comando `init-regions`:
 
-Candidati possibili, da confermare:
+- rifiuta un sito senza fonte, con coordinate fuori intervallo o con data non valida;
+- per i siti nel settore calcola la posizione in metri, la cella di 100 m, la regione Artemis in cui cadono e il DEM polare che li copre.
 
-| Sito | Coordinate | Fonte | Nota |
-|---|---|---|---|
-| IM-2 (Athena), punto previsto | 84,78°S, 29,13°E | LROC | Ha toccato il suolo a ~250 m dal punto previsto ed è finito inclinato. Non cade in nessuna regione Artemis con contorno |
-| IM-1 (Odysseus) | 80,13°S, 1,44°E | Catalogo Moon Trek | Fuori dal settore a 84°S: con il confine attuale il catalogo lo rifiuta |
+| Sito | Data | Lat | Lon E | Fonte delle coordinate | Perché |
+|---|---|---|---|---|---|
+| Apollo 11 | 1969-07-20 | 0,67416 | 23,47314 | Moon Trek / NSSDCA | Primi esseri umani sulla Luna |
+| Apollo 12 | 1969-11-19 | −3,0128 | −23,4219 | Moon Trek / NSSDCA | Atterraggio di precisione accanto a Surveyor 3 |
+| Apollo 14 | 1971-02-05 | −3,64589 | −17,47194 | Moon Trek / NSSDCA | Missione con equipaggio |
+| Apollo 15 | 1971-07-30 | 26,13239 | 3,6333 | Moon Trek / NSSDCA | Primo rover con equipaggio |
+| Apollo 16 | 1972-04-21 | −8,9734 | 15,5011 | Moon Trek / NSSDCA | Prima missione sugli altopiani |
+| Apollo 17 | 1972-12-11 | 20,1911 | 30,7723 | Moon Trek / NSSDCA | Ultimi esseri umani sulla Luna |
+| Luna 9 | 1966-02-03 | 7,13 | −64,37 | Moon Trek / NSSDCA | Primo atterraggio morbido |
+| Luna 17 / Lunokhod 1 | 1970-11-17 | 38,23764 | −35,00163 | Moon Trek / NSSDCA (lander) | Primo rover robotico |
+| Chang'e 4 | 2019-01-03 | −45,457 | 177,589 | Moon Trek / NSSDCA | Primo atterraggio sulla faccia nascosta |
+| Chang'e 6 | 2024-06-01 | −41,6385 | 206,0148 | LROC 1374 (±30 m) | Primi campioni dalla faccia nascosta |
+| Chandrayaan-3 | 2023-08-23 | −69,3741 | 32,32 | LROC 1314 | Primo atterraggio vicino al polo sud |
+| Blue Ghost M1 | 2025-03-02 | 18,5623 | 61,8103 | LROC 1407 | Primo atterraggio commerciale riuscito del tutto |
+| Griffin-1 *(previsto)* | — | −84,6 | 31,0 | IAU, centro di Mons Mouton | CLPS, polo sud. **Nel settore** |
+| Blue Moon MK1 Pathfinder *(previsto)* | — | −89,4632 | −137,4896 | Centro della regione Artemis Connecting Ridge | CLPS, polo sud. **Nel settore**, dentro Connecting Ridge |
+| IM-3 *(previsto)* | — | 7,3853 | 301,0417 | IAU, centro di Reiner Gamma | CLPS, vortice lunare |
+| Blue Ghost M2 *(previsto)* | — | −24,9137 | 177,337 | IAU, centro del cratere Nassau | CLPS, faccia nascosta |
+
+Note:
+
+- "Moon Trek / NSSDCA" è il layer *Lunar Anthropogenic Impacts and Spacecraft Sites* (`Lunar_Landing_Impact_Sites`), del novembre 2022. Le missioni successive vengono dalle pagine LROC, con la posizione del lander misurata nelle immagini di LRO.
+- Per Blue Ghost M1 si usa il punto del lander dopo l'atterraggio (LROC 1407), non il centro della zona prevista (LROC 1400).
+- Chandrayaan-3: le coordinate 70,8°S 23,5°E che si trovano spesso sono il bersaglio di Chandrayaan-2, che è fallito.
+- Per Griffin-1 il punto è Mons Mouton e non il cratere Nobile, perché il centro di Nobile cade sul fondo del cratere, probabilmente in ombra permanente.
+- ⚠️ Lo stato delle missioni CLPS va ricontrollato: al 14/11/2026 Griffin-1 è previsto non prima di novembre 2026, le altre nel 2027.
+- Possibili aggiunte con lo stesso criterio: CP-12 (bacino di Schrödinger) e Blue Ghost M3 (Gruithuisen Domes).
 
 ---
 
 ## 9. Cosa resta da decidere
 
 - **Regioni attive.** Quali delle 13 con contorno attivare oltre alle due di sviluppo.
-- **Confine del settore.** Nel catalogo è 84°S (requisito Artemis III); con 80°S si potrebbero inserire siti come IM-1.
-- **Siti di atterraggio.** Quali inserire, ognuno con la sua fonte.
+- **Confine del settore.** Nel catalogo è 84°S (requisito Artemis III). Vale solo per le regioni: i siti possono stare ovunque.
+- **DEM globale** per valutare i siti fuori dal settore.
 - **Griglia delle maschere d'orizzonte.** Le celle sono da 100 m; se il calcolo delle maschere è troppo lento, le maschere si calcolano su una griglia più larga. Si decide dopo aver misurato i tempi.
 - **Soglie.** Punteggio minimo di una cella buona, zona continua minima per non scartare una regione, pendenza massima, margine minimo della Terra.
 - **Pesi** del punteggio della cella e della classifica delle regioni.

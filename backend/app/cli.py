@@ -53,9 +53,6 @@ def _print_summary(regions_fc: dict, sites_fc: dict, warnings: list[str]) -> Non
     for f in regions_fc["features"]:
         p = f["properties"]
         lists = ",".join(p["lists"])
-        if p["status"] == "senza_poligono":
-            print(f"{p['id']:<28} {lists:<10} {'no':<7} {'—':>7}  {'—':>9}  (senza poligono)")
-            continue
         cells = f"{p['cells_x']}×{p['cells_y']}" if p["grid_aligned"] else "non allin."
         print(
             f"{p['id']:<28} {lists:<10} {'sì' if p['active'] else 'no':<7} "
@@ -64,7 +61,10 @@ def _print_summary(regions_fc: dict, sites_fc: dict, warnings: list[str]) -> Non
     print(f"\nSiti: {len(sites_fc['features'])}")
     for f in sites_fc["features"]:
         p = f["properties"]
-        print(f"  {p['id']}: regione {p['region'] or 'nessuna'}, DEM {p['dem_near']}")
+        if p["in_sector"]:
+            print(f"  {p['id']}: regione {p['region'] or 'nessuna'}, DEM {p['dem_near']}")
+        else:
+            print(f"  {p['id']}: fuori dal settore, DEM globale da definire")
     for w in warnings:
         print(f"Avviso: {w}")
 

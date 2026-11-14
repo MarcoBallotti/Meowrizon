@@ -7,8 +7,8 @@
 # Campi di ogni regione:
 #   id              identificativo stabile, minuscolo con trattini
 #   name            nome NASA
-#   moontrek_label  etichetta ESATTA del layer Moon Trek A3_Named_regions_SP [F3];
-#                   assente se la NASA non ha pubblicato il contorno
+#   moontrek_label  etichetta ESATTA del layer Moon Trek A3_Named_regions_SP [F3], obbligatoria:
+#                   senza contorno pubblicato una regione non entra nel catalogo
 #   lists           liste NASA in cui compare: "2022" (13 regioni) [F3], "2024" (9 regioni) [F4]
 #   active          true = il programma la valuta; false = nota, ma non calcolata
 
@@ -116,28 +116,7 @@ lists = ["2022", "2024"]
 active = false
 
 # --- Regioni della lista 2024 senza contorno pubblicato [F4] ---------------------------------
-# Restano qui per poterle mostrare come "note ma non valutabili". Non possono essere attive.
-
-[[region]]
-id = "peak-near-cabeus-b"
-name = "Peak near Cabeus B"
-lists = ["2024"]
-active = false
-
-[[region]]
-id = "mons-mouton-plateau"
-name = "Mons Mouton Plateau"
-lists = ["2024"]
-active = false
-
-[[region]]
-id = "mons-mouton"
-name = "Mons Mouton"
-lists = ["2024"]
-active = false
-
-[[region]]
-id = "slater-plain"
-name = "Slater Plain"
-lists = ["2024"]
-active = false
+# Peak near Cabeus B, Mons Mouton Plateau, Mons Mouton e Slater Plain NON sono nel catalogo
+# (decisione del team, 14/11/2026): la NASA non ne ha pubblicato il contorno, quindi non si possono
+# disegnare né valutare senza inventarne i confini. Si aggiungono qui quando esce una geometria
+# ufficiale.

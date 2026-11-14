@@ -3,6 +3,7 @@
 import re
 import tomllib
 from dataclasses import dataclass
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -25,7 +26,7 @@ class Sector:
 class RegionEntry:
     id: str
     name: str
-    moontrek_label: str | None
+    moontrek_label: str
     lists: tuple[str, ...]
     active: bool
 
@@ -39,6 +40,8 @@ class SiteEntry:
     kind: str
     source: str
     note: str | None
+    date: str | None = None  # data di atterraggio (AAAA-MM-GG), solo per i siti "atterrato"
+    in_sector: bool = True  # a sud del limite del settore: coperto dai DEM LOLA polari
 
 
 @dataclass(frozen=True)
@@ -62,7 +65,7 @@ def load_catalog(catalog_dir: Path) -> Catalog:
     if not regions:
         raise CatalogError("regions.toml non contiene nessuna regione")
     _require_unique([r.id for r in regions] + [s.id for s in sites], "id")
-    _require_unique([r.moontrek_label for r in regions if r.moontrek_label], "moontrek_label")
+    _require_unique([r.moontrek_label for r in regions], "moontrek_label")
     return Catalog(sector=sector, cell_size_m=cell_size_m, regions=regions, sites=sites)
 
 
@@ -102,16 +105,13 @@ def _parse_region(index: int, raw: dict[str, Any]) -> RegionEntry:
     lists = tuple(raw.get("lists", []))
     if not lists or not set(lists) <= ALLOWED_LISTS:
         raise CatalogError(f"{where}: lists deve contenere solo {sorted(ALLOWED_LISTS)}")
-    label = raw.get("moontrek_label")
-    active = bool(raw.get("active", False))
-    if active and not label:
-        raise CatalogError(f"{where}: non può essere attiva senza moontrek_label (nessun contorno)")
     return RegionEntry(
         id=region_id,
         name=_required_str(raw, "name", where),
-        moontrek_label=str(label) if label else None,
+        # Senza contorno pubblicato una regione non si può disegnare né valutare.
+        moontrek_label=_required_str(raw, "moontrek_label", where),
         lists=lists,
-        active=active,
+        active=bool(raw.get("active", False)),
     )
 
 
@@ -129,10 +129,7 @@ def _parse_site(index: int, raw: dict[str, Any], sector: Sector) -> SiteEntry:
     lat, lon = float(raw["lat"]), float(raw["lon"])
     if not -90.0 <= lat <= 90.0 or not -180.0 <= lon <= 360.0:
         raise CatalogError(f"{where}: coordinate fuori intervallo (lat {lat}, lon {lon})")
-    if lat > sector.lat_limit:
-        raise CatalogError(
-            f"{where}: latitudine {lat}° fuori dal settore (a sud di {sector.lat_limit}°)"
-        )
+    # I siti possono stare ovunque sulla Luna: il limite del settore vale solo per le regioni.
     note = raw.get("note")
     return SiteEntry(
         id=site_id,
@@ -142,7 +139,21 @@ def _parse_site(index: int, raw: dict[str, Any], sector: Sector) -> SiteEntry:
         kind=kind,
         source=source,
         note=str(note) if note else None,
+        date=_optional_date(raw, where),
+        in_sector=lat <= sector.lat_limit,
     )
+
+
+def _optional_date(raw: dict[str, Any], where: str) -> str | None:
+    value = raw.get("date")
+    if value is None:
+        return None
+    if isinstance(value, date):  # TOML accetta anche le date senza virgolette
+        return value.isoformat()
+    try:
+        return date.fromisoformat(str(value)).isoformat()
+    except ValueError as exc:
+        raise CatalogError(f"{where}: date deve essere nel formato AAAA-MM-GG") from exc
 
 
 def _required_str(raw: dict[str, Any], key: str, where: str) -> str:
