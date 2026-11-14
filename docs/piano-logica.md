@@ -66,12 +66,16 @@ Solo quelle che servono a un passo preciso di questo piano:
 
 ### 1.3 Fatto quando
 
-- `docker compose up` avvia FastAPI e `GET /health` risponde;
+- `docker compose up` avvia FastAPI e `GET /api/health` risponde;
 - dentro il container `python -c "import osgeo, rasterio, scipy, pyproj, shapely"` funziona;
 - `docker compose run --rm backend pytest` esegue i test;
 - `docker compose run --rm backend pytest -m network` raggiunge Horizons dal container.
 
 **Stato (14/11/2026): fatto.** Tutti i controlli passano, dettagli in `backend/README.md`.
+
+**Aggiunto dopo l'arrivo del frontend del team:**
+- anche il frontend è in Docker (`frontend/Dockerfile`): servizio `frontend` con Vite su :5173, che inoltra `/api` al backend, e servizio `web` (profilo `prod`) con il frontend compilato servito da nginx su :8080;
+- i comandi di avvio stanno nel `package.json` della radice (`npm run setup`, `npm start`, `npm run check`…), elencati nel `README.md`.
 
 ⚠️ Su Windows con Docker Desktop, leggere GB di DEM da una cartella montata può essere lento. Va misurato; se serve, si usa un volume Docker dedicato per `data/rasters`.
 
@@ -140,7 +144,7 @@ Connecting Ridge, consigliata in `docs/siti-e-regioni.md`, non è più nella lis
 
     Un'etichetta presente su Moon Trek ma non nel catalogo produce solo un avviso.
 5. **Risultato** in `data/regions/regions.geojson` e `sites.geojson`. Per ogni regione: area sulla sfera, centro, angoli in metri, griglia di celle (le regioni sono quadrati con gli angoli su multipli di 100 m, quindi la griglia combacia con i bordi) e DEM LOLA che la copre. Per ogni sito: posizione in metri, cella di 100 × 100 m, regione Artemis in cui cade, DEM.
-6. **API:** `GET /regions` (con `?active=true`) e `GET /sites`.
+6. **API:** `GET /api/regions` (con `?active=true`) e `GET /api/sites`.
 
 **Siti di atterraggio (decisione del team, 14/11/2026):** ogni sito si valuta come **una cella di 100 × 100 m** attorno al punto, con gli stessi vincoli e metriche delle celle delle regioni, e compare in una tabella separata dalla classifica delle regioni. IM-2 (punto previsto, LROC [F14]) è un candidato; IM-1 (80,13°S) è fuori dal settore a 84°S e il catalogo lo rifiuterebbe.
 
@@ -302,20 +306,34 @@ Se un controllo fallisce, si corregge prima di andare avanti: tutto il resto dip
 
 ## 7. Fase 7: dati al frontend (da completare con la UI)
 
-FastAPI genera da solo la descrizione delle API (`/openapi.json`): è il contratto tra backend Python e frontend TypeScript. Da lì si generano i tipi TypeScript del frontend, per esempio con `openapi-typescript`, da aggiungere al frontend in questa fase.
+**Il contratto esiste già:** il team ha scritto `docs/api-contract.md` e, in dettaglio, `backend/API_CONTRACT.md` (14/11/2026). Il frontend usa già i tipi in `frontend/src/api/types.ts`. Le regole principali sono:
+- tutte le API sotto `/api`;
+- JSON in camelCase;
+- lavori asincroni (`JobState`) per le analisi;
+- cinque endpoint di livello C già letti dal client: `GET /api/coverage`, `POST`/`GET /api/terrain-analyses`, `POST`/`GET /api/scenario-evaluations`.
 
-Già fatto: il backend accetta richieste dal server di sviluppo di Vite (`localhost:5173`) tramite CORS. Altri indirizzi si configurano con `CORS_ORIGINS`.
+Il backend va costruito su quel contratto. FastAPI pubblica comunque la propria descrizione su `/api/openapi.json`.
 
-Bozza degli endpoint:
+Già fatto:
+- tutte le rotte del backend sono sotto `/api`;
+- Vite (in sviluppo) e nginx (in produzione) inoltrano `/api` al backend;
+- il CORS per `localhost:5173` resta per le chiamate dirette.
+
+Da chiarire nel team:
+- **framework:** `backend/API_CONTRACT.md` prevede **Flask**, il backend attuale usa **FastAPI**. Il contratto HTTP si può rispettare con entrambi;
+- **`GET /api/sites`:** nel contratto restituisce un `SiteCatalog` in camelCase, con `coordinateStatus` e siti anche equatoriali (Apollo). Il nostro restituisce GeoJSON dei siti di `sites.toml`, limitati al settore polare. Il frontend oggi non lo legge, ma i due formati vanno unificati;
+- **regioni:** `/api/regions` e la classifica delle regioni non sono nel contratto. Vanno aggiunte come estensione concordata.
+
+Bozza degli endpoint per le regioni (estensione del contratto):
 
 | Endpoint | Restituisce |
 |---|---|
-| `GET /health` | Stato del servizio |
-| `GET /regions` | **Già fatto.** GeoJSON delle regioni in latitudine e longitudine, con nome, liste di appartenenza (2022, 2024), area, DEM; `?active=true` per le sole attive |
-| `GET /ranking?t=…&duration_h=156&slope_max=10` | Classifica delle regioni con metriche e motivi |
-| `GET /regions/{id}/evaluation?t=…` | Dettaglio: zona, serie oraria, tolleranza ai ritardi |
-| `GET /regions/{id}/cells?t=…` | Stato delle celle per colorare la regione. Formato da decidere con la UI (D12) |
-| `GET /sites` | **Già fatto.** Siti di atterraggio in GeoJSON con la loro cella di 100 m; in seguito anche la loro valutazione |
+| `GET /api/health` | Stato del servizio |
+| `GET /api/regions` | **Già fatto.** GeoJSON delle regioni in latitudine e longitudine, con nome, liste di appartenenza (2022, 2024), area, DEM; `?active=true` per le sole attive |
+| `GET /api/ranking?t=…&duration_h=156&slope_max=10` | Classifica delle regioni con metriche e motivi |
+| `GET /api/regions/{id}/evaluation?t=…` | Dettaglio: zona, serie oraria, tolleranza ai ritardi |
+| `GET /api/regions/{id}/cells?t=…` | Stato delle celle per colorare la regione. Formato da decidere con la UI (D12) |
+| `GET /api/sites` | **Già fatto.** Siti di atterraggio in GeoJSON con la loro cella di 100 m; in seguito anche la loro valutazione |
 
 `duration_h=156` corrisponde a 6,5 giorni.
 

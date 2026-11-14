@@ -8,7 +8,9 @@ React 19 + TypeScript + Vite + CesiumJS. Tre viste sincronizzate:
 
 ## Avvio
 
-Dalla radice del repository, con Node indicato in `.nvmrc`:
+Con Docker, dalla radice del repository: `npm start` avvia frontend (http://localhost:5173) e backend insieme; `npm run prod` avvia la versione compilata servita da nginx su http://localhost:8080. In Docker Vite inoltra `/api` al servizio `backend` e controlla i file a intervalli, così il ricaricamento funziona anche su Windows. Dettagli e altri comandi nel [README principale](../README.md).
+
+Senza Docker, dalla radice del repository, con Node indicato in `.nvmrc`:
 
 ```sh
 nvm use
@@ -23,7 +25,7 @@ Altri comandi: `npm run build` (type-check + build), `npm run lint`, `npm run pr
 | `VITE_DATA_SOURCE` | Comportamento |
 |---|---|
 | `demo` (predefinito) | `DemoProvider`: orizzonte procedurale ed effemeridi analitiche approssimate. Il badge «Dati dimostrativi» resta sempre visibile. |
-| `api` | `HttpProvider` verso `VITE_API_BASE_URL` (predefinito `/api`). In sviluppo Vite inoltra `/api` a `MEOWRIZON_API_ORIGIN`, predefinito `http://localhost:8000`. |
+| `api` | `HttpProvider` verso `VITE_API_BASE_URL` (predefinito `/api`). In sviluppo Vite inoltra `/api` a `MEOWRIZON_API_ORIGIN`, predefinito `http://localhost:8000` (in Docker `http://backend:8000`). In produzione lo stesso inoltro lo fa nginx (`nginx.conf`). |
 
 Vedere [`.env.example`](.env.example) e il contratto in [`docs/api-contract.md`](../docs/api-contract.md).
 

@@ -20,8 +20,8 @@ def _register_download(data_dir, content):
 
 
 def test_api_before_init_returns_503(data_env):
-    assert client.get("/regions").status_code == 503
-    assert client.get("/sites").status_code == 503
+    assert client.get("/api/regions").status_code == 503
+    assert client.get("/api/sites").status_code == 503
 
 
 def test_init_offline_then_api(data_env, moontrek_bytes, capsys):
@@ -30,12 +30,12 @@ def test_init_offline_then_api(data_env, moontrek_bytes, capsys):
     assert main(["init-regions", "--offline"]) == 0
     assert "malapert-massif" in capsys.readouterr().out
 
-    all_regions = client.get("/regions").json()
+    all_regions = client.get("/api/regions").json()
     assert len(all_regions["features"]) == 17
     assert all_regions["meowrizon"]["source"]["sha256"]
-    active = client.get("/regions", params={"active": "true"}).json()
+    active = client.get("/api/regions", params={"active": "true"}).json()
     assert {f["id"] for f in active["features"]} == {"de-gerlache-rim-2", "malapert-massif"}
-    assert client.get("/sites").json()["features"] == []
+    assert client.get("/api/sites").json()["features"] == []
 
 
 def test_offline_without_download_fails(data_env, capsys):

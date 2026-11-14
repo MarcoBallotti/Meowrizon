@@ -2,7 +2,7 @@
 
 Python 3.12 e FastAPI, eseguito in Docker. Qui sta **tutta la logica** del progetto: dati, calcoli, classifica delle regioni, API e agente AI. Il frontend TypeScript si occupa solo della visualizzazione.
 
-Per ora ci sono le regioni Artemis III (`GET /regions`) e i siti di atterraggio (`GET /sites`); la valutazione non è ancora implementata (vedi `docs/piano-logica.md`). Non c'è un database: i dati stanno in file in `data/`.
+Per ora ci sono le regioni Artemis III (`GET /api/regions`) e i siti di atterraggio (`GET /api/sites`); la valutazione non è ancora implementata (vedi `docs/piano-logica.md`). Non c'è un database: i dati stanno in file in `data/`.
 
 - `app/main.py`: crea l'applicazione, configura il CORS e registra i router.
 - `app/cli.py`: comandi da terminale (`init-regions`).
@@ -38,15 +38,15 @@ I siti di atterraggio si aggiungono a `catalog/sites.toml`, sempre con una fonte
 
 ## Avvio con Docker
 
-Prerequisito: Docker Desktop avviato. Comandi da eseguire nella radice del repository.
+Prerequisito: Docker Desktop avviato. Comandi da eseguire nella radice del repository. `npm start` avvia backend e frontend insieme; `npm run check:backend` esegue ruff e pytest (elenco completo dei comandi nel README principale). Solo il backend:
 
 ```sh
 docker compose up --build backend
 ```
 
-- API: http://localhost:8000
-- Documentazione interattiva: http://localhost:8000/docs
-- Stato: http://localhost:8000/health
+- API: http://localhost:8000/api (tutte le rotte sotto `/api`, come prevede il contratto con il frontend)
+- Documentazione interattiva: http://localhost:8000/api/docs
+- Stato: http://localhost:8000/api/health
 
 Il codice di `backend/` è montato nel container: modificando un file Python il server si riavvia da solo. La cartella `data/` è montata su `/app/data`, quindi dati scaricati e cache restano sul disco e fuori da Git.
 
@@ -68,9 +68,9 @@ I valori di default sono nel codice. Per cambiarli si copia `.env.example` in `.
 
 ## Perché FastAPI e non Flask
 
-- Genera da solo lo schema OpenAPI (`/openapi.json`), da cui si ricavano i tipi TypeScript del frontend.
+- Genera da solo lo schema OpenAPI (`/api/openapi.json`), da cui si ricavano i tipi TypeScript del frontend.
 - Controlla i parametri dai tipi Python (date, soglie) e risponde con errori chiari se sono sbagliati.
-- Ha la documentazione interattiva su `/docs`, utile per provare le API senza frontend.
+- Ha la documentazione interattiva su `/api/docs`, utile per provare le API senza frontend.
 
 Con Flask le stesse cose richiedono estensioni aggiuntive.
 
