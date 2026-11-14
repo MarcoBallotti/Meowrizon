@@ -333,3 +333,18 @@ Local preparation on 2026-11-14 imported 1,652 catalog records, 13 region polygo
 .venv/bin/python -m pip install -r requirements-dev.txt
 .venv/bin/python -m unittest discover -s tests -v
 ```
+
+## Return original API data
+
+`GET /api/data/sources/{source_name}/data` returns the latest saved upstream response unchanged. Examples:
+
+```sh
+curl http://127.0.0.1:8000/api/data/sources/horizons_sun_observer/data
+curl http://127.0.0.1:8000/api/data/sources/candidate_regions_2022/data
+curl http://127.0.0.1:8000/api/data/sources/moon_catalog_south/data
+curl http://127.0.0.1:8000/api/data/sources/dem_south_pole_sample/data --output terrain.tif
+```
+
+Run file-output examples from this backend folder. JSON responses remain JSON (including Horizons' original text table inside `result`); TIFF, JPEG, PNG and XML use their native content types. `X-Dataset-Id`, `X-Source-Name` and the SHA-256 `ETag` identify the returned version. Files are checksum-checked before delivery.
+
+For an exact version, use `GET /api/data/datasets/{dataset_id}/raw`. When a source name has several parameter sets, the shortcut returns 409 until you provide `?request_sha256=...` or select an exact dataset ID. Missing responses return 404; unavailable/corrupt versions return 409. These GETs read saved data and do not start network downloads. First use `POST /api/data/collect` and poll its job; use `refresh: true` when a fresh upstream response is wanted.
