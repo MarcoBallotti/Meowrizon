@@ -254,7 +254,10 @@ function setShow(entity: Entity, show: boolean) {
 
 interface MoonGlobeProps {
   markers: GlobeMarker[]
-  selected: SiteCoordinates & { label: string; id: string | null }
+  /** The chosen point; `shown: false` while nothing is chosen (no ring, no chip). */
+  selected: SiteCoordinates & { label: string; id: string | null; shown?: boolean }
+  /** Click on the chosen point's ring: remove it. */
+  onClearSelection?: () => void
   /** What to frame; null = the resting view of the whole Moon. */
   focus: GlobeFocus | null
   /** Light the globe as on this date (approximate Sun direction); null = flat light. */
@@ -272,21 +275,21 @@ interface MoonGlobeProps {
   onHover?: (text: string) => void
 }
 
-export default function MoonGlobe({ markers, selected, focus, lightMs, regions, regionShapes = NO_SHAPES, resetNonce, selectable = true, onPickMarker, onPickPoint, onHover }: MoonGlobeProps) {
+export default function MoonGlobe({ markers, selected, focus, lightMs, regions, regionShapes = NO_SHAPES, resetNonce, selectable = true, onPickMarker, onPickPoint, onHover, onClearSelection }: MoonGlobeProps) {
   const container = useRef<HTMLDivElement>(null)
   const viewerRef = useRef<Viewer | null>(null)
   const ring = useRef<Entity | null>(null)
   const markerEntities = useRef<Map<string, Entity>>(new Map())
   const regionEntities = useRef<Entity[]>([])
-  const handlers = useRef({ onPickMarker, onPickPoint, onHover, selectable })
+  const handlers = useRef({ onPickMarker, onPickPoint, onHover, onClearSelection, selectable })
   // The selection chip is HTML (crisp, rounded), so it is placed on the screen each frame.
   const chip = useRef<HTMLDivElement>(null)
   const chipAnchor = useRef<Cartesian3 | null>(null)
   const [imageryError, setImageryError] = useState(false)
 
   useEffect(() => {
-    handlers.current = { onPickMarker, onPickPoint, onHover, selectable }
-  }, [onPickMarker, onPickPoint, onHover, selectable])
+    handlers.current = { onPickMarker, onPickPoint, onHover, onClearSelection, selectable }
+  }, [onPickMarker, onPickPoint, onHover, onClearSelection, selectable])
 
   useEffect(() => {
     if (!container.current) return
@@ -408,6 +411,11 @@ export default function MoonGlobe({ markers, selected, focus, lightMs, regions, 
       // but a click on a label means "this point here": the pointer must stay
       // exactly where the click was, not jump to the centre of the named site.
       const picked = viewer.scene.pick(e.position) as { id?: Entity } | undefined
+      // A click on the chosen point's dot removes it.
+      if (picked?.id && picked.id === ring.current && ring.current.show) {
+        handlers.current.onClearSelection?.()
+        return
+      }
       for (const [id, ent] of markerEntities.current) {
         if (picked?.id !== ent) continue
         const at = ent.position?.getValue(viewer.clock.currentTime)
@@ -515,14 +523,17 @@ export default function MoonGlobe({ markers, selected, focus, lightMs, regions, 
     const viewer = viewerRef.current
     const e = ring.current
     if (!viewer || !e) return
+    const shown = selected.shown !== false
     placeEntity(e, selected.latDeg, selected.lonEastDeg)
-    chipAnchor.current = Cartesian3.fromDegrees(selected.lonEastDeg, selected.latDeg, 0, MOON)
+    setShow(e, shown)
+    chipAnchor.current = shown ? Cartesian3.fromDegrees(selected.lonEastDeg, selected.latDeg, 0, MOON) : null
+    if (!shown && chip.current) chip.current.style.display = 'none'
     for (const [id, ent] of markerEntities.current) {
       const m = markers.find((x) => x.id === id)
-      setShow(ent, id !== selected.id || m?.rank !== undefined)
+      setShow(ent, !shown || id !== selected.id || m?.rank !== undefined)
     }
     viewer.scene.requestRender()
-  }, [selected.latDeg, selected.lonEastDeg, selected.id, markers, selectable])
+  }, [selected.latDeg, selected.lonEastDeg, selected.id, selected.shown, markers, selectable])
 
   // Camera: a short straight dolly, never a rotation (motion sickness).
   const focusKey = focus ? `${focus.latDeg},${focus.lonEastDeg},${focus.distanceM},${focus.screen?.join(',') ?? ''}` : ''

@@ -103,6 +103,8 @@ export interface AppState {
   comparison: Comparison | null
   /** Candidate regions measured for scenario A's period (engine only). */
   ranking: RegionRanking | null
+  /** Whether a point is chosen on the Moon. False at start and after it is removed. */
+  pointShown: boolean
   rankBy: RankBy
   area: AreaFilter
   /** Incremented to ask the globe to fly to a scenario. */
@@ -164,6 +166,7 @@ const initialState: AppState = {
   siteError: null,
   comparison: null,
   ranking: null,
+  pointShown: false,
   rankBy: provider.kind === 'api' ? 'sun' : 'overall',
   area: 'all',
   flyRequest: null,
@@ -191,6 +194,13 @@ export function updateScenario(key: ScenarioKey, fn: (s: Scenario) => Scenario):
 export function setScenarioInput(key: ScenarioKey, patch: Partial<ScenarioInput>): void {
   if (patch.site && !('selectionId' in patch)) patch = { ...patch, selectionId: null }
   updateScenario(key, (s) => ({ input: { ...s.input, ...patch }, run: { phase: 'idle', stale: true } }))
+  if (key === 'A' && patch.site) setState({ pointShown: true })
+}
+
+/** Removes the chosen point from the Moon: nothing is selected until the next pick. */
+export function clearPoint(): void {
+  updateScenario('A', (s) => ({ ...s, input: { ...s.input, siteName: null, selectionId: null } }))
+  setState({ pointShown: false })
 }
 
 export function setAudience(audience: Audience): void {

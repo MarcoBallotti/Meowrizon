@@ -14,7 +14,7 @@ import { CUSTOM_SITE_NAME, normalizeLon, validateSite } from '../domain/sites'
 import type { GlobeFocus, GlobeMarker, MarkerSymbol, RegionBands, RegionShape } from '../features/MoonGlobe'
 import { TopBar } from '../features/TopBar'
 import { loadRegionCatalog, loadSiteCatalog, runRegionRanking } from '../state/runner'
-import { goTo, setScenarioInput, setState, useStore, type Audience, type ScenarioInput } from '../state/store'
+import { clearPoint, goTo, setScenarioInput, setState, useStore, type Audience, type ScenarioInput } from '../state/store'
 import { ArrowIcon, Button, Card, DateDial, Field, Input, MonthCalendar, Segmented, Select, SpaceWindow, Toggle } from '../ui'
 
 const MoonGlobe = lazy(() => import('../features/MoonGlobe'))
@@ -247,7 +247,9 @@ function SiteList() {
   const typed = planner ? parseCoords(query) : null
   const q = query.trim().toLowerCase()
   const shown = typed ? [] : places.filter((p) => (area === 'all' || p.area === area) && (!q || p.name.toLowerCase().includes(q)))
-  const custom = input.siteName === null
+  const pointShown = useStore((s) => s.pointShown)
+  // The free point is listed only while it is on the Moon.
+  const custom = input.siteName === null && pointShown
 
   return (
     <div className="site-picker">
@@ -345,11 +347,12 @@ function PlanCard({ plan, onPlan, onResults, onHorizon }: PlanCardProps) {
   const durationDays = useStore((s) => s.durationDays)
   const planner = audience === 'planner'
   const student = audience === 'student'
+  const pointShown = useStore((s) => s.pointShown)
   const place = input.siteName?.split(' · ')[0] ?? CUSTOM_SITE_NAME
   const dialLabel = planner ? 'Date and time, UTC' : 'Day'
   const horizon = (
-    <Button size="l" block icon={<ArrowIcon />} onClick={onHorizon} className="plan-go">
-      {student ? `Fly down to ${place}` : `Open the horizon at ${place}`}
+    <Button size="l" block icon={<ArrowIcon />} onClick={onHorizon} className="plan-go" disabled={!pointShown}>
+      {!pointShown ? 'Pick a site to open its horizon' : student ? `Fly down to ${place}` : `Open the horizon at ${place}`}
     </Button>
   )
 
@@ -481,7 +484,6 @@ function RankedSitesPanel({ ranked, onPick, onHorizon }: { ranked: Ranked[]; onP
   return (
     <section className="rank-panel" aria-label="Sites from best to worst">
       <Card className="rank-head">
-        <Segmented<AreaFilter> label="Area" size="s" tone="sunk" value={area} onChange={(v) => setState({ area: v })} options={AREA_OPTIONS} />
         <div className="results-rank">
           <span className="ui-field-label">{catalog?.origin === 'demo' ? 'Rank by · practice data' : 'Rank by'}</span>
           <Segmented<RankBy>
@@ -501,8 +503,6 @@ function RankedSitesPanel({ ranked, onPick, onHorizon }: { ranked: Ranked[]; onP
             Measuring {progress.current} · {done} of {progress.total}. The first time takes about a minute per site.
           </p>
         )}
-        {API && <p className="ui-small ui-muted">All catalog locations are considered. Region results describe their centre point, not the whole region. Comparisons use geometric visibility only; terrain resolution and model limitations apply.</p>}
-        {API && progress && <p role="status" className="ui-small">{progress.regions.length} evaluated · {progress.failed.length} not evaluable · {progress.total - done} pending · {progress.total} catalog points</p>}
         {API && (error || siteError) && <p role="alert">Catalog incomplete: {[error, siteError].filter(Boolean).join(' ')} <Button size="s" onClick={() => { void loadRegionCatalog(); void loadSiteCatalog() }}>Reload catalogs</Button></p>}
       </Card>
 
@@ -655,6 +655,7 @@ export function MoonScreen({ mode }: { mode: 'moon' | 'explore' }) {
   const [zoomed, setZoomed] = useState(false)
   const planner = audience === 'planner'
   const results = mode === 'explore'
+  const pointShown = useStore((s) => s.pointShown)
   const wide = useWide()
   // Numbered badges only where the answer is a ranking: the results.
   const ranking = results
@@ -743,6 +744,8 @@ export function MoonScreen({ mode }: { mode: 'moon' | 'explore' }) {
   const showResults = () => {
     const top = ranked[0]
     if (top) selectSite({ ...top.center, name: top.name, id: top.id })
+    // The results start with nothing chosen: a free point picked before does not carry over.
+    else if (!input.siteName) clearPoint()
     setZoomed(false)
     goTo('explore')
   }
@@ -773,11 +776,12 @@ export function MoonScreen({ mode }: { mode: 'moon' | 'explore' }) {
           )}
         </div>
         <div className="moon-stage">
-          <SpaceWindow className="moon-window has-credits" aria-label="The Moon">
+          <SpaceWindow className={results ? 'moon-window' : 'moon-window has-credits'} aria-label="The Moon">
             <Suspense fallback={<div className="moon-globe-loading">Loading the Moon…</div>}>
               <MoonGlobe
                 markers={markers}
-                selected={{ ...input.site, label: input.siteName?.split(' · ')[0] ?? customName(input.site.latDeg, input.site.lonEastDeg), id: selectedId }}
+                selected={{ ...input.site, label: input.siteName?.split(' · ')[0] ?? customName(input.site.latDeg, input.site.lonEastDeg), id: selectedId, shown: pointShown }}
+                onClearSelection={clearPoint}
                 focus={focus}
                 lightMs={realLight ? input.startMs : null}
                 regions={showRegions ? bands : null}
@@ -792,7 +796,8 @@ export function MoonScreen({ mode }: { mode: 'moon' | 'explore' }) {
 
             {results && <ResultsWhen />}
 
-            <div className="moon-window-toggles">
+            {/* The results show only the Moon and the ranking: no switches, key or credits band. */}
+            {!results && <div className="moon-window-toggles">
               <Toggle checked={realLight} onChange={setRealLight} onDark>
                 Sunlight on this day
               </Toggle>
@@ -809,8 +814,8 @@ export function MoonScreen({ mode }: { mode: 'moon' | 'explore' }) {
               >
                 <Info size={20} strokeWidth={1.75} aria-hidden="true" />
               </button>
-            </div>
-            {legendOpen && (
+            </div>}
+            {!results && legendOpen && (
               <ul id="moon-legend" className="moon-legend ui-small" aria-label="Map key">
                 {shapes.length > 0 && (
                   <li>
@@ -864,7 +869,7 @@ export function MoonScreen({ mode }: { mode: 'moon' | 'explore' }) {
               Reset view
             </Button>
             {planner && hover && <span className="ui-space-caption moon-hover mono">{hover}</span>}
-            <CreditsBar />
+            {!results && <CreditsBar />}
           </SpaceWindow>
         </div>
       </div>

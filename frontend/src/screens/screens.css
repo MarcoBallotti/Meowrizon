@@ -126,6 +126,12 @@
   --side-w: 440px;
 }
 
+/* The results name every site beside its badge: the white chip of the chosen
+   point is not needed, and it could slip under the panel. */
+.moon-page.is-results .globe-chip {
+  display: none !important;
+}
+
 .moon-page.is-results .moon-side {
   order: 2;
 }
