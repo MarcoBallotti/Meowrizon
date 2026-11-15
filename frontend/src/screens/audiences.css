@@ -4,11 +4,21 @@
 /* ---------------------------------------------------------------- planner */
 
 .moon-page.is-planner {
-  --side-w: 440px;
   --best: #2f9e6e;
 }
 
 @media (min-width: 1101px) {
+  .experiments {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    scrollbar-width: thin;
+  }
+
+  .experiments > * {
+    flex-shrink: 0;
+  }
+
   /* The panel fills the side: the cards scroll inside it, the button sits below. */
   .moon-side.is-scroll {
     display: flex;
@@ -481,14 +491,4 @@
 
 .moon-page.is-planner .rank-list {
   gap: var(--s-1);
-}
-
-/* The best site: an accent green border, the green of its first-place badge. */
-.moon-page.is-planner .rank-card.is-best {
-  border: 2px solid var(--best);
-  padding: 11px;
-}
-
-.moon-page.is-planner .rank-card.is-best[aria-pressed='true'] {
-  box-shadow: inset 0 0 0 1px var(--best);
 }

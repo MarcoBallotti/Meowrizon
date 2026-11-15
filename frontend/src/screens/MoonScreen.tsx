@@ -322,11 +322,11 @@ function PlanCard({ plan, onPlan, onResults }: PlanCardProps) {
 
   return (
     <Card as="section" className="plan-card" aria-label="Landing plan">
-      {planner ? <p className="ui-field-hint">Choose the mission start and duration, then compare candidate sites.</p> : student ? <p className="ui-field-hint">Choose a site and a date to explore sunlight, Earth visibility and the local horizon.</p> : <><p className="ui-field-hint">Compare sites, then use the horizon and timeline to explain what makes conditions favorable.</p><PlanModes value={plan} onChange={onPlan} /></>}
+      {!planner && !student && <><p className="ui-field-hint">Compare sites, then use the horizon and timeline to explain what makes conditions favorable.</p><PlanModes value={plan} onChange={onPlan} /></>}
 
       {plan === 'date' && (
         <>
-          <h1 className="plan-title">{student ? 'When shall we land?' : 'When do you want to land?'}</h1>
+          <h1 className="ui-display">{student ? 'When shall we land?' : 'When do you want to land?'}</h1>
           <div className="plan-body">
             <StartDial label={dialLabel} minutes={planner} strip={false} />
             <MonthCalendar value={input.startMs} onChange={(ms) => setScenarioInput('A', { startMs: ms })} />
@@ -340,7 +340,7 @@ function PlanCard({ plan, onPlan, onResults }: PlanCardProps) {
 
       {plan === 'both' && (
         <>
-          <h1 className="plan-title">{student ? 'Explore a place on the Moon' : 'Which site shall we investigate?'}</h1>
+          <h1 className="ui-display">{student ? 'Explore a place on the Moon' : 'Which site shall we investigate?'}</h1>
           <StartDial label={dialLabel} minutes={planner} strip />
           <div className="home-divider" />
           <div className="plan-body">
@@ -484,41 +484,48 @@ function RankedSitesPanel({ ranked, onPick, onHorizon, infoSlot }: { ranked: Ran
       ) : (
         <ol className="rank-list" aria-label="Ranking">
           {shown.map((r) => (
-            <li key={r.id}>
+            <li key={r.id} className="rank-item">
               <button type="button" className={r.rank === 1 ? 'rank-card is-best' : 'rank-card'} aria-pressed={isChosen(input, r)} onClick={() => { setCardId(r.id); onPick({ ...r.center, name: r.name, id: r.id }) }}>
                 <span className="rank-card-head">
-                  <span className="rank-badge" style={{ background: rankColor(r.rank, shown.length) }}>
+                  <span className="rank-badge">
                     {r.rank}
                   </span>
-                  <span className="rank-card-name">{r.name.split(' · ')[0]}{isChosen(input, r) ? " · Your selected site" : ""}</span>
+                  <span className="rank-card-name">{r.name.split(' · ')[0]}</span>
                 </span>
                 <span className={`results-metrics is-${audience}`}>
-                  <span className="results-metric is-sun">
-                    <small>Sunlight</small>
-                    <b>{pct(r.sunFraction)}</b>
+                  <span className="ui-metric is-sun">
+                    <span className="ui-metric-label">Sunlight</span>
+                    <b className="ui-metric-value">{pct(r.sunFraction)}</b>
                   </span>
-                  <span className="results-metric is-earth">
-                    <small>{student ? 'Earth in the sky' : 'Earth in view'}</small>
-                    <b>{pct(r.earthFraction)}</b>
+                  <span className="ui-metric is-earth">
+                    <span className="ui-metric-label">{student ? 'Earth in the sky' : 'Earth in view'}</span>
+                    <b className="ui-metric-value">{pct(r.earthFraction)}</b>
                   </span>
-                  <span className="results-metric">
-                    <small>{student ? 'Both together' : 'Sun + Earth'}</small>
-                    <b>{pct(r.bothFraction)}</b>
+                  <span className="ui-metric">
+                    <span className="ui-metric-label">{student ? 'Both together' : 'Sun + Earth'}</span>
+                    <b className="ui-metric-value">{pct(r.bothFraction)}</b>
                   </span>
                   {planner && (
-                    <span className="results-metric">
-                      <small>{API ? 'Longest below C3' : 'Longest night'}</small>
-                      <b>{nightText(r.longestNightH, audience)}</b>
+                    <span className="ui-metric">
+                      <span className="ui-metric-label">{API ? 'Longest below C3' : 'Longest night'}</span>
+                      <b className="ui-metric-value">{nightText(r.longestNightH, audience)}</b>
                     </span>
                   )}
                 </span>
+              </button>
+              <details className="rank-site-info">
+                <summary aria-label={`Details about ${r.name.split(' · ')[0]}`}><Info size={20} strokeWidth={1.75} aria-hidden="true" /></summary>
+                <div className="rank-site-info-body ui-card ui-small">
+                <strong>{r.name.split(' · ')[0]}</strong>
+                {isChosen(input, r) && <span>Your selected site</span>}
                 {API && <span className="ui-small ui-muted">
                   Longest sunlight outage: {nightText(r.longestNightH, audience)} · Longest radio outage: {r.longestNoLinkH === undefined ? 'Unknown' : nightText(r.longestNoLinkH, audience)} · Longest shared window: {r.longestBothH === undefined ? 'Unknown' : nightText(r.longestBothH, audience)}
                 </span>}
                 {API && <span className="ui-small ui-muted">{r.pointKind === 'region-center' ? 'Region centre · point estimate' : 'Catalog site'}</span>}
                 {!planner && <span className="ui-small">{publicExplanation(r)}</span>}
                 <span className="ui-small ui-muted">Visibility index: {r.score.toFixed(1)}/100 · Configured requirements met</span>
-              </button>
+                </div>
+              </details>
             </li>
           ))}
           {measuring &&
