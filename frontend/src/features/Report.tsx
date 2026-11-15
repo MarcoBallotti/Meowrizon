@@ -5,6 +5,8 @@
  */
 import type { ReactNode } from 'react'
 import { provider } from '../api'
+import { dataApi } from '../api'
+import { useEffect, useState } from 'react'
 import type { ScenarioEvaluation, TerrainAnalysis } from '../api/types'
 import { bestProductFor } from '../domain/coverage'
 import { formatAngle, formatCountdown, formatDuration, formatPercent, formatSignedAngle, formatUtc, previousMonthName } from '../domain/format'
@@ -343,7 +345,18 @@ export function PeriodPanel() {
 export function DataPanel() {
   const terrain = useStore((s) => s.scenarios.A.run.terrain)
   const evaluation = useStore((s) => s.scenarios.A.run.evaluation)
-  return <DataSources terrain={terrain} evaluation={evaluation} />
+  return <><DataSources terrain={terrain} evaluation={evaluation} /><SourceDataPanel /></>
+}
+
+function SourceDataPanel() {
+  const [datasets, setDatasets] = useState<{id:string;name:string;status:string;retrieved_at?:string}[]>([])
+  const [error, setError] = useState('')
+  useEffect(() => { if (provider.kind === 'api') void dataApi.getDatasets().then(setDatasets).catch(e => setError(String(e))) }, [])
+  if (provider.kind !== 'api') return null
+  return <Card as="article" className="panel-card"><header className="panel-head"><h3 className="ui-title">Saved source data</h3></header>
+    {error ? <p role="alert">{error}</p> : <ul>{datasets.map(d => <li key={d.id}><a href={`${import.meta.env.VITE_API_BASE_URL ?? '/api'}/data/datasets/${d.id}/raw`} target="_blank" rel="noreferrer">{d.name}</a> · {d.status}{d.retrieved_at ? ` · ${d.retrieved_at}` : ''}</li>)}</ul>}
+    {!datasets.length && !error && <p>Sources have not been collected yet.</p>}
+  </Card>
 }
 
 function DataSources({ terrain, evaluation }: { terrain?: TerrainAnalysis; evaluation?: ScenarioEvaluation }) {

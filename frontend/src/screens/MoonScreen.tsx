@@ -348,7 +348,7 @@ function RankingPanel({ ranked, audience, onPick }: { ranked: Ranked[]; audience
             ))}
             {catalog.locations?.length === 0 && <li>No candidate regions in this catalog.</li>}
           </ul>}
-      <p className="ui-field-hint">Centers are for browsing. Terrain, illumination and comparison results are not available yet.</p>
+      <p className="ui-field-hint">Centers are for browsing. Open a south-polar site to calculate its PGDA terrain horizon. Illumination and regional comparisons are not available yet.</p>
     </section>
   )
 

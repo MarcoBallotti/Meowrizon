@@ -15,4 +15,5 @@ function createProvider(): DataProvider {
 
 export const provider: DataProvider = createProvider()
 export const catalogApi = new HttpProvider(import.meta.env.VITE_API_BASE_URL ?? '/api')
+export const dataApi = catalogApi
 export * from './types'

@@ -110,6 +110,7 @@ export interface ScenarioEvaluationRequest {
   startUtc: string
   stopUtc: string
   stepMinutes: number
+  includeContext?: boolean
 }
 
 export interface BodyTrack {
@@ -119,11 +120,18 @@ export interface BodyTrack {
   horizonDeg: number[]
   /** Engine classification of the body centre: above the terrain horizon. */
   centerVisible: boolean[]
+  visibleFraction?: number[]
+  terrainVisibleFraction?: number[]
+  angularRadiusDeg?: number[]
+  distanceKm?: number[]
+  illuminatedFraction?: number[]
 }
 
 export interface TimeInterval {
   startMs: number
   endMs: number
+  startTruncated?: boolean
+  endTruncated?: boolean
 }
 
 export type BodyId = 'sun' | 'earth'
@@ -141,9 +149,13 @@ export interface ScenarioEvaluation {
     sun: TimeInterval[]
     earth: TimeInterval[]
     both: TimeInterval[]
+    eclipse?: TimeInterval[]
   }
   /** Which geometric condition `centerVisible` and `intervals` describe. */
-  visibilityModel: 'body-center'
+  visibilityModel: 'body-center' | 'disc-fraction-c3'
+  solarOccultedFraction?: number[]
+  eclipseCalendar?: { startMs: number; stopMs: number; source: string; events: import('../domain/eclipses').SiteEclipse[] }
+  orbit?: { timesMs: number[]; sunKm: [number, number, number][]; moonKm: [number, number, number][]; frame: string; source: string }
   ephemeris: {
     source: string
     version: string

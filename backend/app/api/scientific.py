@@ -58,6 +58,7 @@ class ScenarioEvaluationRequest(ScientificInput):
     startUtc: str
     stopUtc: str
     stepMinutes: Annotated[int, Field(strict=True, gt=0)]
+    includeContext: Annotated[bool, Field(strict=True)] = True
 
     @field_validator("startUtc", "stopUtc")
     @classmethod
@@ -82,33 +83,42 @@ class ScientificError(BaseModel):
     message: str
 
 
-class UnavailableJob(BaseModel):
-    """Only terminal failures are supported until a real engine is installed."""
-
+class ScientificJob(BaseModel):
     id: str
-    status: Literal["failed"]
-    error: ScientificError
+    status: Literal["queued", "running", "completed", "failed"]
+    progress: float | None = None
+    message: str | None = None
+    result: dict | None = None
+    error: ScientificError | None = None
 
 
-@router.post("/terrain-analyses", status_code=202, response_model=UnavailableJob)
+def _submit(kind, body, request):
+    try:
+        return request.app.state.scientific_jobs.submit(kind, body.model_dump())
+    except ValueError as exc:
+        raise HTTPException(429, str(exc)) from exc
+
+
+@router.post(
+    "/terrain-analyses",
+    status_code=202,
+    response_model=ScientificJob,
+    response_model_exclude_none=True,
+)
 def submit_terrain(body: TerrainAnalysisRequest, request: Request):
-    """Accept the client input and persist an explicit engine-unavailable job.
-
-    No DEM is currently registered for scientific computation. The small acquisition
-    sample does not cover the requested horizon. Poll the returned id for the same
-    terminal error; no provider downloads are triggered by a UI request.
-    """
-    return request.app.state.scientific_jobs.submit("terrain", body.model_dump())
+    """Fetch/cache PGDA elevation windows and compute the requested spherical horizon."""
+    return _submit("terrain", body, request)
 
 
-@router.post("/scenario-evaluations", status_code=202, response_model=UnavailableJob)
+@router.post(
+    "/scenario-evaluations",
+    status_code=202,
+    response_model=ScientificJob,
+    response_model_exclude_none=True,
+)
 def submit_scenario(body: ScenarioEvaluationRequest, request: Request):
-    """Persist the requested period without manufacturing a completed scenario.
-
-    No completed terrain results or validated scenario adapter are available yet.
-    A failed job does not provide a terrain result id for subsequent calculation.
-    """
-    return request.app.state.scientific_jobs.submit("scenario", body.model_dump())
+    """Horizons tracks, finite-disc visibility, eclipse calendar and orbit vectors."""
+    return _submit("scenario", body, request)
 
 
 def _job(request, kind, job_id):
@@ -118,11 +128,15 @@ def _job(request, kind, job_id):
         raise HTTPException(404, "Scientific job not found") from exc
 
 
-@router.get("/terrain-analyses/{jobId}", response_model=UnavailableJob)
+@router.get(
+    "/terrain-analyses/{jobId}", response_model=ScientificJob, response_model_exclude_none=True
+)
 def terrain_job(jobId: str, request: Request):
     return _job(request, "terrain", jobId)
 
 
-@router.get("/scenario-evaluations/{jobId}", response_model=UnavailableJob)
+@router.get(
+    "/scenario-evaluations/{jobId}", response_model=ScientificJob, response_model_exclude_none=True
+)
 def scenario_job(jobId: str, request: Request):
     return _job(request, "scenario", jobId)

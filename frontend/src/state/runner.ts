@@ -27,9 +27,15 @@ export async function runScenario(key: ScenarioKey): Promise<void> {
   const s = getState()
   const { input } = s.scenarios[key]
   const stopMs = input.startMs + s.durationDays * 86_400_000
+  const current = () => {
+    const now = getState()
+    return !signal.aborted && now.scenarios[key].input === input
+      && now.durationDays === s.durationDays && now.stepMinutes === s.stepMinutes
+      && now.azimuthStepDeg === s.azimuthStepDeg && now.maxDistanceKm === s.maxDistanceKm
+  }
 
   try {
-    updateScenario(key, (sc) => ({ ...sc, run: { ...sc.run, phase: 'terrain', progress: 0, error: undefined } }))
+    updateScenario(key, (sc) => ({ ...sc, run: { phase: 'terrain', progress: 0, stale: true } }))
     const terrain = await runJob(
       () =>
         provider.submitTerrainAnalysis(
@@ -42,12 +48,12 @@ export async function runScenario(key: ScenarioKey): Promise<void> {
         ),
       (id) => provider.getTerrainAnalysis(id, signal),
       (job) => {
-        if (!signal.aborted) updateScenario(key, (sc) => ({ ...sc, run: { ...sc.run, progress: job.progress } }))
+        if (current()) updateScenario(key, (sc) => ({ ...sc, run: { ...sc.run, progress: job.progress, message: job.message } }))
       },
       signal,
     )
-    if (signal.aborted) return
-    updateScenario(key, (sc) => ({ ...sc, run: { ...sc.run, phase: 'ephemeris', progress: 0 } }))
+    if (!current()) return
+    updateScenario(key, (sc) => ({ ...sc, run: { phase: 'ephemeris', terrain, progress: 0, stale: false } }))
 
     const evaluation = await runJob(
       () =>
@@ -62,11 +68,11 @@ export async function runScenario(key: ScenarioKey): Promise<void> {
         ),
       (id) => provider.getScenarioEvaluation(id, signal),
       (job) => {
-        if (!signal.aborted) updateScenario(key, (sc) => ({ ...sc, run: { ...sc.run, progress: job.progress } }))
+        if (current()) updateScenario(key, (sc) => ({ ...sc, run: { ...sc.run, progress: job.progress, message: job.message } }))
       },
       signal,
     )
-    if (signal.aborted) return
+    if (!current()) return
     // Inputs may have changed after submission (a rerun is then pending).
     updateScenario(key, (sc) => ({
       ...sc,
@@ -82,6 +88,7 @@ export async function runScenario(key: ScenarioKey): Promise<void> {
             startUtc: new Date(input.startMs - s.durationDays * 86_400_000).toISOString(),
             stopUtc: new Date(input.startMs).toISOString(),
             stepMinutes: s.stepMinutes,
+            includeContext: false,
           },
           signal,
         ),
@@ -89,10 +96,10 @@ export async function runScenario(key: ScenarioKey): Promise<void> {
       () => undefined,
       signal,
     ).catch(() => undefined)
-    if (signal.aborted || !previous) return
+    if (!current() || !previous) return
     updateScenario(key, (sc) => (sc.run.evaluation === evaluation ? { ...sc, run: { ...sc.run, previous } } : sc))
   } catch (err) {
-    if (signal.aborted) return
+    if (!current()) return
     updateScenario(key, (sc) => ({ ...sc, run: { ...sc.run, phase: 'error', error: describe(err) } }))
   } finally {
     if (controllers[key] === controller) delete controllers[key]
