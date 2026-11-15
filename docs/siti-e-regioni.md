@@ -1,4 +1,4 @@
-# Regioni di atterraggio in Meowrizon
+# Regioni di atterraggio in Moonrizon
 
 **Perimetro V1 approvato il 15/11/2026:** confronto puntuale di 2–3 punti nelle due regioni di sviluppo, con date esplicite, finestra finita, Horizons topocentrico, terreno/dischi/eclissi, slope e validazione. Griglia e aree regionali, P50 annuale, robustezza aggregata e siti globali sono V2. Le sezioni che li descrivono restano specifiche future. Libreria/CLI/JSON prima; HTTP e frontend dopo. Prevalgono [criteri-algoritmo.md](criteri-algoritmo.md) e [piano-logica.md](piano-logica.md).
 

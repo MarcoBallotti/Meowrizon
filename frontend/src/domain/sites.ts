@@ -1,6 +1,6 @@
 import type { SiteCoordinates } from '../api/types'
 
-export type SiteRegion = 'South pole' | 'Equatorial band'
+export type SiteRegion = 'South pole' | 'Equatorial band' | 'Other latitudes'
 
 export interface ExampleSite extends SiteCoordinates {
   id: string
@@ -8,6 +8,10 @@ export interface ExampleSite extends SiteCoordinates {
   /** Short name for big buttons and labels on the globe. */
   short: string
   region: SiteRegion
+  source?: string
+  properties?: Record<string, unknown>
+  /** Backend catalog status: 'atterrato' (landed), 'previsto' (planned), 'personalizzato'. */
+  kind?: string
 }
 
 /**

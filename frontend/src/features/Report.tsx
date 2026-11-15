@@ -4,11 +4,13 @@
  * (teacher), numbers with exact times and an A/B comparison (planner).
  */
 import type { ReactNode } from 'react'
+import { provider } from '../api'
+import { dataApi } from '../api'
+import { useEffect, useState } from 'react'
 import type { ScenarioEvaluation, TerrainAnalysis } from '../api/types'
 import { bestProductFor } from '../domain/coverage'
 import { formatAngle, formatCountdown, formatDuration, formatPercent, formatSignedAngle, formatUtc, previousMonthName } from '../domain/format'
 import { bodyAt, intervalStats, type BodyAtTime } from '../domain/sampling'
-import { EXAMPLE_SITES } from '../domain/sites'
 import { spanAt, type Span } from '../domain/sky'
 import { classPrompts, headline, studentLine, teacherLine } from '../domain/story'
 import { setScenarioInput, setState, useStore, type Audience, type ScenarioKey } from '../state/store'
@@ -242,6 +244,7 @@ function PlannerNow({ now }: { now: Now }) {
 
 /** Planner: period metrics for A (and B), each with the change vs the month before. */
 export function PeriodPanel() {
+  const sites = useStore((s) => s.sites)
   const compare = useStore((s) => s.compare)
   const durationDays = useStore((s) => s.durationDays)
   const nameA = useStore((s) => s.scenarios.A.input.siteName)
@@ -319,13 +322,14 @@ export function PeriodPanel() {
           <Select
             inputSize="s"
             aria-label="Site B"
-            value={EXAMPLE_SITES.find((s) => s.name === B.input.siteName)?.id ?? ''}
+            value={B.input.selectionId ?? (provider.kind === 'demo' ? sites.find((s) => s.name === B.input.siteName)?.id : null) ?? ''}
             onChange={(e) => {
-              const site = EXAMPLE_SITES.find((s) => s.id === e.target.value)
-              if (site) setScenarioInput('B', { site: { latDeg: site.latDeg, lonEastDeg: site.lonEastDeg }, siteName: site.name })
+              const site = sites.find((s) => s.id === e.target.value)
+              if (site) setScenarioInput('B', { site: { latDeg: site.latDeg, lonEastDeg: site.lonEastDeg }, siteName: site.name, selectionId: site.id })
             }}
           >
-            {EXAMPLE_SITES.map((s) => (
+            <option value="">Custom point / choose a site</option>
+            {sites.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.name}
               </option>
@@ -341,7 +345,18 @@ export function PeriodPanel() {
 export function DataPanel() {
   const terrain = useStore((s) => s.scenarios.A.run.terrain)
   const evaluation = useStore((s) => s.scenarios.A.run.evaluation)
-  return <DataSources terrain={terrain} evaluation={evaluation} />
+  return <><DataSources terrain={terrain} evaluation={evaluation} /><SourceDataPanel /></>
+}
+
+function SourceDataPanel() {
+  const [datasets, setDatasets] = useState<{id:string;name:string;status:string;retrieved_at?:string}[]>([])
+  const [error, setError] = useState('')
+  useEffect(() => { if (provider.kind === 'api') void dataApi.getDatasets().then(setDatasets).catch(e => setError(String(e))) }, [])
+  if (provider.kind !== 'api') return null
+  return <Card as="article" className="panel-card"><header className="panel-head"><h3 className="ui-title">Saved source data</h3></header>
+    {error ? <p role="alert">{error}</p> : <ul>{datasets.map(d => <li key={d.id}><a href={`${import.meta.env.VITE_API_BASE_URL ?? '/api'}/data/datasets/${d.id}/raw`} target="_blank" rel="noreferrer">{d.name}</a> · {d.status}{d.retrieved_at ? ` · ${d.retrieved_at}` : ''}</li>)}</ul>}
+    {!datasets.length && !error && <p>Sources have not been collected yet.</p>}
+  </Card>
 }
 
 function DataSources({ terrain, evaluation }: { terrain?: TerrainAnalysis; evaluation?: ScenarioEvaluation }) {

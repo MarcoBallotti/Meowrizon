@@ -118,6 +118,159 @@
   }
 }
 
+/* ---------------------------------------------------------------- results */
+
+/* The results use the whole screen: the Moon on the left, the ranked cards on
+   the right, from the best site down. */
+.moon-page.is-results {
+  --side-w: 440px;
+}
+
+.moon-page.is-results .moon-side {
+  order: 2;
+}
+
+.rank-panel {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.rank-head {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.rank-progress {
+  margin: 0;
+  display: grid;
+  gap: 6px;
+  color: var(--ink-2);
+}
+
+.rank-progress-bar {
+  display: block;
+  height: 6px;
+  border-radius: var(--r-pill);
+  background: var(--card-sunk);
+  overflow: hidden;
+}
+
+.rank-progress-bar span {
+  display: block;
+  height: 100%;
+  border-radius: var(--r-pill);
+  background: var(--primary);
+  transition: width var(--t-base) var(--ease);
+}
+
+.rank-list {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 2px var(--s-1) 2px 2px;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.rank-card {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+  background: var(--card);
+  color: var(--ink);
+  text-align: left;
+  font: inherit;
+  font-size: var(--text-s);
+  cursor: pointer;
+}
+
+.rank-card:hover {
+  border-color: var(--ink-3);
+}
+
+.rank-card[aria-pressed='true'] {
+  border: 2px solid var(--primary);
+  padding: 11px;
+  background: var(--primary-soft);
+}
+
+.rank-card:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.rank-card.is-pending {
+  flex-direction: row;
+  align-items: center;
+  border-style: dashed;
+  background: transparent;
+  cursor: default;
+}
+
+.rank-card.is-pending .rank-badge {
+  background: var(--card-sunk);
+}
+
+.rank-card-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-width: 0;
+}
+
+/* Same colour as the badge of this site on the Moon. */
+.rank-badge {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 2px solid rgb(11 13 26 / 0.55);
+  color: #171a2b;
+  font: 800 14px var(--font-text);
+}
+
+.rank-card-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 700 var(--text-m) / 1.2 var(--font-display);
+}
+
+.rank-card-head .results-tag {
+  margin-left: auto;
+}
+
+.rank-card-score {
+  flex: none;
+  margin-left: auto;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.rank-card-head .results-tag + .rank-card-score {
+  margin-left: 0;
+}
+
+.rank-go {
+  flex: none;
+}
+
 /* ---------------------------------------------------------------- plan card */
 
 .plan-card {
@@ -305,17 +458,19 @@
 .site-row {
   width: 100%;
   display: grid;
-  grid-template-columns: 18px minmax(0, 1fr) auto;
+  grid-template-columns: 14px minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--s-2);
-  min-height: var(--target-s);
-  padding: 6px var(--s-2);
+  min-height: 40px;
+  padding: 4px var(--s-2);
   border: 1px solid var(--line);
   border-radius: var(--r-control);
   background: var(--card);
   color: var(--ink);
   text-align: left;
   font: inherit;
+  font-size: var(--text-s);
+  line-height: 1.25;
   cursor: pointer;
 }
 
@@ -325,7 +480,7 @@
 
 .site-row[aria-pressed='true'] {
   border: 2px solid var(--primary);
-  padding: 5px calc(var(--s-2) - 1px);
+  padding: 3px calc(var(--s-2) - 1px);
   background: var(--primary-soft);
 }
 
@@ -335,14 +490,14 @@
 }
 
 .site-row-radio {
-  width: 18px;
-  height: 18px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
   border: 2px solid var(--line);
 }
 
 .site-row[aria-pressed='true'] .site-row-radio {
-  border: 6px solid var(--primary);
+  border: 4px solid var(--primary);
 }
 
 .site-row-text {
@@ -359,12 +514,12 @@
 }
 
 .site-row-coords {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--ink-2);
 }
 
 .site-row-area {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   color: var(--ink-2);
   padding: 2px var(--s-1);
@@ -393,8 +548,8 @@
   flex: none;
   display: flex;
   flex-direction: column;
-  gap: var(--s-2);
-  padding: var(--s-3);
+  gap: var(--s-1);
+  padding: 12px;
   border: 2px solid var(--primary);
   border-radius: var(--r-card);
   background: var(--card);
@@ -421,7 +576,7 @@
 }
 
 .results-best-name {
-  font: 700 var(--text-l) / 1.2 var(--font-display);
+  font: 700 var(--text-m) / 1.2 var(--font-display);
   min-width: 0;
 }
 
@@ -529,17 +684,18 @@
 .results-row {
   width: 100%;
   display: grid;
-  grid-template-columns: 28px minmax(0, 1fr) 96px auto;
+  grid-template-columns: 24px minmax(0, 1fr) 96px auto;
   align-items: center;
   gap: var(--s-2);
-  min-height: var(--target-s);
-  padding: 4px var(--s-1);
+  min-height: 36px;
+  padding: 2px var(--s-1);
   border: 0;
   border-top: 1px solid var(--line-soft);
   background: transparent;
   color: var(--ink);
   text-align: left;
   font: inherit;
+  font-size: var(--text-s);
   cursor: pointer;
 }
 
@@ -698,6 +854,74 @@
   border-radius: var(--r-pill);
   background: var(--space-2);
 }
+
+.moon-info {
+  flex: none;
+  align-self: center;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  margin-right: calc(var(--s-2) * -1);
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #d9eefc;
+  cursor: pointer;
+}
+
+.moon-info:hover,
+.moon-info[aria-expanded='true'] {
+  color: #ffffff;
+}
+
+.moon-info:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 1px;
+}
+
+.moon-legend {
+  position: absolute;
+  left: 16px;
+  top: 68px;
+  max-width: min(380px, calc(100% - 32px));
+  margin: 0;
+  padding: var(--s-2) var(--s-4);
+  display: grid;
+  gap: 4px;
+  list-style: none;
+  border-radius: var(--r-card);
+  background: var(--space-2);
+  color: #d9eefc;
+  pointer-events: none;
+}
+
+.moon-legend li {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.moon-legend-mark {
+  flex: none;
+  width: 11px;
+  height: 11px;
+}
+
+/* Same shapes as on the globe: a blue square for crewed regions, an amber triangle for robotic landers. */
+.moon-legend-mark.is-artemis {
+  border: 2px solid #12507c;
+  border-radius: 2px;
+  background: #6cc4f5;
+}
+
+.moon-legend-mark.is-site {
+  border: 2px solid #12507c;
+  border-radius: 50%;
+  background: #6cc4f5;
+}
+
 
 .moon-hover {
   position: absolute;
@@ -2217,3 +2441,31 @@
 .timeline-axis span:last-child:not(:first-child) {
   transform: translateX(-100%);
 }
+
+/* ---------------------------------------------------------------- backend catalogs */
+
+/* Loading and error messages of the backend catalogs, with the Retry button. */
+.catalog-status {
+  flex: none;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--text-s);
+}
+
+/* Candidate regions of the backend catalog: no ranking, so no bar. */
+.results-row.is-catalog {
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+}
+
+
+.terrain-panorama { position: absolute; inset: 0; display: flex; flex-direction: column; color: #d8e1ef; padding: 16px; gap: 10px; background: #111622; overflow: auto; }
+.terrain-panorama-controls { display: flex; justify-content: space-between; gap: 16px; padding-right: 48px; }
+.terrain-panorama-controls button { background: #283348; color: white; border: 1px solid #536078; border-radius: 6px; padding: 6px 12px; cursor: pointer; }
+.terrain-panorama svg { width: 100%; flex: 1; min-height: 180px; cursor: grab; touch-action: none; }
+.terrain-panorama label { display: flex; gap: 16px; align-items: center; font-size: 13px; }
+.terrain-panorama input { flex: 1; }
+.terrain-panorama-note, .terrain-panorama details { font-size: 12px; color: #bec9dc; }
+.terrain-panorama a { color: #bed2ff; }

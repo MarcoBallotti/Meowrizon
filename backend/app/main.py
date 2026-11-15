@@ -16,6 +16,7 @@ Rotte:
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -23,10 +24,12 @@ from app import __version__
 from app.api.coverage import router as coverage_router
 from app.api.health import router as health_router
 from app.api.regions import router as regions_router
+from app.api.scientific import router as scientific_router
 from app.core.config import get_settings
 from app.routes import router as data_router
 from app.services.jobs import DataJobs
 from app.services.normalization import PreparationError
+from app.services.scientific_jobs import ScientificJobs
 from app.settings import Settings as DataSettings
 
 API_PREFIX = "/api"
@@ -44,8 +47,10 @@ def create_app(data_settings: DataSettings | None = None) -> FastAPI:
         jobs.start()
         app.state.data_jobs = jobs
         try:
+            app.state.scientific_jobs.start()
             yield
         finally:
+            app.state.scientific_jobs.close()
             jobs.close()
 
     app = FastAPI(
@@ -57,6 +62,7 @@ def create_app(data_settings: DataSettings | None = None) -> FastAPI:
         lifespan=lifespan,
     )
     app.state.settings = data_settings
+    app.state.scientific_jobs = ScientificJobs(data_settings)
 
     # Serve solo alle chiamate dirette dal browser (per esempio dal server di Vite fuori
     # da Docker); passando dal proxy /api il browser vede un'unica origine.
@@ -70,11 +76,20 @@ def create_app(data_settings: DataSettings | None = None) -> FastAPI:
     app.include_router(health_router, prefix=API_PREFIX)
     app.include_router(coverage_router, prefix=API_PREFIX)
     app.include_router(regions_router, prefix=API_PREFIX)
+    app.include_router(scientific_router, prefix=API_PREFIX)
     app.include_router(data_router)  # ha già il prefisso /api/data
 
     @app.exception_handler(PreparationError)
     async def preparation_error(request, exc):
         return JSONResponse(status_code=422, content={"detail": str(exc)})
+
+    @app.exception_handler(RequestValidationError)
+    async def validation_error(request, exc):
+        # HttpProvider reads detail as a string; strip ctx/input (which may contain
+        # exceptions or non-finite numbers) and retain field locations separately.
+        errors = [{"loc": list(e["loc"]), "message": e["msg"]} for e in exc.errors()]
+        detail = "; ".join(f"{'.'.join(map(str, e['loc']))}: {e['message']}" for e in errors)
+        return JSONResponse(status_code=422, content={"detail": detail, "errors": errors})
 
     @app.get("/health", tags=["service"], include_in_schema=False)
     def root_health() -> dict[str, str]:

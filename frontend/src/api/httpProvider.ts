@@ -53,6 +53,31 @@ export class HttpProvider implements DataProvider {
     return this.request('/coverage', { signal })
   }
 
+  getRegions(signal?: AbortSignal): Promise<unknown> {
+    return this.request('/regions', { signal })
+  }
+
+  getSites(signal?: AbortSignal): Promise<unknown> {
+    return this.request('/sites', { signal })
+  }
+
+  getSources(signal?: AbortSignal): Promise<Record<string, unknown[]>> { return this.request('/data/sources', { signal }) }
+  getDatasets(signal?: AbortSignal): Promise<DataSetRecord[]> { return this.request('/data/datasets', { signal }) }
+  collectSources(names?: string[], refresh = false): Promise<DataJob> {
+    return this.request('/data/collect', { method: 'POST', body: JSON.stringify({ names, refresh }) })
+  }
+  getDataJob(id: string): Promise<DataJob> { return this.request(`/data/jobs/${encodeURIComponent(id)}`) }
+  getSamples(id: string, startMs?: number, stopMs?: number): Promise<unknown> {
+    const q = new URLSearchParams()
+    if (startMs !== undefined) q.set('start_ms', String(startMs))
+    if (stopMs !== undefined) q.set('stop_ms', String(stopMs))
+    return this.request(`/data/datasets/${encodeURIComponent(id)}/samples${q.size ? `?${q}` : ''}`)
+  }
+  getProducts(id: string, title = ''): Promise<unknown> {
+    return this.request(`/data/datasets/${encodeURIComponent(id)}/products?title_contains=${encodeURIComponent(title)}`)
+  }
+  getRegionsData(id: string): Promise<unknown> { return this.request(`/data/datasets/${encodeURIComponent(id)}/regions`) }
+
   submitTerrainAnalysis(req: TerrainAnalysisRequest, signal?: AbortSignal): Promise<JobState<TerrainAnalysis>> {
     return this.request('/terrain-analyses', { method: 'POST', body: JSON.stringify(req), signal })
   }
@@ -72,3 +97,6 @@ export class HttpProvider implements DataProvider {
     return this.request(`/scenario-evaluations/${encodeURIComponent(id)}`, { signal })
   }
 }
+
+export interface DataSetRecord { id: string; name: string; status: string; [key: string]: unknown }
+export interface DataJob { id: string; status: 'queued' | 'running' | 'completed' | 'failed'; progress?: number; error?: string; result?: unknown }

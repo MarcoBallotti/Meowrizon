@@ -1,4 +1,4 @@
-# Meowrizon project pipeline
+# Moonrizon project pipeline
 
 > Historical planning record, moved inside the backend at the user's request. Current runnable service instructions and backend-local data paths are in [../README.md](../README.md). References to frontend/repository files below are planning context, not runtime dependencies.
 

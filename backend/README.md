@@ -6,14 +6,14 @@
 
 Python 3.12 e FastAPI, eseguito in Docker. Qui sta **tutta la logica** del progetto: dati, calcoli, confronto delle regioni, API e agente AI. Il frontend TypeScript si occupa solo della visualizzazione.
 
-Per ora ci sono le regioni Artemis III (`GET /api/regions`) e i siti di atterraggio (`GET /api/sites`); la valutazione non è ancora implementata (vedi `docs/piano-logica.md`). `GET /api/coverage` restituisce un catalogo vuoto finché non esiste un DEM preparato e verificato per l’analisi. Il prodotto scelto per i calcoli futuri è il GeoTIFF PGDA LOLA adjusted 20 m/pixel (`LDEM_80S_20MPP_ADJ`); la sua pubblicazione online da sola non lo rende disponibile per le analisi. Non c'è un database: i dati stanno in file in `data/`.
+Sono disponibili i cataloghi regioni/siti e il calcolo del panorama d'orizzonte dai GeoTIFF PGDA LOLA. Le richieste terreno scaricano e conservano finestre numeriche per il punto scelto. La valutazione completa di luce, Terra e pendenza resta da implementare (vedi `docs/piano-logica.md`). `/api/coverage` rimane vuoto: le finestre locali non attestano la disponibilità di un intero prodotto globale. Non c'è un database: i dati stanno in file in `data/`.
 
 **Specifica scientifica approvata il 15/11/2026:** [criteri-algoritmo.md](../docs/criteri-algoritmo.md)
 prevale sui precedenti appunti in `backend/docs/` e sulle ipotesi scientifiche del contratto
 client. L'engine è indipendente dal veicolo: fasce descrittive della pendenza [0°,5°),
 [5°,10°), [10°,15°), ≥15°, nessun filtro automatico a 10°, confronto per metriche senza
-punteggio globale. Questa revisione è documentale; engine e successiva integrazione
-del frontend non sono ancora implementati.
+punteggio globale. Il panorama descritto sotto implementa solo l'orizzonte campionato;
+non costituisce la valutazione completa né una validazione scientifica dei criteri.
 
 **Specifica scientifica approvata il 15/11/2026:** [criteri-algoritmo.md](../docs/criteri-algoritmo.md)
 prevale sui precedenti appunti in `backend/docs/` e sulle ipotesi scientifiche del contratto
@@ -29,7 +29,7 @@ del frontend non sono ancora implementati.
 - `app/core/moon.py`: sfera lunare di riferimento (1 737 400 m) e proiezione stereografica polare sud.
 - `app/core/manifest.py`: registro dei download (`data/sources/manifest.json`).
 - `app/services/regions/`: catalogo, download da Moon Trek, costruzione dei GeoJSON.
-- `app/services/terrain/`: DEM LOLA polari (`lola_products.py`) e, in seguito, horizon mask.
+- `app/services/terrain/`: catalogo LOLA e `engine.py`, acquisizione PGDA e orizzonte sferico.
 - `app/services/ephemerides/`: posizione di Sole e Terra dall'API di JPL Horizons. Non si usa SpiceyPy.
 - `catalog/`: quali regioni e siti usare (`regions.toml`, `sites.toml`).
 - `tests/`: test con pytest; `tests/fixtures/` contiene la risposta reale di Moon Trek.
@@ -38,7 +38,26 @@ del frontend non sono ancora implementati.
 
 ### Stato dell'integrazione frontend (verifica del 15/11/2026)
 
-Con `VITE_DATA_SOURCE=api`, il proxy Vite inoltra correttamente le richieste al backend: `/api/regions` restituisce 13 regioni (2 attive), `/api/sites` 16 siti, `/api/coverage` zero DEM pronti. Il client invia poi `POST /api/terrain-analyses`, che attualmente risponde 404 perché il motore scientifico non è implementato. Il ranking nel frontend carica ancora `public/mock/regions.json` anche in modalità API: quei punteggi non provengono dai dati NASA. Di conseguenza, la build del frontend e il catalogo reale sono verificati, mentre uno scenario reale completo non lo è ancora.
+Con `VITE_DATA_SOURCE=api`, il proxy Vite inoltra `/api` al backend: `/api/regions` restituisce 13 regioni (2 attive), `/api/sites` 16 siti. Il frontend disegna l'orizzonte reale appena il job terreno termina, anche se il successivo job scenario non è disponibile. Le regioni sono mostrate come catalogo, senza ranking inventati. Uno scenario completo resta da implementare.
+
+### Interfaccia terreno/scenario implementata
+
+- `POST /api/terrain-analyses`: riceve `site`, `observerHeightM`, `config.azimuthStepDeg/maxDistanceKm`.
+- `GET /api/terrain-analyses/{jobId}`: legge la ricevuta terreno salvata.
+- `POST /api/scenario-evaluations`: riceve `terrainAnalysisId`, `startUtc`, `stopUtc`, `stepMinutes`.
+- `GET /api/scenario-evaluations/{jobId}`: legge la ricevuta scenario salvata.
+
+Le POST rispondono 202 con `{id,status,progress?,message?,result?,error?}`. Gli stati sono `queued`, `running`, `completed`, `failed`. Un terreno completato contiene `result: {id,origin:"engine",preview:false,profile}`; `profile.azimuthDeg` ed `elevationDeg` sono array paralleli in gradi. Include altezza del sito, parametri, prodotti, URL, SHA-256, frame, versione dell'algoritmo e limiti. `preview:false` indica un risultato finale per il campionamento richiesto, non una certificazione scientifica; `origin:"engine"` lo distingue dai dati demo. Lo scenario restituisce ancora `scenario_engine_unavailable`, senza cancellare il terreno. GET restituisce 200 per job noti, 404 per ID ignoti o dell'altra famiglia. Input malformati restituiscono 422; copertura e limiti di calcolo non supportati producono un job fallito con messaggio esplicito.
+
+Un worker esegue fino a otto richieste in coda, con deduplicazione e riuso dei risultati completati per parametri/versione. Stato e risultato sono salvati atomicamente in `data/jobs/scientific/`; finestre GeoTIFF e manifest sono in `data/terrain/windows/`. I download usano HTTP Range sui COG PGDA, senza scaricare l'intero mosaico. I file riutilizzati sono verificati con SHA-256. Un fallimento si può ritentare; un job interrotto viene marcato fallito al riavvio. La cache non ha scadenza automatica: un aggiornamento dei prodotti richiede invalidazione delle finestre e dei risultati associati.
+
+Per usare l'interfaccia, avviare un solo backend con `.venv/bin/python -m uvicorn app:app --port 8000` da `backend/`, poi `VITE_DATA_SOURCE=api npm run dev` da `frontend/`. Selezionare Connecting Ridge e aprire l'orizzonte. Il primo caricamento dipende dai download; richieste identiche riusano il risultato. Non serve avviare separatamente `/api/data/collect` per questo panorama.
+
+Il calcolo usa [PGDA LOLA adjusted](https://pgda.gsfc.nasa.gov/products/90): `LDEM_80S_20MPP_ADJ` entro 5 km e `LDEM_60S_240MPP_ADJ` oltre, fino al raggio richiesto. L'osservatore viene interpolato sul DEM a 20 m; raggi geodetici, quote bilineari e curvatura della sfera lunare (1 737 400 m) determinano il massimo angolo in ogni direzione. Il frame è MOON_ME DE421. Sono supportati siti a sud di 80°S (polo esatto escluso), raggio 1–300 km e passo azimutale ≥0,1° che divida 360. Si rifiutano NoData sui raggi, cerchi fuori prodotto e proiezioni terrestri. Il vecchio `/api/terrain-preview/{region}.png` risponde 410 perché usava una proiezione terrestre errata.
+
+**Limiti:** è un panorama campionato, non una ricostruzione 3D del suolo né una valutazione di atterraggio. Pixel nominali di 20/240 m, passi radiali di 20/240 m e azimut finiti possono perdere picchi stretti. `effectivePixelSizeM` riporta il passo raster più grossolano usato, non l'accuratezza misurata del DEM. Mancano prodotti di errore/risoluzione effettiva, convergenza sistematica e confronto esterno con un profilo indipendente. Non derivare ancora luce, eclissi, visibilità radio, pendenza o ranking da questa risposta.
+
+Le nuove strutture scientifiche sono proposte in [SCIENTIFIC_SCHEMA_PROPOSAL.md](SCIENTIFIC_SCHEMA_PROPOSAL.md). Non sono nuove rotte o risultati implementati. Le decisioni U01–U09 del contratto revisione 3 restano da chiudere. La verifica documentale `scripts/verify_api_integration.py` segnala correttamente che `app/main.py` è cambiato rispetto all'audit statico; il manifest nella cartella `docs/` richiede una nuova revisione del comportamento, non solo l'aggiornamento degli hash.
 
 Le regioni sono solo quelle candidate di Artemis III. Il catalogo `catalog/regions.toml` decide quali usare (`active`), il limite del settore e la dimensione delle celle; i contorni non si scrivono a mano.
 
@@ -124,7 +143,7 @@ Sezione scritta da Kevin sul branch `backend` e integrata il 15/11/2026. Note di
 - in Docker i comandi qui sotto diventano `docker compose run --rm backend python -m app ...`. I dati di questa parte stanno in `backend/data/` (raw, prepared, jobs), separati da `data/` della radice, che contiene regioni e siti;
 - i comandi `fetch`, `prepare` e `data-info` stanno nella stessa CLI di `init-regions`: `python -m app <comando>` o `python -m app.cli <comando>`.
 
-The backend uses **FastAPI and files only**, as requested. It downloads original API responses and prepares JSON manifests, compressed Parquet tables and GeoTIFF metadata for Python analysis. HTTP collection, preparation, job polling and filtered-data routes are implemented. Scientific terrain, surface-condition and regional-comparison routes remain to be implemented; [API_CONTRACT.md](API_CONTRACT.md) links the current integration contract, complete interaction map, data dictionary and TanStack Query plan. The earlier proposal is archived; open scientific DTO and HTTP decisions are explicitly documented, subordinate to the approved criteria. All code, configurations, runtime data and test files live inside this directory. No repository-root or frontend files are needed to run the service. The internal file schemas are independent of the scientific client contract.
+The backend uses **FastAPI and files only**, as requested. It downloads original API responses and prepares JSON manifests, compressed Parquet tables and GeoTIFF metadata for Python analysis. Collection, preparation, polling, filtered-data routes and sampled PGDA terrain horizons are implemented. Full surface-condition evaluation and regional comparisons remain to be implemented; [API_CONTRACT.md](API_CONTRACT.md) links the integration contract and open scientific decisions. Code, configurations and runtime data live inside this directory. No repository-root or frontend files are needed to run the service.
 
 ## Install and run
 
@@ -146,7 +165,7 @@ Start the FastAPI server, on the port used by the existing Vite proxy:
 .venv/bin/python -m uvicorn app:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-`GET /health` reports process liveness; `/docs` provides interactive API documentation. Server startup does not fetch upstream data. HTTP requests start collection/preparation jobs in one background worker; job state persists as JSON in `data/jobs/`. Run one Uvicorn process for this data directory. The service lock rejects a second instance using it. Interrupted jobs are marked failed on restart and can be resubmitted.
+`GET /health` reports process liveness; `/api/docs` provides interactive API documentation. Server startup does not fetch upstream data. HTTP requests start collection/preparation jobs in one background worker; a separate worker computes terrain. Job state persists as JSON in `data/jobs/`. Run one Uvicorn process for this data directory. The service lock rejects a second instance using it. Interrupted jobs are marked failed on restart and can be resubmitted.
 
 ## Use the HTTP service
 
@@ -179,7 +198,7 @@ Job states are `queued`, `running`, `completed` and `failed`. Completed collecti
 
 Use the dataset IDs from `/datasets`, not a product ID or job ID. Invalid inputs/time bounds return 422; unknown jobs/datasets return 404; datasets that are not prepared return 409. Collection accepts only the bundled/configured profiles, not arbitrary URLs or filesystem paths. Edit dates, positions and other native provider parameters in `config/*.json`; HTTP domain-specific user parameter mapping remains future work.
 
-These are source-data service endpoints. Coverage, terrain/surface-condition calculation and regional comparisons by explicit metrics remain to be implemented; the existing frontend scientific client is not connected by these data routes alone. Their HTTP contract will be aligned after the algorithm.
+These are source-data service endpoints. The terrain panorama uses the separate `/api/terrain-analyses` workflow described above. Full surface-condition evaluation and regional comparisons remain to be implemented.
 
 Retrieve a separate historical Blue Ghost trajectory sample:
 
@@ -219,17 +238,18 @@ The local datasets are ignored by Git. Keep the request configurations and acqui
 
 ## Storage for analysis
 
-Use three layers. The first two are implemented; scientific result caching is the next layer to build.
+Use the following file layers. Terrain windows/results are separate from generic acquisition snapshots.
 
 | Layer | Location | Contents and purpose |
 |---|---|---|
 | Original downloads | `data/raw/` | Unchanged provider responses, including GeoTIFF terrain, plus requests/checksums. Preserve these to reproduce or change an analysis. |
 | Searchable preparation | `data/prepared/` | JSON manifest and versioned Parquet tables for products, regions and time series, plus JSON raster/series context. Filter saved records without reparsing provider text. |
-| Derived results (planned) | `data/cache/`, with JSON manifests | Versioned horizon profiles, terrain metrics, visibility intervals and scenario summaries. Recompute when inputs or algorithms change. |
+| PGDA windows | `data/terrain/windows/` | Cropped native elevation GeoTIFFs and provenance/checksum manifests for requested horizon circles. |
+| Terrain results | `data/jobs/scientific/` | Versioned sampled horizon profiles and job parameters/status. Visibility intervals and scenario summaries remain unimplemented. |
 
 [Parquet supports column selection and row filters](https://arrow.apache.org/docs/python/generated/pyarrow.parquet.read_table.html), with compression and typed numerical columns. Preparation writes Zstandard-compressed files with row-group statistics. Time filters can skip unrelated row groups in larger series; small examples still fit in one group. Product-title filtering currently scans its selected product table in memory. JSON manifests hold the small index/provenance records. No SQL layer or database service is involved.
 
-Keep raster pixels in GeoTIFF, not one SQL row per pixel or a huge JSON array. [Rasterio windows](https://rasterio.readthedocs.io/en/stable/topics/windowed-rw.html) read only intersecting raster blocks; actual I/O depends on the TIFF's block layout. Larger *derived* rasters should use tiled, losslessly compressed GeoTIFF/COG, with scientifically chosen resolution. The current implementation references existing TIFFs and does not rewrite them, resample them, smooth them or assume every TIFF is a COG.
+Keep raster pixels in GeoTIFF, not one SQL row per pixel or a huge JSON array. [Rasterio windows](https://rasterio.readthedocs.io/en/stable/topics/windowed-rw.html) read intersecting raster blocks; actual I/O depends on the TIFF's block layout. Generic preparation references original TIFFs unchanged. The terrain worker crops native PGDA grids into compressed GeoTIFFs and bilinearly samples them along geodesic rays; it does not create extra terrain detail by upsampling.
 
 The CLI is optional; the HTTP service performs the same acquisition/preparation work. To use the CLI:
 

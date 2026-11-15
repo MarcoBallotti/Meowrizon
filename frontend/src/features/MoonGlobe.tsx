@@ -6,13 +6,16 @@
  */
 import {
   ArcType,
+  CameraEventType,
   Cartesian2,
   Cartesian3,
   Color,
   ConstantPositionProperty,
+  ConstantProperty,
   Credit,
   DirectionalLight,
   Ellipsoid,
+  EllipsoidalOccluder,
   Entity,
   GeographicProjection,
   GeographicTilingScheme,
@@ -22,6 +25,7 @@ import {
   LabelStyle,
   Math as CesiumMath,
   NearFarScalar,
+  PolygonHierarchy,
   SceneTransforms,
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
@@ -50,12 +54,41 @@ const SPACE = Color.fromCssColorString('#0b0c1a')
 const SITE_FILL = Color.fromCssColorString('#6cc4f5')
 const SITE_RIM = Color.fromCssColorString('#12507c')
 const REGION_LINE = Color.fromCssColorString('#a9dcfa')
+/** Sites that cannot be chosen in the current step: same disc, in grey. */
+const SITE_OFF_FILL = Color.fromCssColorString('#9a9fb0')
+const SITE_OFF_RIM = Color.fromCssColorString('#3a3e4e')
+const SITE_OFF_LABEL = Color.fromCssColorString('#b4b9c8')
+
+/** How far from a site's symbol a click still chooses that site, px. */
+const MARKER_HIT_PX = 12
 
 const svgUri = (svg: string) => `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`
 
-const RING = svgUri(
-  '<svg xmlns="http://www.w3.org/2000/svg" width="56" height="56"><circle cx="28" cy="28" r="20" fill="none" stroke="#0b0d1a" stroke-width="8" stroke-opacity="0.5"/><circle cx="28" cy="28" r="20" fill="none" stroke="#ffffff" stroke-width="4"/><circle cx="28" cy="28" r="9" fill="#6cc4f5" stroke="#12507c" stroke-width="4"/></svg>',
-)
+const ringImage = (fill: string, rim: string) =>
+  svgUri(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="56" height="56"><circle cx="28" cy="28" r="20" fill="none" stroke="#0b0d1a" stroke-width="8" stroke-opacity="0.5"/><circle cx="28" cy="28" r="20" fill="none" stroke="#ffffff" stroke-width="4"/><circle cx="28" cy="28" r="9" fill="${fill}" stroke="${rim}" stroke-width="4"/></svg>`,
+  )
+const RING = ringImage('#6cc4f5', '#12507c')
+const RING_OFF = ringImage('#9a9fb0', '#3a3e4e')
+
+/** Robotic lander targets (CLPS): an amber triangle, so they never read as crewed Artemis regions. */
+const ROBOTIC_FILL = '#f2b45a'
+const ROBOTIC_LABEL = Color.fromCssColorString('#f7d29c')
+/** Planned: an outlined triangle. Landed: the same triangle, filled. */
+const triangleImage = (stroke: string, filled = false) =>
+  svgUri(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><path d="M16 4 L29 27 H3 Z" fill="#0b0d1a" fill-opacity="0.55" stroke="#0b0d1a" stroke-opacity="0.6" stroke-width="7" stroke-linejoin="round"/><path d="M16 4 L29 27 H3 Z" fill="${filled ? stroke : 'none'}" stroke="${stroke}" stroke-width="3.5" stroke-linejoin="round"/></svg>`,
+  )
+/** Artemis III candidate regions: a small square, the shape NASA gives them on its maps. */
+const squareImage = (fill: string, rim: string) =>
+  svgUri(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><rect x="7" y="7" width="18" height="18" rx="2" fill="${fill}" stroke="${rim}" stroke-width="4"/></svg>`,
+  )
+const SYMBOL_IMAGE = {
+  artemis: { on: squareImage('#6cc4f5', '#12507c'), off: squareImage('#9a9fb0', '#3a3e4e') },
+  robotic: { on: triangleImage(ROBOTIC_FILL), off: triangleImage('#9a9fb0') },
+  'robotic-landed': { on: triangleImage(ROBOTIC_FILL, true), off: triangleImage('#9a9fb0', true) },
+} as const
 
 /**
  * A fixed star field behind the globe: dots of different size and brightness,
@@ -81,12 +114,47 @@ export interface RegionBands {
   equatorialLat: number | null
 }
 
-/** Numbered badge for ranked regions. The leader is indigo. */
-function rankBadge(n: number): string {
-  const lead = n === 1
+/** The real outline of a region: closed rings of [east longitude, latitude] in degrees. */
+export interface RegionShape {
+  id: string
+  rings: [number, number][][]
+  /** Written once, at the northernmost point of the outline. */
+  label?: string
+  /** A single region: lightly filled, with a thin edge. */
+  filled?: boolean
+}
+
+const NO_SHAPES: RegionShape[] = []
+
+/** Numbered badge for ranked regions, in the colour of its place in the ranking. */
+function rankBadge(n: number, color = '#ffffff'): string {
   return svgUri(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"><circle cx="20" cy="20" r="16" fill="${lead ? '#2B2FA8' : '#ffffff'}" stroke="#0b0d1a" stroke-opacity="0.55" stroke-width="3"/><text x="20" y="26" text-anchor="middle" font-family="Figtree, Arial, sans-serif" font-weight="800" font-size="17" fill="${lead ? '#ffffff' : '#171A2B'}">${n}</text></svg>`,
+    `<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"><circle cx="20" cy="20" r="16" fill="${color}" stroke="#0b0d1a" stroke-opacity="0.7" stroke-width="3"/><text x="20" y="26" text-anchor="middle" font-family="Figtree, Arial, sans-serif" font-weight="800" font-size="17" fill="#171A2B">${n}</text></svg>`,
   )
+}
+
+/**
+ * How a marker is drawn: 'artemis' = an Artemis III candidate region (crewed),
+ * 'robotic' = a planned robotic lander, 'robotic-landed' = a robotic lander
+ * that has landed, 'site' = a crewed landing or any other site.
+ */
+export type MarkerSymbol = 'artemis' | 'robotic' | 'robotic-landed' | 'site'
+
+/** Name beside a numbered badge, so every ranked site is named on the Moon too. */
+function rankLabel(text: string) {
+  return {
+    text,
+    font: `600 26px ${FONT}`,
+    scale: 0.5,
+    fillColor: Color.WHITE,
+    outlineColor: SPACE,
+    outlineWidth: 8,
+    style: LabelStyle.FILL_AND_OUTLINE,
+    pixelOffset: new Cartesian2(19, 0),
+    horizontalOrigin: HorizontalOrigin.LEFT,
+    verticalOrigin: VerticalOrigin.CENTER,
+    disableDepthTestDistance: Number.POSITIVE_INFINITY,
+  }
 }
 
 export interface GlobeMarker extends SiteCoordinates {
@@ -94,6 +162,9 @@ export interface GlobeMarker extends SiteCoordinates {
   label: string
   /** When set, a numbered badge replaces the dot and label. */
   rank?: number
+  /** Fill of the numbered badge. */
+  color?: string
+  symbol?: MarkerSymbol
 }
 
 function trek(layer: string, format: 'jpg' | 'png', credit: string) {
@@ -190,26 +261,30 @@ interface MoonGlobeProps {
   regions: RegionBands | null
   /** Change it to put the camera back on the current framing. */
   resetNonce: number
+  /** Real region outlines (the Artemis III candidate regions); drawn instead of the bands. */
+  regionShapes?: RegionShape[]
+  /** False while the step does not let you choose a site: grey dots, clicks ignored. */
+  selectable?: boolean
   onPickMarker: (id: string) => void
   onPickPoint: (site: SiteCoordinates) => void
   onHover?: (text: string) => void
 }
 
-export default function MoonGlobe({ markers, selected, focus, lightMs, regions, resetNonce, onPickMarker, onPickPoint, onHover }: MoonGlobeProps) {
+export default function MoonGlobe({ markers, selected, focus, lightMs, regions, regionShapes = NO_SHAPES, resetNonce, selectable = true, onPickMarker, onPickPoint, onHover }: MoonGlobeProps) {
   const container = useRef<HTMLDivElement>(null)
   const viewerRef = useRef<Viewer | null>(null)
   const ring = useRef<Entity | null>(null)
   const markerEntities = useRef<Map<string, Entity>>(new Map())
   const regionEntities = useRef<Entity[]>([])
-  const handlers = useRef({ onPickMarker, onPickPoint, onHover })
+  const handlers = useRef({ onPickMarker, onPickPoint, onHover, selectable })
   // The selection chip is HTML (crisp, rounded), so it is placed on the screen each frame.
   const chip = useRef<HTMLDivElement>(null)
   const chipAnchor = useRef<Cartesian3 | null>(null)
   const [imageryError, setImageryError] = useState(false)
 
   useEffect(() => {
-    handlers.current = { onPickMarker, onPickPoint, onHover }
-  }, [onPickMarker, onPickPoint, onHover])
+    handlers.current = { onPickMarker, onPickPoint, onHover, selectable }
+  }, [onPickMarker, onPickPoint, onHover, selectable])
 
   useEffect(() => {
     if (!container.current) return
@@ -291,6 +366,28 @@ export default function MoonGlobe({ markers, selected, focus, lightMs, regions, 
     }
     viewer.scene.postRender.addEventListener(placeChip)
 
+    // Symbols and names are drawn over the terrain, so the relief never cuts
+    // them; the ones beyond the horizon (the far side) are hidden here instead.
+    const facing = new Map<Entity, boolean>()
+    const hideFarSide = () => {
+      const occluder = new EllipsoidalOccluder(MOON, viewer.camera.positionWC)
+      const now = viewer.clock.currentTime
+      for (const e of markerEntities.current.values()) {
+        const pos = e.position?.getValue(now)
+        if (!pos) continue
+        // A point lifted 1 km is tested, so sites right on the horizon are not lost.
+        const visible = occluder.isPointVisible(Cartesian3.multiplyByScalar(Cartesian3.normalize(pos, new Cartesian3()), R + 1_000, new Cartesian3()))
+        if (facing.get(e) === visible) continue
+        facing.set(e, visible)
+        const show = new ConstantProperty(visible)
+        if (e.label) e.label.show = show
+        if (e.billboard) e.billboard.show = show
+        if (e.point) e.point.show = show
+      }
+    }
+    viewer.scene.postRender.addEventListener(hideFarSide)
+
+
     const handler = new ScreenSpaceEventHandler(viewer.scene.canvas)
     const pick = (pos: Cartesian2) => {
       const cart = viewer.camera.pickEllipsoid(pos, MOON)
@@ -299,12 +396,20 @@ export default function MoonGlobe({ markers, selected, focus, lightMs, regions, 
       return { latDeg: CesiumMath.toDegrees(c.latitude), lonEastDeg: normalizeLon(CesiumMath.toDegrees(c.longitude)) }
     }
     handler.setInputAction((e: ScreenSpaceEventHandler.PositionedEvent) => {
+      if (!handlers.current.selectable) return
+      // A site is chosen only by clicking its symbol. Its name is pickable too,
+      // but a click on a label means "this point here": the pointer must stay
+      // exactly where the click was, not jump to the centre of the named site.
       const picked = viewer.scene.pick(e.position) as { id?: Entity } | undefined
       for (const [id, ent] of markerEntities.current) {
-        if (picked?.id === ent) {
+        if (picked?.id !== ent) continue
+        const at = ent.position?.getValue(viewer.clock.currentTime)
+        const win = at ? SceneTransforms.worldToWindowCoordinates(viewer.scene, at) : undefined
+        if (win && Cartesian2.distance(win, e.position) <= MARKER_HIT_PX) {
           handlers.current.onPickMarker(id)
           return
         }
+        break
       }
       const p = pick(e.position)
       if (!p) return
@@ -316,11 +421,32 @@ export default function MoonGlobe({ markers, selected, focus, lightMs, regions, 
       handlers.current.onHover?.(p ? `${formatLat(p.latDeg, 2)}  ${formatLon(p.lonEastDeg, 2)}` : '')
     }, ScreenSpaceEventType.MOUSE_MOVE)
 
+    // Wheel zoom runs straight along the line of sight, so whatever is at the
+    // centre of the window stays there: the Moon only comes closer or moves away.
+    // (Cesium's own wheel zoom aims at the pointer and slides the Moon sideways.)
+    const controller = viewer.scene.screenSpaceCameraController
+    controller.zoomEventTypes = [CameraEventType.PINCH]
+    const canvas = viewer.scene.canvas
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault()
+      const camera = viewer.camera
+      const centre = new Cartesian2(canvas.clientWidth / 2, canvas.clientHeight / 2)
+      const hit = camera.pickEllipsoid(centre, MOON)
+      const range = hit ? Cartesian3.distance(camera.position, hit) : Cartesian3.magnitude(camera.position)
+      const delta = e.deltaMode === 1 ? e.deltaY * 40 : e.deltaY
+      const next = Math.min(8_000_000, Math.max(controller.minimumZoomDistance, range * Math.exp(delta * 0.0015)))
+      camera.move(camera.direction, range - next)
+      viewer.scene.requestRender()
+    }
+    canvas.addEventListener('wheel', onWheel, { passive: false })
+
     viewer.camera.setView(HOME)
 
     const entities = markerEntities.current
     return () => {
+      canvas.removeEventListener('wheel', onWheel)
       viewer.scene.postRender.removeEventListener(placeChip)
+      viewer.scene.postRender.removeEventListener(hideFarSide)
       handler.destroy()
       viewer.destroy()
       viewerRef.current = null
@@ -336,34 +462,46 @@ export default function MoonGlobe({ markers, selected, focus, lightMs, regions, 
     markerEntities.current.clear()
     for (const m of markers) {
       const position = Cartesian3.fromDegrees(m.lonEastDeg, m.latDeg, 0, MOON)
+      const symbol = m.symbol ?? 'site'
+      const robotic = symbol === 'robotic' || symbol === 'robotic-landed'
       const e =
         m.rank !== undefined
           ? viewer.entities.add({
               position,
-              billboard: { image: rankBadge(m.rank), width: 30, height: 30, disableDepthTestDistance: Number.POSITIVE_INFINITY },
+              billboard: { image: rankBadge(m.rank, m.color), width: 30, height: 30, disableDepthTestDistance: Number.POSITIVE_INFINITY },
+              label: rankLabel(m.label),
             })
           : viewer.entities.add({
               position,
-              point: { pixelSize: 13, color: SITE_FILL, outlineColor: SITE_RIM, outlineWidth: 3 },
+              point:
+                symbol === 'site'
+                  ? { pixelSize: 13, color: selectable ? SITE_FILL : SITE_OFF_FILL, outlineColor: selectable ? SITE_RIM : SITE_OFF_RIM, outlineWidth: 3, disableDepthTestDistance: Number.POSITIVE_INFINITY }
+                  : undefined,
+              billboard:
+                symbol === 'site'
+                  ? undefined
+                  : { image: SYMBOL_IMAGE[symbol][selectable ? 'on' : 'off'], width: 16, height: 16, disableDepthTestDistance: Number.POSITIVE_INFINITY },
               label: {
                 text: m.label,
                 // Drawn at 2x and scaled down by half: the text stays sharp on dense screens.
-                font: `600 30px ${FONT}`,
+                font: `${robotic ? 'italic 500' : '600'} 26px ${FONT}`,
                 scale: 0.5,
-                fillColor: Color.WHITE,
+                fillColor: !selectable ? SITE_OFF_LABEL : robotic ? ROBOTIC_LABEL : Color.WHITE,
                 outlineColor: SPACE,
                 outlineWidth: 8,
                 style: LabelStyle.FILL_AND_OUTLINE,
                 pixelOffset: new Cartesian2(14, 0),
                 horizontalOrigin: HorizontalOrigin.LEFT,
                 verticalOrigin: VerticalOrigin.CENTER,
-                translucencyByDistance: new NearFarScalar(1.5e6, 1, 5e6, 0.0),
+                // Every name stays visible at any distance (only the far side of the Moon hides it).
+                disableDepthTestDistance: Number.POSITIVE_INFINITY,
               },
             })
       markerEntities.current.set(m.id, e)
     }
+    if (ring.current?.billboard) ring.current.billboard.image = new ConstantProperty(selectable ? RING : RING_OFF)
     viewer.scene.requestRender()
-  }, [markers])
+  }, [markers, selectable])
 
   // Selection ring and label; hide the plain marker underneath it.
   useEffect(() => {
@@ -377,7 +515,7 @@ export default function MoonGlobe({ markers, selected, focus, lightMs, regions, 
       setShow(ent, id !== selected.id || m?.rank !== undefined)
     }
     viewer.scene.requestRender()
-  }, [selected.latDeg, selected.lonEastDeg, selected.id, markers])
+  }, [selected.latDeg, selected.lonEastDeg, selected.id, markers, selectable])
 
   // Camera: a short straight dolly, never a rotation (motion sickness).
   const focusKey = focus ? `${focus.latDeg},${focus.lonEastDeg},${focus.distanceM},${focus.screen?.join(',') ?? ''}` : ''
@@ -426,9 +564,49 @@ export default function MoonGlobe({ markers, selected, focus, lightMs, regions, 
     viewer.scene.requestRender()
   }, [resetNonce])
 
-  // Region outlines: the parallels that bound the catalogue's two areas.
-  const southLat = regions?.southPoleLat ?? null
-  const equatorLat = regions?.equatorialLat ?? null
+  // Region outlines. With real shapes, each region is drawn as it is; without
+  // them, the parallels that bound the catalogue's two areas stand in.
+  const southLat = regionShapes.length ? null : (regions?.southPoleLat ?? null)
+  const equatorLat = regionShapes.length ? null : (regions?.equatorialLat ?? null)
+  const shapeEntities = useRef<Entity[]>([])
+  useEffect(() => {
+    const viewer = viewerRef.current
+    if (!viewer) return
+    for (const e of shapeEntities.current) viewer.entities.remove(e)
+    shapeEntities.current = regionShapes.flatMap((shape) =>
+      shape.rings.map((ring, i) =>
+        viewer.entities.add({
+          position: Cartesian3.fromDegrees(...ring.reduce((top, p) => (p[1] > top[1] ? p : top)), 0, MOON),
+          label:
+            shape.label && i === 0
+              ? {
+                  text: shape.label,
+                  font: `600 28px ${FONT}`,
+                  scale: 0.5,
+                  fillColor: Color.fromCssColorString('#d9eefc'),
+                  outlineColor: SPACE,
+                  outlineWidth: 8,
+                  style: LabelStyle.FILL_AND_OUTLINE,
+                  verticalOrigin: VerticalOrigin.BOTTOM,
+                  pixelOffset: new Cartesian2(0, -24),
+                  disableDepthTestDistance: Number.POSITIVE_INFINITY,
+                }
+              : undefined,
+          // Each region as NASA publishes it: a light fill with a thin edge, never merged with the others.
+          polyline: {
+            positions: Cartesian3.fromDegreesArray(ring.flat(), MOON),
+            width: shape.filled ? 1.5 : 2.5,
+            arcType: ArcType.GEODESIC,
+            material: shape.filled ? REGION_LINE.withAlpha(0.9) : REGION_LINE,
+          },
+          polygon: shape.filled
+            ? { hierarchy: new PolygonHierarchy(Cartesian3.fromDegreesArray(ring.flat(), MOON)), material: SITE_FILL.withAlpha(0.22), arcType: ArcType.GEODESIC }
+            : undefined,
+        }),
+      ),
+    )
+    viewer.scene.requestRender()
+  }, [regionShapes])
   useEffect(() => {
     const viewer = viewerRef.current
     if (!viewer) return

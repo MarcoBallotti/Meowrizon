@@ -1,7 +1,8 @@
-import { provider } from '../api'
+import { catalogApi, provider } from '../api'
 import { runJob } from '../api/jobs'
 import type { ScenarioEvaluation, SiteCoordinates } from '../api/types'
-import { loadRegions, rank } from '../domain/ranking'
+import { loadRegions, rank, type Region } from '../domain/ranking'
+import { regionCatalog, siteCatalog } from '../domain/catalogs'
 import { intervalStats } from '../domain/sampling'
 import { getState, setState, updateScenario, type ScenarioKey, type SiteSummary } from './store'
 
@@ -26,9 +27,15 @@ export async function runScenario(key: ScenarioKey): Promise<void> {
   const s = getState()
   const { input } = s.scenarios[key]
   const stopMs = input.startMs + s.durationDays * 86_400_000
+  const current = () => {
+    const now = getState()
+    return !signal.aborted && now.scenarios[key].input === input
+      && now.durationDays === s.durationDays && now.stepMinutes === s.stepMinutes
+      && now.azimuthStepDeg === s.azimuthStepDeg && now.maxDistanceKm === s.maxDistanceKm
+  }
 
   try {
-    updateScenario(key, (sc) => ({ ...sc, run: { ...sc.run, phase: 'terrain', progress: 0, error: undefined } }))
+    updateScenario(key, (sc) => ({ ...sc, run: { phase: 'terrain', progress: 0, stale: true } }))
     const terrain = await runJob(
       () =>
         provider.submitTerrainAnalysis(
@@ -41,12 +48,12 @@ export async function runScenario(key: ScenarioKey): Promise<void> {
         ),
       (id) => provider.getTerrainAnalysis(id, signal),
       (job) => {
-        if (!signal.aborted) updateScenario(key, (sc) => ({ ...sc, run: { ...sc.run, progress: job.progress } }))
+        if (current()) updateScenario(key, (sc) => ({ ...sc, run: { ...sc.run, progress: job.progress, message: job.message } }))
       },
       signal,
     )
-    if (signal.aborted) return
-    updateScenario(key, (sc) => ({ ...sc, run: { ...sc.run, phase: 'ephemeris', progress: 0 } }))
+    if (!current()) return
+    updateScenario(key, (sc) => ({ ...sc, run: { phase: 'ephemeris', terrain, progress: 0, stale: false } }))
 
     const evaluation = await runJob(
       () =>
@@ -61,11 +68,11 @@ export async function runScenario(key: ScenarioKey): Promise<void> {
         ),
       (id) => provider.getScenarioEvaluation(id, signal),
       (job) => {
-        if (!signal.aborted) updateScenario(key, (sc) => ({ ...sc, run: { ...sc.run, progress: job.progress } }))
+        if (current()) updateScenario(key, (sc) => ({ ...sc, run: { ...sc.run, progress: job.progress, message: job.message } }))
       },
       signal,
     )
-    if (signal.aborted) return
+    if (!current()) return
     // Inputs may have changed after submission (a rerun is then pending).
     updateScenario(key, (sc) => ({
       ...sc,
@@ -81,6 +88,7 @@ export async function runScenario(key: ScenarioKey): Promise<void> {
             startUtc: new Date(input.startMs - s.durationDays * 86_400_000).toISOString(),
             stopUtc: new Date(input.startMs).toISOString(),
             stepMinutes: s.stepMinutes,
+            includeContext: false,
           },
           signal,
         ),
@@ -88,10 +96,10 @@ export async function runScenario(key: ScenarioKey): Promise<void> {
       () => undefined,
       signal,
     ).catch(() => undefined)
-    if (signal.aborted || !previous) return
+    if (!current() || !previous) return
     updateScenario(key, (sc) => (sc.run.evaluation === evaluation ? { ...sc, run: { ...sc.run, previous } } : sc))
   } catch (err) {
-    if (signal.aborted) return
+    if (!current()) return
     updateScenario(key, (sc) => ({ ...sc, run: { ...sc.run, phase: 'error', error: describe(err) } }))
   } finally {
     if (controllers[key] === controller) delete controllers[key]
@@ -114,6 +122,7 @@ let comparisonController: AbortController | null = null
  * scenario A (and the period before), so the site can be compared fairly.
  */
 export async function runComparison(): Promise<void> {
+  if (provider.kind === 'api') return // No approved regional calculation endpoint yet.
   const s = getState()
   const catalog = s.regions
   const A = s.scenarios.A
@@ -163,11 +172,87 @@ export async function runComparison(): Promise<void> {
   }
 }
 
+let rankingController: AbortController | null = null
+
+/**
+ * Measures every candidate region for scenario A's period with the engine
+ * (terrain horizon, then Sun and Earth visibility), one region at a time, so
+ * the results screen can rank them best to worst. The engine runs one job at
+ * a time and keeps finished ones, so a second visit is immediate.
+ */
+export async function runRegionRanking(): Promise<void> {
+  if (provider.kind !== 'api') return // Practice data already carries its measurements.
+  const s = getState()
+  const locations = s.regions?.locations ?? []
+  if (!locations.length) return
+  const A = s.scenarios.A.input
+  const key = JSON.stringify([locations.map((l) => l.id), A.startMs, A.observerHeightM, s.durationDays, s.stepMinutes, s.azimuthStepDeg, s.maxDistanceKm])
+  if (s.ranking?.key === key) return
+
+  rankingController?.abort()
+  const controller = new AbortController()
+  rankingController = controller
+  const { signal } = controller
+  const start = A.startMs
+  const stop = start + s.durationDays * 86_400_000
+  const update = (patch: Partial<NonNullable<ReturnType<typeof getState>['ranking']>>) => {
+    const now = getState().ranking
+    if (!signal.aborted && now?.key === key) setState({ ranking: { ...now, ...patch } })
+  }
+  setState({ ranking: { key, busy: true, total: locations.length, regions: [], failed: [], current: locations[0].name } })
+
+  for (const loc of locations) {
+    if (signal.aborted) return
+    update({ current: loc.name })
+    try {
+      const terrain = await runJob(
+        () => provider.submitTerrainAnalysis({ site: loc.center, observerHeightM: A.observerHeightM, config: { azimuthStepDeg: s.azimuthStepDeg, maxDistanceKm: s.maxDistanceKm } }, signal),
+        (id) => provider.getTerrainAnalysis(id, signal),
+        () => undefined,
+        signal,
+      )
+      const evaluation = await runJob(
+        () => provider.submitScenarioEvaluation({ terrainAnalysisId: terrain.id, startUtc: new Date(start).toISOString(), stopUtc: new Date(stop).toISOString(), stepMinutes: s.stepMinutes }, signal),
+        (id) => provider.getScenarioEvaluation(id, signal),
+        () => undefined,
+        signal,
+      )
+      const m = summarize(evaluation, start, stop)
+      const region: Region = { id: loc.id, name: loc.name, area: loc.area, center: loc.center, sunFraction: m.sun, earthFraction: m.earth, bothFraction: m.both, longestNightH: Math.round(m.nightH) }
+      update({ regions: [...(getState().ranking?.regions ?? []), region] })
+    } catch {
+      if (signal.aborted) return
+      update({ failed: [...(getState().ranking?.failed ?? []), loc.name] })
+    }
+  }
+  update({ busy: false, current: null })
+}
+
+let regionRequest: ReturnType<typeof catalogApi.getRegions> | null = null
+let siteRequest: ReturnType<typeof catalogApi.getSites> | null = null
+
 export async function loadRegionCatalog(): Promise<void> {
+  setState({ regionError: null })
   try {
-    setState({ regions: await loadRegions() })
-  } catch {
-    setState({ regions: null })
+    const catalog = provider.kind === 'api'
+      ? regionCatalog(await (regionRequest ??= catalogApi.getRegions()))
+      : await loadRegions()
+    setState({ regions: catalog })
+  } catch (err) {
+    regionRequest = null
+    setState({ regions: null, regionError: describe(err) })
+  }
+}
+
+export async function loadSiteCatalog(): Promise<void> {
+  if (provider.kind !== 'api') return
+  setState({ siteError: null })
+  try {
+    const sites = siteCatalog(await (siteRequest ??= catalogApi.getSites()))
+    setState({ sites })
+  } catch (err) {
+    siteRequest = null
+    setState({ sites: [], siteError: describe(err) })
   }
 }
 
