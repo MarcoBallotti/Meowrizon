@@ -4,7 +4,7 @@
  */
 import type { DataOrigin, SiteCoordinates } from '../api/types'
 
-export type Area = 'south-pole' | 'equatorial'
+export type Area = 'south-pole' | 'equatorial' | 'other'
 export type AreaFilter = Area | 'all'
 export type RankBy = 'overall' | 'sun' | 'earth' | 'both'
 
@@ -16,6 +16,8 @@ export interface Region {
   sunFraction: number
   earthFraction: number
   bothFraction: number
+  warnings?: string[]
+  pointKind?: 'region-center' | 'site'
   longestNightH: number
   /** Same days one month earlier, for the comparison next to every number. */
   previous?: Pick<Region, 'sunFraction' | 'earthFraction' | 'bothFraction' | 'longestNightH'>
@@ -66,7 +68,7 @@ export function rank(regions: Region[], by: RankBy, area: AreaFilter): Ranked[] 
   return regions
     .filter((r) => area === 'all' || r.area === area)
     .map((r) => ({ ...r, score: overallScore(r), value: metric(r, by) }))
-    .sort((a, b) => b.value - a.value || b.score - a.score)
+    .sort((a, b) => b.value - a.value || a.id.localeCompare(b.id))
     .map((r, i) => ({ ...r, rank: i + 1 }))
 }
 

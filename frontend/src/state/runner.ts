@@ -2,7 +2,8 @@ import { catalogApi, provider } from '../api'
 import { runJob } from '../api/jobs'
 import type { ScenarioEvaluation, SiteCoordinates } from '../api/types'
 import { loadRegions, rank, type Region } from '../domain/ranking'
-import { regionCatalog, siteCatalog } from '../domain/catalogs'
+import { comparisonCandidates, regionCatalog, siteCatalog } from '../domain/catalogs'
+import { terrainIssue, scenarioIssue } from '../domain/comparison'
 import { intervalStats } from '../domain/sampling'
 import { getState, setState, updateScenario, type ScenarioKey, type SiteSummary } from './store'
 
@@ -175,19 +176,24 @@ export async function runComparison(): Promise<void> {
 let rankingController: AbortController | null = null
 
 /**
- * Measures every candidate region for scenario A's period with the engine
+ * Measures all catalog sites and region centres for scenario A's period with the engine
  * (terrain horizon, then Sun and Earth visibility), one region at a time, so
  * the results screen can rank them best to worst. The engine runs one job at
  * a time and keeps finished ones, so a second visit is immediate.
  */
-export async function runRegionRanking(): Promise<void> {
+export async function runRegionRanking(force = false): Promise<void> {
   if (provider.kind !== 'api') return // Practice data already carries its measurements.
   const s = getState()
-  const locations = s.regions?.locations ?? []
-  if (!locations.length) return
+  if (!s.sitesLoaded || (!s.regions && !s.regionError)) return
+  const locations = comparisonCandidates(s.regions, s.sites)
+  if (!locations.length) {
+    rankingController?.abort()
+    setState({ ranking: { key: 'empty', busy: false, total: 0, regions: [], failed: [], current: null } })
+    return
+  }
   const A = s.scenarios.A.input
-  const key = JSON.stringify([locations.map((l) => l.id), A.startMs, A.observerHeightM, s.durationDays, s.stepMinutes, s.azimuthStepDeg, s.maxDistanceKm])
-  if (s.ranking?.key === key) return
+  const key = JSON.stringify([locations.map((l) => [l.id, l.center.latDeg, l.center.lonEastDeg]), A.startMs, A.observerHeightM, s.durationDays, s.stepMinutes, s.azimuthStepDeg, s.maxDistanceKm])
+  if (!force && s.ranking?.key === key) return
 
   rankingController?.abort()
   const controller = new AbortController()
@@ -211,18 +217,22 @@ export async function runRegionRanking(): Promise<void> {
         () => undefined,
         signal,
       )
+      const terrainProblem = terrainIssue(terrain)
+      if (terrainProblem) throw new Error(terrainProblem)
       const evaluation = await runJob(
-        () => provider.submitScenarioEvaluation({ terrainAnalysisId: terrain.id, startUtc: new Date(start).toISOString(), stopUtc: new Date(stop).toISOString(), stepMinutes: s.stepMinutes }, signal),
+        () => provider.submitScenarioEvaluation({ terrainAnalysisId: terrain.id, startUtc: new Date(start).toISOString(), stopUtc: new Date(stop).toISOString(), stepMinutes: s.stepMinutes, includeContext: false }, signal),
         (id) => provider.getScenarioEvaluation(id, signal),
         () => undefined,
         signal,
       )
+      const scenarioProblem = scenarioIssue(evaluation, terrain.id, start, stop, s.stepMinutes * 60_000)
+      if (scenarioProblem) throw new Error(scenarioProblem)
       const m = summarize(evaluation, start, stop)
-      const region: Region = { id: loc.id, name: loc.name, area: loc.area, center: loc.center, sunFraction: m.sun, earthFraction: m.earth, bothFraction: m.both, longestNightH: Math.round(m.nightH) }
+      const region: Region = { id: loc.id, name: loc.name, area: loc.area, center: loc.center, pointKind: loc.pointKind, warnings: [`DEM sampling: ${terrain.profile.dem.effectivePixelSizeM} m`, ...terrain.profile.warnings, ...evaluation.approximations], sunFraction: m.sun, earthFraction: m.earth, bothFraction: m.both, longestNightH: Math.round(m.nightH) }
       update({ regions: [...(getState().ranking?.regions ?? []), region] })
-    } catch {
+    } catch (err) {
       if (signal.aborted) return
-      update({ failed: [...(getState().ranking?.failed ?? []), loc.name] })
+      update({ failed: [...(getState().ranking?.failed ?? []), { id: loc.id, name: loc.name, center: loc.center, reason: describe(err) }] })
     }
   }
   update({ busy: false, current: null })
@@ -249,10 +259,10 @@ export async function loadSiteCatalog(): Promise<void> {
   setState({ siteError: null })
   try {
     const sites = siteCatalog(await (siteRequest ??= catalogApi.getSites()))
-    setState({ sites })
+    setState({ sites, sitesLoaded: true })
   } catch (err) {
     siteRequest = null
-    setState({ sites: [], siteError: describe(err) })
+    setState({ sites: [], sitesLoaded: true, siteError: describe(err) })
   }
 }
 

@@ -31,3 +31,15 @@ Il frontend usa di default `VITE_DATA_SOURCE=api`; file `.env` locali possono so
 - Frontend: compilazione TypeScript/Vite superata nel target Docker `build`; sei test unitari dei cataloghi superati.
 - Test API aggiornato anche per il default `includeContext=true`, salvato esplicitamente nei parametri normalizzati del job.
 - Nessun test UI, simulatore o E2E eseguito. Non è stata ripetuta la validazione scientifica sui dati reali: il nucleo V1 non è stato modificato da questo merge e il percorso HTTP mantiene uno stato di validazione distinto.
+
+## Confronto di tutti i punti disponibili
+
+Il confronto HTTP ora unisce tutte le regioni restituite da `/api/regions` e tutti i siti da `/api/sites`: nel catalogo versionato sono 13 regioni e 16 siti, senza filtro sulla lista 2024 né su `active` (flag del perimetro CLI V1). Non vengono inventate regioni prive di geometria nel catalogo backend. I centri delle regioni sono esplicitamente stime puntuali.
+
+Ogni candidato resta visibile come in attesa, valutato oppure non valutabile con motivo e possibilità di riprovare. Errori di caricamento di un catalogo sono dichiarati; l'altro può comunque essere confrontato. Non si inseriscono zeri in sostituzione dei dati mancanti. La graduatoria API usa singole metriche geometriche (Sole, Terra, concomitanza), senza raccomandazione universale o punteggio composito.
+
+L'ammissione al confronto richiede DEM identificato, quota finita, nessun NoData dichiarato, profilo completo su 360°, serie finite Sole/Terra per tutta la finestra al passo richiesto, modello C3 coerente e intervalli temporalmente validi. Questi sono controlli di completezza del risultato HTTP, non una nuova certificazione scientifica del modello. Anche i DEM globali grossolani possono supportare il confronto geometrico alla loro risoluzione: la risoluzione e le limitazioni accompagnano ciascun risultato; non si deduce la pendenza su 100 m.
+
+La vista iniziale dei risultati non è più forzata sul polo sud. Filtri geografici opzionali permettono di restringere la visualizzazione; il calcolo considera l'intero catalogo. I cambiamenti a data, durata, passo temporale, altezza e parametri del terreno invalidano il confronto precedente. La comparazione evita di scaricare calendario eclissi biennale/orbite per ciascun punto (`includeContext=false`).
+
+Verifiche di questa modifica: build TypeScript/Vite e otto test unitari frontend, inclusi cataloghi storici/non polari e rifiuto di risultati incompleti. Nessun test UI/E2E o nuova validazione scientifica globale su tutti i 29 punti.
