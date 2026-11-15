@@ -1,6 +1,10 @@
 # Stato del progetto: prima versione approvata
 
+<<<<<<< Updated upstream
 > **Stato effettivo dopo implementazione e revisione (15/11/2026):** engine puntuale V1 implementato; validazione osservativa ancora incompleta. Il [rapporto della revisione](validazione-engine-v1-revisione.md) documenta test, convergenza, classificazione e limiti. Le affermazioni storiche di engine non implementato non descrivono lo stato corrente. In questo branch i documenti scientifici seguono il perimetro V1 approvato.
+=======
+> **Stato effettivo dopo implementazione e revisione (15/11/2026):** engine puntuale V1 implementato; validazione osservativa ancora incompleta. Il [rapporto della revisione](validazione-engine-v1-revisione.md) documenta test, convergenza, classificazione e limiti. Le affermazioni storiche di engine non implementato e le sezioni in conflitto sotto non descrivono lo stato corrente. I conflitti preesistenti sono conservati, senza scegliere una versione del lavoro altrui.
+>>>>>>> Stashed changes
 
 Aggiornato il 15/11/2026 dopo l'adozione del perimetro minimo. Questa revisione è documentale: **nessuna implementazione dell'engine**. Riferimenti normativi: [criteri](criteri-algoritmo.md), [piano](piano-logica.md), [fonti](fonti-e-perimetro-challenge.md). Il [prompt per Claude](prompt-claude-engine-v1.md) descrive l'incarico futuro.
 

@@ -1,8 +1,8 @@
 # Contratto API e integrazione del simulatore
 
-**Revisione 3.0, 15 novembre 2026. Audit statico del frontend `48c2cdf`, su `backend`.** Questa revisione documenta il codice esistente e il lavoro di integrazione. Non modifica l'applicazione, non installa TanStack Query e non certifica un engine già disponibile.
+**Priorità approvata V1 (15/11/2026):** engine puntuale Python per 2–3 punti e date esplicite, con CLI/JSON e validazione; aggregazioni regionali, P50 e robustezza sono V2. HTTP scientifico e frontend seguono il nucleo. I dettagli estesi sotto non ampliano questo incarico: vedere il [piano V1](piano-logica.md).
 
-Stato backend aggiornato al commit `bd9e7c3`: `/api/coverage` è implementato e restituisce un catalogo vuoto, senza attestare disponibilità del DEM.
+**Revisione 3.0, 15 novembre 2026. Audit statico del frontend `48c2cdf`, su `main`.** Questa revisione documenta il codice esistente e il lavoro di integrazione. Non modifica l'applicazione, non installa TanStack Query e non certifica un engine già disponibile.
 
 Il backend corrente usa **Python/FastAPI e file**, come verificabile in [main.py](../backend/app/main.py). La precedente richiesta di Flask non descrive più il repository. Le [specifiche scientifiche approvate](criteri-algoritmo.md) prevalgono sui modelli del vecchio client e sugli appunti storici.
 
@@ -39,7 +39,7 @@ Le sezioni distinguono **implementato server**, **dichiarato client** e **propos
 
 ## 1. Dati utilizzati oggi
 
-- [api/index.ts](../frontend/src/api/index.ts#L5-L17): `VITE_DATA_SOURCE` ha default `demo`, `VITE_API_BASE_URL` default `/api`. `DemoProvider` genera orizzonti e risultati sintetici; `HttpProvider` dichiara cinque metodi: coverage è implementato con catalogo vuoto; i metodi di analisi terreno/scenario non sono ancora implementati nel server.
+- [api/index.ts](../frontend/src/api/index.ts#L5-L17): `VITE_DATA_SOURCE` ha default `demo`, `VITE_API_BASE_URL` default `/api`. `DemoProvider` genera orizzonti e risultati sintetici; `HttpProvider` dichiara cinque metodi scientifici non implementati nel server corrente.
 - [ranking.ts](../frontend/src/domain/ranking.ts#L67-L74) carica sempre [public/mock/regions.json](../frontend/public/mock/regions.json), anche in modalità `api`. Frazioni/notti sono inventate e indipendenti da T.
 - [sites.ts](../frontend/src/domain/sites.ts#L17-L24) contiene sei esempi con coordinate approssimate; non è il catalogo reale dei sedici siti.
 - Globo, orbite, eclissi, fase e diametri usano ancora `approxEphemeris.ts`, `eclipses.ts` e `sky.ts`. Cambiare provider non li sostituisce.
@@ -72,7 +72,7 @@ I percorsi sono completi di `/api`; il provider concatena base `/api` e suffissi
 |---|---|---|
 | REGIONS | `GET /api/regions`, `active` booleano opzionale | Server implementato, non collegato al ranking. GeoJSON metadata, senza metriche a T. |
 | SITES | `GET /api/sites` | Server implementato, non collegato agli esempi. Nessun parametro, GeoJSON punti. |
-| COVERAGE | `GET /api/coverage` | Server implementato, catalogo vuoto: `{ "origin": "engine", "products": [] }`. Nessun DEM pronto dichiarato. |
+| COVERAGE | `GET /api/coverage` | Solo client. Nessun parametro → `CoverageCatalog`. |
 | TERRAIN | `POST /api/terrain-analyses`; `GET /api/terrain-analyses/{jobId}` | Solo client. `TerrainAnalysisRequest` → `JobState<TerrainAnalysis>`. |
 | SCENARIO / PREVIOUS | `POST /api/scenario-evaluations`; `GET /api/scenario-evaluations/{jobId}` | Solo client; nuova scienza U02. Stesso endpoint, due range/chiavi. |
 | GLOBE | `GET /api/globe-state?utc=<ISO>` | Proposta non implementata. Direzione solare Moon-fixed lunocentrica a T, non azimut del punto A. |
@@ -210,4 +210,4 @@ Prima di chiudere gli schemi scientifici risolvere U01/U02/U03/U06/U09; poi impl
 
 Dopo modifiche ai file censiti eseguire dalla radice `python3 scripts/verify_api_integration.py`. Il controllo verifica hash, ancore e link; non avvia UI/API e non riscrive il manifest. Aggiornare solo numeri di riga e hash non sostituisce una nuova revisione del comportamento. La verifica scientifica richiede inoltre le evidenze previste dai criteri approvati.
 
-Verifiche di questa revisione: 43 sorgenti frontend e 57 file censiti, 1.000 ancore di codice e 726 link locali validati; controllo negativo con modifica simulata del frontend correttamente rifiutato; tabelle Markdown e frammenti JSON verificati. Lo snippet Query è stato controllato con TypeScript e React Query 5.107.1 in una cartella temporanea, senza aggiungere dipendenze al progetto. Questi controlli attestano la coerenza documentale, non l'accuratezza dell'engine o tutte le combinazioni di runtime.
+Verifiche di questa revisione: 43 sorgenti frontend e 55 file censiti, 1.000 ancore di codice e 725 link locali validati; controllo negativo con modifica simulata del frontend correttamente rifiutato; tabelle Markdown e frammenti JSON verificati. Lo snippet Query è stato controllato con TypeScript e React Query 5.107.1 in una cartella temporanea, senza aggiungere dipendenze al progetto. Questi controlli attestano la coerenza documentale, non l'accuratezza dell'engine o tutte le combinazioni di runtime.

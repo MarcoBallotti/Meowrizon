@@ -1,6 +1,14 @@
 # Backend
 
+<<<<<<< Updated upstream
 > **Stato effettivo dopo implementazione e revisione (15/11/2026):** engine puntuale V1 implementato; validazione osservativa ancora incompleta. Il [rapporto della revisione](../docs/validazione-engine-v1-revisione.md) documenta test, convergenza, classificazione e limiti. Le affermazioni storiche di engine non implementato non descrivono lo stato corrente. In questo branch i documenti scientifici seguono il perimetro V1 approvato.
+=======
+> **Stato effettivo dopo implementazione e revisione (15/11/2026):** engine puntuale V1 implementato; validazione osservativa ancora incompleta. Il [rapporto della revisione](../docs/validazione-engine-v1-revisione.md) documenta test, convergenza, classificazione e limiti. Le affermazioni storiche di engine non implementato e le sezioni in conflitto sotto non descrivono lo stato corrente. I conflitti preesistenti sono conservati, senza scegliere una versione del lavoro altrui.
+
+**Priorità approvata V1 (15/11/2026):** engine puntuale Python per 2–3 punti e date esplicite, con CLI/JSON e validazione; aggregazioni regionali, P50 e robustezza sono V2. HTTP scientifico e frontend seguono il nucleo. I dettagli estesi sotto non ampliano questo incarico: vedere il [piano V1](../docs/piano-logica.md).
+
+Python 3.12 e FastAPI, eseguito in Docker. Qui sta **tutta la logica** del progetto: dati, calcoli, confronto delle regioni, API e agente AI. Il frontend TypeScript si occupa solo della visualizzazione.
+>>>>>>> Stashed changes
 
 **Priorità approvata V1 (15/11/2026):** engine puntuale Python per 2–3 punti e date esplicite, con CLI/JSON e validazione; aggregazioni regionali, P50 e robustezza sono V2. HTTP scientifico e frontend seguono il nucleo. I dettagli estesi sotto non ampliano questo incarico: vedere il [piano V1](../docs/piano-logica.md).
 
@@ -14,6 +22,13 @@ client. L'engine è indipendente dal veicolo: fasce descrittive della pendenza [
 [5°,10°), [10°,15°), ≥15°, nessun filtro automatico a 10°, confronto per metriche senza
 punteggio globale. Il panorama descritto sotto implementa solo l'orizzonte campionato;
 non costituisce la valutazione completa né una validazione scientifica dei criteri.
+
+**Specifica scientifica approvata il 15/11/2026:** [criteri-algoritmo.md](../docs/criteri-algoritmo.md)
+prevale sui precedenti appunti in `backend/docs/` e sulle ipotesi scientifiche del contratto
+client. L'engine è indipendente dal veicolo: fasce descrittive della pendenza [0°,5°),
+[5°,10°), [10°,15°), ≥15°, nessun filtro automatico a 10°, confronto per metriche senza
+punteggio globale. Questa revisione è documentale; engine e successiva integrazione
+del frontend non sono ancora implementati.
 
 **Specifica scientifica approvata il 15/11/2026:** [criteri-algoritmo.md](../docs/criteri-algoritmo.md)
 prevale sui precedenti appunti in `backend/docs/` e sulle ipotesi scientifiche del contratto

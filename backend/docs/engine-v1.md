@@ -162,7 +162,11 @@ I test sono in `tests/test_engine_*.py` e non usano la rete.
 ## Divergenze dai documenti, da riportare
 
 - `guida-dati.md` indica `QUANTITIES='4,20'`. Il codice usa `'4,13,20'` per avere i diametri angolari da Horizons, e `RANGE_UNITS='KM'`.
+<<<<<<< Updated upstream
 - Le sezioni progettuali storiche nei README vanno lette insieme al rapporto di validazione corrente, che descrive l’implementazione effettiva.
+=======
+- `backend/README.md` e `docs/stato-decisioni.md` non sono stati aggiornati: al momento del lavoro erano in conflitto di merge. Questo file li sostituisce finché il conflitto non è risolto.
+>>>>>>> Stashed changes
 
 ## Revisione di validazione del 15/11/2026
 

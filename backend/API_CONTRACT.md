@@ -1,5 +1,7 @@
 # Contratto API per il backend
 
+**Priorità approvata V1 (15/11/2026):** engine puntuale Python per 2–3 punti e date esplicite, con CLI/JSON e validazione; aggregazioni regionali, P50 e robustezza sono V2. HTTP scientifico e frontend seguono il nucleo. I dettagli estesi sotto non ampliano questo incarico: vedere il [piano V1](../docs/piano-logica.md).
+
 **Revisione 3.0 — 15 novembre 2026.** La specifica corrente è [docs/api-contract.md](../docs/api-contract.md), con stato reale degli endpoint, parametri, flussi e decisioni aperte. Il backend del repository usa **FastAPI e file**; la scienza approvata è in [criteri-algoritmo.md](../docs/criteri-algoritmo.md).
 
 Per implementare e integrare:
@@ -14,5 +16,3 @@ Per implementare e integrare:
 Il [contratto precedente](API_CONTRACT.v1-archive.md) è conservato integralmente come archivio. Le sue ipotesi scientifiche e proposte HTTP non sostituiscono la revisione corrente.
 
 Verifica statica dalla radice: `python3 scripts/verify_api_integration.py`. Non avvia UI né servizi e non modifica i file.
-
-Lo schema OpenAPI della precedente proposta v2 è conservato in `backend/API_CONTRACT.v2-openapi-archive.json` come archivio non normativo. Non definisce i DTO scientifici finali della revisione corrente.

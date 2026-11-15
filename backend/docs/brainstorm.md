@@ -306,7 +306,6 @@ Use Horizons for Earth/Moon/Sun states, supported spacecraft replay and referenc
 |---|---|---|
 | [JPL periodic-orbits API](https://ssd-api.jpl.nasa.gov/doc/periodic_orbits.html) | Retrieve Earth–Moon orbit-family initial states and periods | Uses a simplified rotating three-body model with normalized units. Not a launch-date-specific flight or landing. Documentation reviewed; no live query made here. |
 | [NASA GMAT lunar-transfer example](https://github.com/nasa/GMAT/blob/main/application/samples/Ex_LunarTransfer.script) | Reuse an existing propagator and transfer-targeting scenario | Local software, not a hosted REST endpoint. The example starts in space, targets lunar arrival/orbit insertion, and omits pad ascent and powered landing. Not run here. |
-| [ESA MIDAS lunar-transfer example](https://midas.io.esa.int/midas/user_guide/notebooks/design/lunar/lunar_hohmann.html) | Existing high-level Earth-to-low-lunar-orbit design functions | A software alternative to investigate, not a verified hosted service. Installation/access and integration have not been established. |
 | [NASA Ames Lunar Browser](https://www.nasa.gov/ames-engineering/spaceflight-division/flight-dynamics/) | Existing work on databases of lunar transfer solutions | Relevant design precedent. A publicly callable endpoint usable by this project was not verified. |
 | [JPL small-body mission design API](https://ssd-api.jpl.nasa.gov/doc/mdesign.html) | Precomputed/design options for small bodies | Targets asteroids/comets; do not present it as an Earth-to-lunar-surface planner. |
 

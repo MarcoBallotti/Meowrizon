@@ -4,6 +4,10 @@
 
 **Revisione fonti del 15/11/2026:** fonti scientifiche NASA o istituzionali USA, con responsabilità del prodotto dichiarata. Registro delle sostituzioni, lacune e perimetro minimo approvato in [fonti-e-perimetro-challenge.md](fonti-e-perimetro-challenge.md). La riduzione è approvata; le definizioni V2 restano documentate per gli sviluppi successivi.
 
+**Perimetro V1 approvato il 15/11/2026:** confronto puntuale di 2–3 punti nelle due regioni di sviluppo, con date esplicite, finestra finita, Horizons topocentrico, terreno/dischi/eclissi, slope e validazione. Griglia e aree regionali, P50 annuale, robustezza aggregata e siti globali sono V2. Le sezioni che li descrivono restano specifiche future. Libreria/CLI/JSON prima; HTTP e frontend dopo. Prevalgono [criteri-algoritmo.md](criteri-algoritmo.md) e [piano-logica.md](piano-logica.md).
+
+**Revisione fonti del 15/11/2026:** fonti scientifiche NASA o istituzionali USA, con responsabilità del prodotto dichiarata. Registro delle sostituzioni, lacune e perimetro minimo approvato in [fonti-e-perimetro-challenge.md](fonti-e-perimetro-challenge.md). La riduzione è approvata; le definizioni V2 restano documentate per gli sviluppi successivi.
+
 Questo documento descrive come confrontare **le condizioni geometriche e topografiche delle regioni lunari** a una data e un'ora. È allineato alle decisioni approvate il **15/11/2026** in `docs/criteri-algoritmo.md`; il piano operativo è in `docs/piano-logica.md` e la guida alle fonti in `docs/guida-dati.md`.
 
 L'elenco usato dal progetto resta nel catalogo `backend/catalog/` (`regions.toml` e `sites.toml`). Il comando esistente `python -m app.cli init-regions` acquisisce i contorni e crea i GeoJSON. Questa revisione aggiorna solo la specifica: non modifica cataloghi, engine o frontend.
