@@ -22,6 +22,8 @@ The project uses Moon Trek region catalogs and imagery, LRO/LOLA elevation produ
 
 Source data and completed calculations are cached on disk. Initial analyses may need internet access to download upstream data. The frontend uses the backend API by default; an explicit demo mode provides synthetic examples.
 
+AI-assisted development of Moonrizon has used ChatGPT, Claude, Codex and Cursor.
+
 Results support preliminary exploration. Independent observational validation remains incomplete, and the separate V1 CLI engine has its own calculation path and validation scope. A polygon-center result represents one point, and geometric visibility alone does not establish landing safety, power availability or radio performance. See the [validation review](docs/validazione-engine-v1-revisione.md) for the recorded evidence and limitations.
 
 ## Run with Docker
