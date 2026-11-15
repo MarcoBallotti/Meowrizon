@@ -2,8 +2,9 @@ import { catalogApi, provider } from '../api'
 import { runJob } from '../api/jobs'
 import type { ScenarioEvaluation, SiteCoordinates } from '../api/types'
 import { loadRegions, rank, type Region } from '../domain/ranking'
-import { areaOfLatitude, comparisonCandidates, regionCatalog, siteCatalog } from '../domain/catalogs'
+import { regionCatalog, siteCatalog } from '../domain/catalogs'
 import { terrainIssue, scenarioIssue } from '../domain/comparison'
+import { rankingRequest } from '../domain/rankingRequest'
 import { intervalStats } from '../domain/sampling'
 import { getState, setState, updateScenario, type ScenarioKey, type SiteSummary } from './store'
 
@@ -113,6 +114,8 @@ export function summarize(ev: ScenarioEvaluation, startMs: number, endMs: number
     earth: intervalStats(ev.intervals.earth, startMs, endMs).fraction,
     both: intervalStats(ev.intervals.both, startMs, endMs).fraction,
     nightH: intervalStats(ev.intervals.sun, startMs, endMs).longestOffMs / 3_600_000,
+    earthOutageH: intervalStats(ev.intervals.earth, startMs, endMs).longestOffMs / 3_600_000,
+    jointWindowH: intervalStats(ev.intervals.both, startMs, endMs).longestOnMs / 3_600_000,
   }
 }
 
@@ -185,20 +188,13 @@ export async function runRegionRanking(force = false): Promise<void> {
   if (provider.kind !== 'api') return // Practice data already carries its measurements.
   const s = getState()
   if (!s.sitesLoaded || (!s.regions && !s.regionError)) return
-  const locations = comparisonCandidates(s.regions, s.sites)
-  const selected = s.scenarios.A.input
-  if (s.pointShown && !locations.some(l => l.center.latDeg === selected.site.latDeg && l.center.lonEastDeg === selected.site.lonEastDeg)) {
-    locations.push({ id: `custom:${selected.site.latDeg}:${selected.site.lonEastDeg}`, name: selected.siteName ?? 'Chosen point', center: selected.site, area: areaOfLatitude(selected.site.latDeg), pointKind: 'site' })
-  }
+  const { locations, minSunFraction, key } = rankingRequest(s)
   if (!locations.length) {
     rankingController?.abort()
-    setState({ ranking: { key: 'empty', busy: false, total: 0, regions: [], failed: [], skipped: [], current: null } })
+    setState({ ranking: { key, busy: false, total: 0, regions: [], failed: [], skipped: [], current: null } })
     return
   }
   const A = s.scenarios.A.input
-  // Educators need full visibility evidence even for sites that fail mission limits.
-  const minSunFraction = s.audience === 'educator' ? 0 : s.mission.minSunFraction
-  const key = JSON.stringify([locations.map((l) => [l.id, l.center.latDeg, l.center.lonEastDeg]), A.startMs, A.observerHeightM, s.durationDays, s.stepMinutes, s.azimuthStepDeg, s.maxDistanceKm, minSunFraction, 'local-terrain-v1'])
   if (!force && s.ranking?.key === key) return
 
   rankingController?.abort()

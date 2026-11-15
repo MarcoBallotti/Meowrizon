@@ -260,6 +260,7 @@ class ScientificApiTests(unittest.TestCase):
             ("stopUtc", SCENARIO["startUtc"]),
             ("startUtc", "yesterday"),
             ("startUtc", "2026-11-15T00:00:00+01:00"),
+            ("horizonMode", "flat"),
             ("stepMinutes", True),
             ("stepMinutes", 0),
             ("minSunFraction", -0.01),

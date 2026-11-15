@@ -60,6 +60,7 @@ class ScenarioEvaluationRequest(ScientificInput):
     stopUtc: str
     stepMinutes: Annotated[int, Field(strict=True, gt=0)]
     includeContext: Annotated[bool, Field(strict=True)] = True
+    horizonMode: Literal["terrain", "ideal"] | None = None
     minSunFraction: Annotated[Number, Field(ge=0, le=1)] | None = None
 
     @field_validator("startUtc", "stopUtc")

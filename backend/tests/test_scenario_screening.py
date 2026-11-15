@@ -188,3 +188,35 @@ def test_same_horizon_reuses_measurements_across_terrain_receipts(setup):
     assert result["id"] == original["id"]
     assert result["sun"] == original["sun"]
     assert (observe.call_count, fractions.call_count) == calls
+
+
+def test_ideal_horizon_changes_only_terrain_and_has_separate_cache(setup):
+    root, terrain, parameters, bodies, observe, *_ = setup
+    parameters["minSunFraction"] = 0
+    terrain["profile"]["elevationDeg"] = [10, 10, 10, 10]
+    real = calculate(setup)
+    assert not real["intervals"]["sun"]
+    ideal = sc.calculate(root, {**parameters, "horizonMode": "ideal"}, terrain, lambda *a: None)
+    assert ideal["intervals"]["sun"]
+    assert ideal["horizonMode"] == "ideal"
+    assert ideal["sun"]["horizonDeg"] == [0] * len(ideal["timesMs"])
+    assert ideal["sun"]["azimuthDeg"] == real["sun"]["azimuthDeg"]
+    assert ideal["sun"]["elevationDeg"] == real["sun"]["elevationDeg"]
+    assert ideal["visibilityModel"] == real["visibilityModel"] == "disc-fraction-c3"
+    assert ideal["terrainAnalysisId"] == real["terrainAnalysisId"]
+    assert terrain["profile"]["elevationDeg"] == [10] * 4
+    assert any("counterfactual" in note for note in ideal["approximations"])
+    calls = observe.call_count
+    sc.calculate(root, {**parameters, "horizonMode": "ideal"}, terrain, lambda *a: None)
+    calculate(setup)
+    assert observe.call_count == calls
+
+
+def test_ideal_horizon_preserves_earth_occultation_of_the_sun(setup):
+    root, terrain, parameters, bodies, *_ = setup
+    parameters["minSunFraction"] = 0
+    bodies["earth"]["az"][:] = bodies["sun"]["az"]
+    ideal = sc.calculate(root, {**parameters, "horizonMode": "ideal"}, terrain, lambda *a: None)
+    assert ideal["intervals"]["sun"] == []
+    assert ideal["intervals"]["earth"]
+    assert max(ideal["solarOccultedFraction"]) > 0.99

@@ -37,11 +37,11 @@ export function heightInWidths(body: Body, at: BodyAtTime): string {
 export function studentLine(body: Body, at: BodyAtTime): string {
   if (body === 'sun') {
     return at.visible
-      ? `The Sun is up, barely. It sits ${heightInWidths('sun', at)}.`
-      : 'The Sun is hiding behind the hills, so solar panels make no power.'
+      ? `The Sun is in view. It sits ${heightInWidths('sun', at)}.`
+      : 'The Sun is mostly hidden by the hills, so solar generation may be limited.'
   }
   return at.visible
-    ? 'Earth is in view, so the lander can talk to us directly.'
+    ? 'Earth is in view, which makes a direct radio link geometrically possible.'
     : 'Earth is behind the hills. Radio waves need a clear line, so the lander must wait.'
 }
 

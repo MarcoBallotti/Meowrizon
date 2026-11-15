@@ -9,16 +9,19 @@ import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState }
 import { provider } from '../api'
 import { formatLat, formatLon, formatUtcDate } from '../domain/format'
 import { areaOfLatitude, comparisonCandidates } from '../domain/catalogs'
+import { rankingRequest } from '../domain/rankingRequest'
 import { assessRegions, publicExplanation, rank, rankColor, type AreaFilter, type Ranked } from '../domain/ranking'
 import { ExperimentCard } from '../features/Experiment'
 import { LandingWindows, MissionBrief, Recommendation } from '../features/MissionBrief'
+import { AttemptHistory } from '../features/Scorecard'
+import { sameDecisionConfig } from '../domain/publicDecision'
 import { gradeColor } from '../domain/grade'
 import { CUSTOM_SITE_NAME, normalizeLon, validateSite } from '../domain/sites'
 import type { GlobeFocus, GlobeMarker, MarkerSymbol, RegionBands, RegionShape } from '../features/MoonGlobe'
 import { TopBar } from '../features/TopBar'
 import { MissionControls } from '../features/MissionControls'
 import { loadRegionCatalog, loadSiteCatalog, runRegionRanking } from '../state/runner'
-import { clearPoint, goTo, setScenarioInput, setState, useStore, type Audience, type ScenarioInput } from '../state/store'
+import { clearPoint, getState, goTo, reopenAttempt, setScenarioInput, setState, useStore, type Audience, type ScenarioInput } from '../state/store'
 import { ArrowIcon, Button, Card, DateDial, Field, Input, MonthCalendar, Segmented, Select, SpaceWindow, Toggle } from '../ui'
 
 const MoonGlobe = lazy(() => import('../features/MoonGlobe'))
@@ -369,6 +372,7 @@ function PlanCard({ plan, onPlan, onResults }: PlanCardProps) {
           <div className="home-divider" />
           <div className="plan-body">
             <SiteList />
+            {student && <AttemptHistory />}
             {!planner && <p className="plan-caption">{caption(input.site.latDeg)}</p>}
           </div>
           <Button size="l" block icon={<ArrowIcon />} onClick={onResults} className="plan-go" disabled={!pointShown}>
@@ -408,7 +412,9 @@ function RankedSitesPanel({ ranked, onPick, onHorizon }: { ranked: Ranked[]; onP
   const siteError = useStore((s) => s.siteError)
   const sites = useStore((s) => s.sites)
   const sitesLoaded = useStore((s) => s.sitesLoaded)
-  const progress = useStore((s) => s.ranking)
+  const snapshot = useStore(s => s)
+  const storedProgress = snapshot.ranking
+  const progress = !API || storedProgress?.key === rankingRequest(snapshot).key ? storedProgress : null
   const mission = useStore(s => s.mission)
   const assessments = useMemo(() => assessRegions(API ? progress?.regions ?? [] : catalog?.regions ?? [], area, mission), [progress, catalog, area, mission])
   const notEligible = assessments.filter(r => r.assessment.status !== 'eligible')
@@ -419,7 +425,7 @@ function RankedSitesPanel({ ranked, onPick, onHorizon }: { ranked: Ranked[]; onP
   const chosen = shown.find((r) => isChosen(input, r))
   const pointShown = useStore(s => s.pointShown)
   const place = chosen?.name.split(' · ')[0] ?? (!planner && pointShown ? input.siteName?.split(' · ')[0] ?? CUSTOM_SITE_NAME : undefined)
-  const measuring = API && !!progress?.busy
+  const measuring = API && (!progress || progress.busy)
   const done = progress ? progress.regions.length + progress.failed.length + progress.skipped.length : 0
   const completed = new Set([...(progress?.regions ?? []), ...(progress?.failed ?? []), ...(progress?.skipped ?? [])].map(p => p.id))
   const pending = comparisonCandidates(catalog, sites).filter(p => !completed.has(p.id) && (area === 'all' || p.area === area))
@@ -427,7 +433,7 @@ function RankedSitesPanel({ ranked, onPick, onHorizon }: { ranked: Ranked[]; onP
   return (
     <section className="rank-panel" aria-label="Sites from best to worst">
       <MissionBrief />
-      <Recommendation ranked={shown} chosen={chosen} onOpen={onHorizon} onPick={(r) => onPick({ ...r.center, name: r.name, id: r.id })} />
+      <Recommendation ranked={shown} chosen={chosen} candidates={(API ? progress?.regions ?? [] : catalog?.regions ?? []).filter(r => area === 'all' || r.area === area)} onOpen={onHorizon} onPick={(r) => onPick({ ...r.center, name: r.name, id: r.id })} />
       <LandingWindows name={chosen?.name.split(' · ')[0] ?? (pointShown && !input.siteName ? CUSTOM_SITE_NAME : undefined)} />
       <h2 className="ui-title rank-title">Shortlist</h2>
       <Card className="rank-head">
@@ -646,9 +652,10 @@ export function MoonScreen({ mode }: { mode: 'moon' | 'explore' }) {
 
   // With the engine the regions are measured for the chosen period; practice data carries its own numbers.
   const measured = useStore((s) => s.ranking)
+  const currentMeasurements = measured?.key === rankingRequest(getState()).key
   const ranked = useMemo(
-    () => (API ? rank(measured?.regions ?? [], area, mission) : catalog ? rank(catalog.regions, area, mission) : []),
-    [catalog, measured, area, mission],
+    () => (API ? rank(currentMeasurements ? measured?.regions ?? [] : [], area, mission) : catalog ? rank(catalog.regions, area, mission) : []),
+    [catalog, measured, area, mission, currentMeasurements],
   )
   useEffect(() => {
     if (results && (catalog || regionError) && sitesLoaded) void runRegionRanking()
@@ -666,9 +673,18 @@ export function MoonScreen({ mode }: { mode: 'moon' | 'explore' }) {
     const base = places.map((p): GlobeMarker => ({ id: p.id, label: p.short, latDeg: p.latDeg, lonEastDeg: p.lonEastDeg, symbol: p.symbol }))
     // Earlier tries stay on the Moon as numbered badges coloured by their grade.
     if (audience !== 'public') return base
-    const tries = attempts.map((t, i): GlobeMarker => ({ id: `try:${i}`, label: `Try ${i + 1} · ${t.grade}`, rank: i + 1, color: gradeColor(t.grade), ...t.site }))
+    const currentTry = attempts.findLast(t => t.startMs === input.startMs
+      && t.site.latDeg === input.site.latDeg && t.site.lonEastDeg === input.site.lonEastDeg
+      && t.config.durationDays === durationDays && t.config.stepMinutes === stepMinutes
+      && t.config.azimuthStepDeg === azimuthStepDeg && t.config.maxDistanceKm === maxDistanceKm
+      && t.config.observerHeightM === input.observerHeightM)
+    const bestTry = currentTry ? attempts.filter(t => sameDecisionConfig(t.config, currentTry.config))
+      .reduce((best, t) => t.index > best.index ? t : best, currentTry) : undefined
+    const tries = attempts.map((t, i): GlobeMarker => ({ id: `try:${t.id}`,
+      label: `Try ${i + 1} · ${t.grade}${t.id === currentTry?.id ? ' · current' : ''}${t.id === bestTry?.id ? ' · best' : ''}`,
+      rank: i + 1, color: gradeColor(t.grade), ...t.site }))
     return [...base, ...tries]
-  }, [ranking, ranked, audience, places, catalog, sites, area, measured, attempts])
+  }, [ranking, ranked, audience, places, catalog, sites, area, measured, attempts, input, durationDays, stepMinutes, azimuthStepDeg, maxDistanceKm])
 
   // The shortlist opens on its leader when nothing else is chosen.
   const chosenRanked = ranked.find((r) => isChosen(input, r))
@@ -745,6 +761,10 @@ export function MoonScreen({ mode }: { mode: 'moon' | 'explore' }) {
   if (!results && zoomed) setZoomed(false)
 
   const pickMarker = (id: string) => {
+    if (audience === 'public' && id.startsWith('try:')) {
+      reopenAttempt(id.slice(4))
+      return
+    }
     const r = (catalog?.locations ?? catalog?.regions ?? []).find((x) => x.id === id)
     if (r) return pick({ ...r.center, name: r.name, id: r.id })
     const p = places.find((x) => x.id === id)

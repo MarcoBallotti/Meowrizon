@@ -1,7 +1,7 @@
 /**
  * The General Public score: one letter for a site and period, the checks that
  * explain it, and a nearby place that would do better. It reuses the ranking's
- * visibility index so a grade never disagrees with the trade study.
+ * visibility index with a fixed didactic scale independent of mission requirements.
  */
 import type { SiteCoordinates } from '../api/types'
 import type { SiteSummary } from '../state/store'
@@ -13,7 +13,7 @@ export type Grade = 'A' | 'B' | 'C' | 'D' | 'F'
 const BANDS: [Grade, number][] = [['A', 55], ['B', 42], ['C', 28], ['D', 15], ['F', 0]]
 
 export function indexOf(s: SiteSummary, periodHours: number): number {
-  return overallScore({ sunFraction: s.sun, earthFraction: s.earth, bothFraction: s.both, longestNightH: s.nightH, periodHours } as Region)
+  return overallScore({ sunFraction: s.sun, earthFraction: s.earth, bothFraction: s.both, longestNightH: s.nightH, longestNoLinkH: s.earthOutageH, periodHours } as Region)
 }
 
 const GRADES: Grade[] = ['A', 'B', 'C', 'D', 'F']
@@ -30,7 +30,7 @@ export function gradeOf(index: number): Grade {
 export type CheckTone = 'good' | 'fair' | 'poor'
 
 export interface GradeCheck {
-  id: 'sun' | 'earth' | 'night'
+  id: 'sun' | 'earth' | 'night' | 'both' | 'radio'
   label: string
   tone: CheckTone
   /** One sentence in plain words: what this means for a lander. */
@@ -44,30 +44,41 @@ function days(h: number): string {
 
 export function checksOf(s: SiteSummary): GradeCheck[] {
   const sun: GradeCheck = s.sun >= 0.6
-    ? { id: 'sun', label: 'Plenty of sunlight', tone: 'good', reason: `The Sun is in view ${pct(s.sun)} of the time, so solar panels work most days.` }
+    ? { id: 'sun', label: 'Plenty of sunlight', tone: 'good', reason: `The Sun is in view ${pct(s.sun)} of the time, giving solar panels opportunities to generate energy.` }
     : s.sun >= 0.45
-      ? { id: 'sun', label: 'Some sunlight', tone: 'fair', reason: `The Sun is in view ${pct(s.sun)} of the time: enough for power, with little to spare.` }
-      : { id: 'sun', label: 'Little sunlight', tone: 'poor', reason: `The Sun is in view only ${pct(s.sun)} of the time, so the lander runs short of power.` }
+      ? { id: 'sun', label: 'Some sunlight', tone: 'fair', reason: `The Sun is in view ${pct(s.sun)} of the time: power availability also depends on panels, batteries and demand.` }
+      : { id: 'sun', label: 'Little sunlight', tone: 'poor', reason: `The Sun is in view only ${pct(s.sun)} of the time, long interruptions may require stored energy or another power source.` }
   const earth: GradeCheck = s.earth >= 0.5
-    ? { id: 'earth', label: 'Earth in view', tone: 'good', reason: `Earth is above the horizon ${pct(s.earth)} of the time, so you can call home directly.` }
+    ? { id: 'earth', label: 'Earth in view', tone: 'good', reason: `Earth is above the horizon ${pct(s.earth)} of the time, making a direct link geometrically possible; radio performance needs separate checks.` }
     : s.earth > 0.05
-      ? { id: 'earth', label: 'Earth comes and goes', tone: 'fair', reason: `Earth is in view ${pct(s.earth)} of the time; the rest of the time you need a relay satellite.` }
-      : { id: 'earth', label: 'Earth hidden', tone: 'poor', reason: 'Earth never rises above the hills here, so you cannot talk to home without a relay.' }
+      ? { id: 'earth', label: 'Earth comes and goes', tone: 'fair', reason: `Earth is in view ${pct(s.earth)} of the time; outside those windows a direct link is blocked; waiting or a relay may be needed.` }
+      : { id: 'earth', label: 'Earth hidden', tone: 'poor', reason: `Earth is visible ${pct(s.earth)} of the time; direct communication opportunities are scarce.` }
   const night: GradeCheck = s.nightH <= 72
-    ? { id: 'night', label: 'Short nights', tone: 'good', reason: `The longest dark stretch is ${days(s.nightH)}: batteries can cover it.` }
+    ? { id: 'night', label: 'Short nights', tone: 'good', reason: `The longest dark stretch is ${days(s.nightH)}: stored energy would need to cover this interruption.` }
     : s.nightH <= 200
-      ? { id: 'night', label: 'Long nights', tone: 'fair', reason: `The longest dark stretch is ${days(s.nightH)}: the lander needs big batteries.` }
-      : { id: 'night', label: 'Very long nights', tone: 'poor', reason: `The longest dark stretch is ${days(s.nightH)}: it gets very cold and most landers would not survive.` }
-  return [sun, earth, night]
+      ? { id: 'night', label: 'Long nights', tone: 'fair', reason: `The longest dark stretch is ${days(s.nightH)}: energy storage requirements depend on the equipment and its demand.` }
+      : { id: 'night', label: 'Very long nights', tone: 'poor', reason: `The longest dark stretch is ${days(s.nightH)}: energy and thermal survival need separate assessment.` }
+  const both: GradeCheck = {
+    id: 'both', label: 'Light and Earth together',
+    tone: s.both >= .45 ? 'good' : s.both > 0 ? 'fair' : 'poor',
+    reason: `Sun and Earth are visible together ${pct(s.both)} of the time. Shared windows let solar generation and direct communication overlap.`,
+  }
+  const radio: GradeCheck[] = s.earthOutageH === undefined ? [] : [{
+    id: 'radio', label: 'Longest interruption in Earth visibility',
+    tone: s.earthOutageH <= 72 ? 'good' : s.earthOutageH <= 200 ? 'fair' : 'poor',
+    reason: `Earth is out of view for up to ${days(s.earthOutageH)} continuously. A direct link is unavailable during that stretch; a relay or delayed communication may help.`,
+  }]
+  return [sun, earth, both, night, ...radio]
 }
 
 /** One line on the biggest problem, so the reader knows what to change. */
 export function mainProblem(checks: GradeCheck[], latDeg: number): string {
   const worst = [...checks].sort((a, b) => rankTone(a.tone) - rankTone(b.tone))[0]
   if (worst.tone === 'good') return 'This is a strong choice: try another date to see whether it stays good all year.'
+  if (worst.id === 'both') return 'Use the timeline to find when sunlight and Earth visibility overlap. Try another day at this spot and check whether that shared time grows.'
   if (worst.id === 'night' || worst.id === 'sun') {
     return latDeg > -80
-      ? 'Most of the Moon gets two weeks of night. Near the south pole the Sun circles the horizon instead of setting, so try a spot there.'
+      ? 'Most of the Moon gets two weeks of night. Near the south pole the Sun moves around a low horizon, so some ridges may have shorter dark stretches. Try a spot there and check its result.'
       : 'Near the pole the Sun stays low, so small differences in height decide how long it is in view. Try a higher ridge or crater rim.'
   }
   return latDeg < -80
@@ -111,7 +122,7 @@ export interface Suggestion {
 export function suggestBetter(from: SiteCoordinates, index: number, regions: Region[]): Suggestion | null {
   const here = gradeOf(index)
   const better = regions
-    .map((region) => ({ region, index: overallScore(region) }))
+    .map((region) => ({ region, index: indexOf({ sun: region.sunFraction, earth: region.earthFraction, both: region.bothFraction, nightH: region.longestNightH, earthOutageH: region.longestNoLinkH }, region.periodHours) }))
     .filter((r) => r.index > index + 3 && gradeOf(r.index) !== here && distanceKm(from, r.region.center) > 1)
     .map((r) => ({ ...r, grade: gradeOf(r.index), km: distanceKm(from, r.region.center), direction: compassTo(from, r.region.center) }))
     .sort((a, b) => a.km - b.km)

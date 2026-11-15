@@ -7,9 +7,11 @@ import { useEffect, useMemo, type KeyboardEvent, type PointerEvent } from 'react
 import { currentCompareSite, openComparePicker, SLOT_LETTERS } from '../features/compareSlots'
 import { CompareWindow } from '../features/CompareWindow'
 import { ExperimentBar } from '../features/Experiment'
-import { flatEvaluation, flatProfile } from '../domain/flat'
+import { flatProfile } from '../domain/flat'
 import { TopBar } from '../features/TopBar'
 import { formatAngle, formatLat, formatLon, formatUtc, formatUtcDate, formatUtcLong, previousMonthName } from '../domain/format'
+import { slotStart, slotCursor, comparisonKey } from '../domain/learning'
+import { decisionChanges } from '../domain/publicDecision'
 import { bodyAt } from '../domain/sampling'
 import { usePlayback } from '../hooks'
 import { retryCompareSite, syncCompareRuns } from '../state/compareRunner'
@@ -47,7 +49,7 @@ function shortName(name: string): string {
 export function CompareScreen() {
   const audience = useStore((s) => s.audience)
   const sites = useStore((s) => s.compareSites)
-  const runs = useStore((s) => s.compareRuns)
+  const storedRuns = useStore((s) => s.compareRuns)
   const view = useStore((s) => s.compareView)
   const playing = useStore((s) => s.playing)
   const speed = useStore((s) => s.speed)
@@ -56,15 +58,22 @@ export function CompareScreen() {
   const A = useStore((s) => s.scenarios.A.input)
   const durationDays = useStore((s) => s.durationDays)
   const stepMinutes = useStore((s) => s.stepMinutes)
+  const azimuthStepDeg = useStore(s => s.azimuthStepDeg)
+  const maxDistanceKm = useStore(s => s.maxDistanceKm)
+  const mode = useStore(s => s.experiment.mode ?? 'sites')
+  const paired = audience === 'educator' && mode !== 'sites'
+  const runs = useMemo(() => Object.fromEntries(sites.map(c => [c.key,
+    storedRuns[c.key]?.runKey === comparisonKey(c, { startMs: A.startMs, observerHeightM: A.observerHeightM, durationDays, stepMinutes, azimuthStepDeg, maxDistanceKm }) ? storedRuns[c.key] : undefined,
+  ]).filter(([, run]) => run)) as Record<string, ScenarioRun>,
+  [storedRuns, sites, A.startMs, A.observerHeightM, durationDays, stepMinutes, azimuthStepDeg, maxDistanceKm])
   usePlayback(playing)
 
   // (Re)start runs when the set of sites or the period changes.
   useEffect(() => {
     syncCompareRuns()
-  }, [sites, A.startMs, A.observerHeightM, durationDays, stepMinutes])
+  }, [sites, A.startMs, A.observerHeightM, durationDays, stepMinutes, azimuthStepDeg, maxDistanceKm])
 
   const startMs = A.startMs
-  const cursorMs = startMs + offset
 
   // One vertical scale for every full-circle window.
   const scale = useMemo(() => {
@@ -105,8 +114,8 @@ export function CompareScreen() {
   return (
     <div className="site-page hc-page">
       <TopBar start={<CompareTitle count={sites.length} startMs={startMs} days={durationDays} />}>
-        <Button variant="secondary" size="s" icon={<Pencil {...ICON} />} onClick={openComparePicker}>
-          Edit sites
+        <Button variant="secondary" size="s" icon={<Pencil {...ICON} />} onClick={() => paired ? goTo('moon') : openComparePicker()}>
+          {paired ? 'Change the selected site' : 'Edit sites'}
         </Button>
       </TopBar>
 
@@ -115,8 +124,8 @@ export function CompareScreen() {
           {playing ? <PauseIcon /> : <PlayIcon />}
         </IconButton>
         <div className="hc-when">
-          <b className="mono">{formatUtc(cursorMs)} UTC</b>
-          <span className="ui-small ui-muted">Same instant at every site</span>
+          <b className="mono">{paired && mode === 'dates' ? `Day ${Math.floor(offset / 86400000) + 1} · ${Math.floor(offset / 3600000) % 24}:00 elapsed` : `${formatUtc(startMs + offset)} UTC`}</b>
+          <span className="ui-small ui-muted">{paired && mode === 'dates' ? 'Same elapsed time in both periods; UTC dates differ' : 'Same instant at every site'}</span>
         </div>
         <div className="hc-controls-end">
           {audience === 'planner' && (
@@ -153,12 +162,12 @@ export function CompareScreen() {
             letter={SLOT_LETTERS[i]}
             entry={c}
             run={runs[c.key]}
-            cursorMs={cursorMs}
+            cursorMs={slotCursor(c, startMs, offset)}
             audience={audience}
             view={view}
             scale={scale}
             facingAz={facingAz}
-            startMs={startMs}
+            startMs={slotStart(c, startMs)}
             spanMs={span}
           />
         ))}
@@ -169,6 +178,7 @@ export function CompareScreen() {
           : 'Each window turns to face its own Sun, at true proportions.'}
       </p>
 
+      {audience === 'educator' && <LearningSummary sites={sites} runs={runs} startMs={startMs} spanMs={span} />}
       <SharedTimeline sites={sites} runs={runs} startMs={startMs} spanMs={span} offset={offset} audience={audience} />
     </div>
   )
@@ -177,13 +187,14 @@ export function CompareScreen() {
 function CompareTitle({ count, startMs, days }: { count: number; startMs: number; days: number }) {
   const back = currentCompareSite()
   const educator = useStore((s) => s.audience === 'educator')
+  const mode = useStore(s => s.experiment.mode ?? 'sites')
   return (
     <div className="site-title">
       <BackLink label={educator ? 'Back to experiments' : `Back to ${shortName(back.name)}`} onClick={() => goTo(educator ? 'moon' : 'site')} />
       <div className="site-title-text">
-        <h1 className="ui-title is-m">{count >= 2 ? `Comparing ${count} sites` : 'Compare horizons'}</h1>
+        <h1 className="ui-title is-m">{educator && mode === 'dates' ? 'One site, two dates' : educator && mode === 'terrain' ? 'The effect of terrain' : count >= 2 ? `Comparing ${count} sites` : 'Compare horizons'}</h1>
         <span className="ui-small ui-muted">
-          {formatUtcDate(startMs)} – {formatUtcDate(startMs + days * 86_400_000)}
+          {educator && mode === 'dates' ? `${days} days in each period · UTC dates shown per window` : `${formatUtcDate(startMs)} – ${formatUtcDate(startMs + days * 86_400_000)}`}
         </span>
       </div>
     </div>
@@ -205,12 +216,13 @@ interface PanelProps {
 
 function ComparePanel({ letter, entry, run, cursorMs, audience, view, scale, facingAz, startMs, spanMs }: PanelProps) {
   const experiment = useStore((s) => s.experiment)
-  const flat = audience === 'educator' && experiment.flat
+  const flat = entry.horizonMode === 'ideal'
+  const paired = audience === 'educator' && experiment.mode !== undefined && experiment.mode !== 'sites'
   const trails = audience === 'planner' || (audience === 'educator' && experiment.trails)
   const phase = run?.phase ?? 'idle'
   const terrain = run?.terrain
-  const evaluation = run?.evaluation && flat ? flatEvaluation(run.evaluation) : run?.evaluation
-  const previous = run?.previous && flat ? flatEvaluation(run.previous) : run?.previous
+  const evaluation = run?.phase === 'ready' && !run.stale ? run.evaluation : undefined
+  const previous = run?.previous
   const busy = !evaluation && phase !== 'error'
 
   const now = useMemo(() => (evaluation ? summarize(evaluation, startMs, startMs + spanMs) : null), [evaluation, startMs, spanMs])
@@ -218,7 +230,7 @@ function ComparePanel({ letter, entry, run, cursorMs, audience, view, scale, fac
 
   const remove = () => setState((s) => ({ compareSites: s.compareSites.filter((x) => x.key !== entry.key) }))
   const open = () => {
-    setScenarioInput('A', { site: entry.site, siteName: entry.name })
+    setScenarioInput('A', { site: entry.site, siteName: entry.name, startMs })
     goTo('site')
   }
 
@@ -232,20 +244,21 @@ function ComparePanel({ letter, entry, run, cursorMs, audience, view, scale, fac
             {formatLat(entry.site.latDeg, 2)} · {formatLon(entry.site.lonEastDeg, 2)}
           </span>
         </div>
-        <button type="button" className="hc-icon-btn" onClick={open} title="Open this site" aria-label={`Open ${entry.name}`}>
+        {!flat && <button type="button" className="hc-icon-btn" onClick={open} title="Open this site" aria-label={`Open ${entry.name}`}>
           <Maximize2 {...ICON} />
-        </button>
-        <button type="button" className="hc-icon-btn" onClick={remove} title="Remove from comparison" aria-label={`Remove ${entry.name}`}>
+        </button>}
+        {!paired && <button type="button" className="hc-icon-btn" onClick={remove} title="Remove from comparison" aria-label={`Remove ${entry.name}`}>
           <X {...ICON} />
-        </button>
+        </button>}
       </header>
 
+      <p className="ui-small ui-muted">{formatUtc(cursorMs)} UTC · {spanMs / 86400000} days{flat ? ' · ideal zero-degree horizon' : terrain?.origin === 'demo' ? ' · synthetic terrain horizon' : ' · real terrain horizon'}</p>
       <SpaceWindow className="hc-window">
         {phase === 'error' && !evaluation ? (
           <div className="hc-window-error">
             <Notice tone="danger">
               <strong>We could not calculate this site.</strong> {run?.error}{' '}
-              <Button size="s" variant="inverse" onClick={() => retryCompareSite(entry.site)}>
+              <Button size="s" variant="inverse" onClick={() => retryCompareSite(entry)}>
                 Try again
               </Button>
             </Notice>
@@ -268,6 +281,7 @@ function ComparePanel({ letter, entry, run, cursorMs, audience, view, scale, fac
 
       {evaluation && <PanelStatus evaluation={evaluation} cursorMs={cursorMs} audience={audience} />}
       {now && <PanelMetrics now={now} prev={prev} audience={audience} startMs={startMs} />}
+      {terrain && <p className="ui-small ui-muted">Terrain sampling: {terrain.profile.dem.effectivePixelSizeM} m. Narrow ridges and small obstacles may be unresolved.</p>}
     </article>
   )
 }
@@ -301,11 +315,13 @@ function PanelMetrics({ now, prev, audience, startMs }: { now: SiteSummary; prev
   const items: { label: string; value: string; delta: number | null; unit: string; better: 'higher' | 'lower' }[] = [
     { label: 'Sunlit', value: `${pct(now.sun)}%`, delta: prev ? pct(now.sun) - pct(prev.sun) : null, unit: '', better: 'higher' },
   ]
-  if (audience === 'planner') {
+  if (audience !== 'public') {
     items.push(
       { label: 'Earth in view', value: `${pct(now.earth)}%`, delta: prev ? pct(now.earth) - pct(prev.earth) : null, unit: '', better: 'higher' },
       { label: 'Sun and Earth', value: `${pct(now.both)}%`, delta: prev ? pct(now.both) - pct(prev.both) : null, unit: '', better: 'higher' },
       { label: 'Longest night', value: `${Math.round(now.nightH)} h`, delta: prev ? Math.round(now.nightH) - Math.round(prev.nightH) : null, unit: ' h', better: 'lower' },
+      { label: 'Longest time without Earth', value: now.earthOutageH === undefined ? 'Unknown' : `${now.earthOutageH.toFixed(1)} h`, delta: null, unit: ' h', better: 'lower' },
+      { label: 'Longest shared window', value: now.jointWindowH === undefined ? 'Unknown' : `${now.jointWindowH.toFixed(1)} h`, delta: null, unit: ' h', better: 'higher' },
     )
   } else {
     items.push({ label: 'Earth in view', value: `${pct(now.earth)}%`, delta: prev ? pct(now.earth) - pct(prev.earth) : null, unit: '', better: 'higher' })
@@ -335,7 +351,6 @@ interface TimelineProps {
 }
 
 function SharedTimeline({ sites, runs, startMs, spanMs, offset, audience }: TimelineProps) {
-  const flat = useStore((s) => audience === 'educator' && s.experiment.flat)
   const days = spanMs / 86_400_000
   const ticks = useMemo(() => {
     const every = days <= 14 ? 1 : days <= 30 ? 5 : 10
@@ -377,7 +392,7 @@ function SharedTimeline({ sites, runs, startMs, spanMs, offset, audience }: Time
           {sites.map((c, i) => (
             <span key={c.key} className="hc-timeline-label">
               <span className="hc-badge">{SLOT_LETTERS[i]}</span>
-              <span className="hc-timeline-name">{shortName(c.name)}</span>
+              <span className="hc-timeline-name">{shortName(c.name)}{!runs[c.key]?.evaluation ? ' · awaiting result' : ''}</span>
             </span>
           ))}
         </div>
@@ -389,7 +404,7 @@ function SharedTimeline({ sites, runs, startMs, spanMs, offset, audience }: Time
           aria-valuemin={0}
           aria-valuemax={Math.round(spanMs / 3_600_000)}
           aria-valuenow={Math.round(offset / 3_600_000)}
-          aria-valuetext={formatUtcLong(startMs + offset)}
+          aria-valuetext={sites.map((c, i) => `${SLOT_LETTERS[i]}: ${formatUtcLong(slotCursor(c, startMs, offset))}`).join('; ')}
           onKeyDown={onKey}
           onPointerDown={(e) => {
             e.currentTarget.setPointerCapture(e.pointerId)
@@ -401,12 +416,12 @@ function SharedTimeline({ sites, runs, startMs, spanMs, offset, audience }: Time
           }}
         >
           {sites.map((c) => {
-            const raw = runs[c.key]?.evaluation
-            const ev = raw && flat ? flatEvaluation(raw) : raw
+            const ev = runs[c.key]?.evaluation
+            const from = slotStart(c, startMs)
             return (
               <div key={c.key} className="hc-timeline-row">
-                <TrackBar tone="sun" size="s" intervals={ev?.intervals.sun ?? []} startMs={startMs} spanMs={spanMs} label={`${c.name}: Sun in view`} />
-                <TrackBar tone="earth" size="s" intervals={ev?.intervals.earth ?? []} startMs={startMs} spanMs={spanMs} label={`${c.name}: Earth in view`} />
+                <TrackBar tone="sun" size="s" intervals={ev?.intervals.sun ?? []} startMs={from} spanMs={spanMs} label={`${c.name}: Sun in view`} />
+                <TrackBar tone="earth" size="s" intervals={ev?.intervals.earth ?? []} startMs={from} spanMs={spanMs} label={`${c.name}: Earth in view`} />
               </div>
             )
           })}
@@ -422,4 +437,35 @@ function SharedTimeline({ sites, runs, startMs, spanMs, offset, audience }: Time
       </div>
     </section>
   )
+}
+
+
+function LearningSummary({ sites, runs, startMs, spanMs }: { sites: CompareSite[]; runs: Record<string, ScenarioRun>; startMs: number; spanMs: number }) {
+  const evaluations = sites.map(c => runs[c.key]?.evaluation)
+  const ready = evaluations.every(Boolean)
+  const baseline = evaluations[0]
+  const compatible = ready && evaluations.every(ev => ev?.origin === baseline?.origin && ev?.visibilityModel === baseline?.visibilityModel && ev?.ephemeris.version === baseline?.ephemeris.version)
+  return <section className="ui-card" aria-label="Explain the observations">
+    <h2 className="ui-title">Explain: what changed, and what did it cost?</h2>
+    {!ready ? <p className="ui-small ui-muted">Wait for every result before drawing conclusions. Missing measurements are not zero visibility.</p>
+      : !compatible ? <Notice>These results use different visibility models or sources. They cannot establish a controlled comparison.</Notice>
+      : <>
+        <p className="ui-small ui-muted">{baseline?.origin === 'demo' ? 'Practice simulation with synthetic terrain. ' : ''}These observations describe visibility, not landing safety, battery autonomy or a guaranteed radio link.</p>
+        {sites.slice(1).map((c, i) => {
+          const first = summarize(baseline!, slotStart(sites[0], startMs), slotStart(sites[0], startMs) + spanMs)
+          const from = slotStart(c, startMs)
+          const other = summarize(evaluations[i + 1]!, from, from + spanMs)
+          const changes = decisionChanges(other, first)
+          const mixed = changes.some(d => d.outcome === 'improved') && changes.some(d => d.outcome === 'worsened')
+          return <div key={c.key}>
+            <h3 className="ui-title">{SLOT_LETTERS[i + 1]} compared with A</h3>
+            <ul className="ui-small">{changes.map(d => <li key={d.key}>{d.label}: {Math.abs(d.delta) < .05 ? 'unchanged' : `${d.delta > 0 ? '+' : ''}${d.delta.toFixed(1)} ${d.unit}`}</li>)}</ul>
+            <p className="ui-small">{mixed ? 'A trade-off appears: some visibility measures improve while others worsen. Which matters most for your mission?' : 'Which observation supports your prediction? Would a different date or a different mission need change the choice?'}</p>
+          </div>
+        })}
+        <details className="ui-small"><summary>Connect the observation to a mission</summary>
+          <p>Sunlight gives opportunities for solar generation. Earth visibility permits a geometric direct path. Shared windows allow both together. Long interruptions create storage or relay needs that require separate equipment models. Use the timeline to find the moments that explain the totals.</p>
+        </details>
+      </>}
+  </section>
 }

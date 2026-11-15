@@ -313,14 +313,16 @@ export class DemoProvider implements DataProvider {
     return this.submit(`eval:${key(req)}`, 350, () => {
       const times: number[] = []
       for (let t = start; t <= stop; t += stepMs) times.push(t)
-      const sun = track(analysis.profile, times, subSolarPoint)
-      const earth = track(analysis.profile, times, subEarthPoint)
+      const profile = req.horizonMode === 'ideal' ? { ...analysis.profile, elevationDeg: analysis.profile.elevationDeg.map(() => 0) } : analysis.profile
+      const sun = track(profile, times, subSolarPoint)
+      const earth = track(profile, times, subEarthPoint)
       const sunI = intervalsOf(times, sun)
       const earthI = intervalsOf(times, earth)
       return {
         id: `se-${this.seq}`,
         origin: 'demo',
         terrainAnalysisId: req.terrainAnalysisId,
+        horizonMode: req.horizonMode ?? 'terrain',
         timeScale: 'UTC',
         timesMs: times,
         sun,

@@ -14,7 +14,7 @@ import { openComparePicker } from '../features/compareSlots'
 import { EclipseStrip, NextEclipseCard } from '../features/EclipseCards'
 import { HorizonScene } from '../features/HorizonScene'
 import { OrbitView } from '../features/OrbitView'
-import { DataPanel, MonthPanel, NowPanel, PeriodPanel, PromptsPanel, WhyPanel } from '../features/Report'
+import { DataPanel, MonthPanel, NowPanel, PeriodPanel, PromptsPanel } from '../features/Report'
 import { Timeline } from '../features/Timeline'
 import { TopBar } from '../features/TopBar'
 import { runScenario } from '../state/runner'
@@ -34,7 +34,7 @@ function phaseText(phase: RunPhase): string {
   return phase === 'ephemeris' ? 'Tracking the Sun and Earth…' : 'Tracing the hills around the site…'
 }
 
-type Span = 4 | 6 | 8 | 12
+type Span = 3 | 4 | 6 | 8 | 12
 
 interface Cell {
   key: string
@@ -54,10 +54,9 @@ interface Section {
 function sectionsFor(audience: Audience): Section[] {
   if (audience === 'public') {
     return [{ key: 'why', title: 'Right now and over the month', cells: [
-      { key: 'now', span: 6, node: <NowPanel audience="public" /> },
-      { key: 'characteristics', span: 6, node: <MonthPanel /> },
-      { key: 'calendar', span: 12, node: <LightCalendarCard audience="public" /> },
-      { key: 'why', span: 12, node: <WhyPanel /> },
+      { key: 'result', span: 4, node: <Scorecard /> },
+      { key: 'calendar', span: 4, node: <LightCalendarCard audience="public" /> },
+      { key: 'characteristics', span: 4, node: <MonthPanel /> },
     ] }]
   }
 
@@ -199,14 +198,10 @@ export function SiteScreen() {
           )}
         </div>
 
-        <aside className="site-now span-4" aria-label={audience === 'public' ? 'Your result' : 'Right now'}>
-          {audience === 'public' ? (
-            <Scorecard />
-          ) : (
-            <Building busy={waiting} progress={p} phase={!evaluation ? phaseText(phase) : undefined} minHeight={440} className="fill">
-              {evaluation && <NowPanel audience={audience} />}
-            </Building>
-          )}
+        <aside className="site-now span-4" aria-label="Right now">
+          <Building busy={waiting} progress={p} phase={!evaluation ? phaseText(phase) : undefined} minHeight={440} className="fill">
+            {evaluation && <NowPanel audience={audience} />}
+          </Building>
         </aside>
 
         <div className="span-12">

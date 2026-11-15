@@ -252,6 +252,13 @@ def calculate(root, parameters, terrain, progress):
     }
     # Optional local-slope assessment changes a terrain receipt ID, not its horizon.
     inputs["terrainProfile"] = terrain["profile"]
+    mode = parameters.get("horizonMode", "terrain")
+    if mode == "terrain":
+        inputs.pop("horizonMode", None)
+    profile = terrain["profile"]
+    if mode == "ideal":
+        profile = {**profile, "elevationDeg": [0.0] * len(profile["elevationDeg"])}
+    calculation_terrain = {**terrain, "profile": profile}
     key = hashlib.sha256(json.dumps([VERSION, inputs], sort_keys=True).encode()).hexdigest()
     directory = Path(root) / "cache" / "scenario-measurements"
     directory.mkdir(parents=True, exist_ok=True)
@@ -263,14 +270,20 @@ def calculate(root, parameters, terrain, progress):
         result = _calculate(
             root,
             {**parameters, "includeContext": False},
-            terrain,
+            calculation_terrain,
             lambda value, message: progress(value * 0.6, message),
         )
         if result.get("skipped"):
             return result
         progress(0.6, "Caching scientific measurements")
         _write_json(path, result)
-    result = {**result, "terrainAnalysisId": terrain["id"]}
+    result = {**result, "terrainAnalysisId": terrain["id"], "horizonMode": mode}
+    if mode == "ideal":
+        result["approximations"] = [
+            *result["approximations"],
+            "Teaching counterfactual: a zero-degree horizon replaces terrain only; "
+            "disc visibility, Earth occultation, observer and ephemerides are unchanged.",
+        ]
     minimum = parameters.get("minSunFraction") or 0
     start, stop = result["timesMs"][0], result["timesMs"][-1]
     fraction = sum(iv["endMs"] - iv["startMs"] for iv in result["intervals"]["sun"]) / (
@@ -286,7 +299,7 @@ def calculate(root, parameters, terrain, progress):
         else:
             context = {
                 "orbit": hz.orbit(root, start, stop),
-                "eclipseCalendar": eclipse_calendar(root, terrain["profile"], start, progress),
+                "eclipseCalendar": eclipse_calendar(root, profile, start, progress),
             }
             progress(0.97, "Caching orbital and eclipse context")
             _write_json(context_path, context)

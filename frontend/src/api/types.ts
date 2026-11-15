@@ -123,6 +123,7 @@ export interface LocalTerrain {
 // ---------------------------------------------------------------- scenario
 
 export interface ScenarioEvaluationRequest {
+  horizonMode?: 'terrain' | 'ideal'
   terrainAnalysisId: string
   startUtc: string
   stopUtc: string
@@ -168,6 +169,7 @@ export interface TimeInterval {
 export type BodyId = 'sun' | 'earth'
 
 export interface ScenarioEvaluation {
+  horizonMode?: 'terrain' | 'ideal'
   id: string
   origin: DataOrigin
   terrainAnalysisId: string

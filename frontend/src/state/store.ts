@@ -4,6 +4,7 @@ import type { AreaFilter, Region, RegionCatalog } from '../domain/ranking'
 import { EXAMPLE_SITES } from '../domain/sites'
 import type { ExampleSite } from '../domain/sites'
 import { provider } from '../api'
+import { plannerContext } from '../domain/planner'
 import { DEFAULT_MISSION, missionIssue, type MissionProfile } from '../domain/mission'
 
 export type ScenarioKey = 'A' | 'B'
@@ -24,6 +25,8 @@ export interface SiteSummary {
   earth: number
   both: number
   nightH: number
+  earthOutageH?: number
+  jointWindowH?: number
 }
 
 export interface Comparison {
@@ -88,6 +91,8 @@ export const COMPARE_MAX = 4
 
 /** One site on the compare screen. Slot order gives the letters A–D. */
 export interface CompareSite {
+  startMs?: number
+  horizonMode?: 'terrain' | 'ideal'
   key: string
   name: string
   site: SiteCoordinates
@@ -97,6 +102,22 @@ export type CompareView = 'circle' | 'sun'
 
 /** One General Public try: where, when, and the grade it earned. */
 export interface Attempt {
+  id: string
+  input: ScenarioInput
+  config: {
+    durationDays: number
+    stepMinutes: number
+    azimuthStepDeg: number
+    maxDistanceKm: number
+    observerHeightM: number
+    origin: string
+    model: string
+    ephemerisVersion: string
+    terrainVersion: string
+    scoringVersion: string
+  }
+  metrics: SiteSummary
+  evaluationId: string
   site: SiteCoordinates
   name: string
   startMs: number
@@ -106,10 +127,10 @@ export interface Attempt {
 
 /** Educator experiment switches on the compare screen. */
 export interface ExperimentState {
+  mode: 'sites' | 'dates' | 'terrain'
+  secondStartMs?: number
   /** Preset being demonstrated, or null for a free choice of sites. */
   id: string | null
-  /** Draw the horizon as if the ground were flat. */
-  flat: boolean
   /** Dots tracing the Sun and Earth over the period. */
   trails: boolean
 }
@@ -124,7 +145,21 @@ export function siteKey(site: SiteCoordinates): string {
   return `${site.latDeg.toFixed(4)},${site.lonEastDeg.toFixed(4)}`
 }
 
+export interface PlannerExperiment {
+  pointShown: boolean
+  mission: MissionProfile
+  input: ScenarioInput
+  context: string
+  durationDays: number
+  stepMinutes: number
+  azimuthStepDeg: number
+  maxDistanceKm: number
+  area: AreaFilter
+  baseline: Region
+}
+
 export interface AppState {
+  plannerExperiment: PlannerExperiment | null
   screen: Screen
   audience: Audience
   scenarios: Record<ScenarioKey, Scenario>
@@ -243,7 +278,8 @@ const initialState: AppState = {
   pickerOpen: false,
   skylines: {},
   attempts: [],
-  experiment: { id: null, flat: false, trails: true },
+  plannerExperiment: null,
+  experiment: { id: null, mode: 'sites', trails: true },
 }
 
 type Listener = () => void
@@ -313,4 +349,42 @@ export function useStore<T>(selector: (s: AppState) => T): T {
 
 export function durationMs(s: AppState): number {
   return s.durationDays * 86_400_000
+}
+
+/** Restore all inputs of a recorded public choice; the engine verifies it again. */
+export function reopenAttempt(id: string): void {
+  const attempt = getState().attempts.find(t => t.id === id)
+  if (!attempt) return
+  const { durationDays, stepMinutes, azimuthStepDeg, maxDistanceKm } = attempt.config
+  setState({ durationDays, stepMinutes, azimuthStepDeg, maxDistanceKm, cursorOffsetMs: 0 })
+  setScenarioInput('A', structuredClone(attempt.input))
+  goTo('site')
+}
+
+/** Reopening or remeasuring a choice updates its evidence, not the try count. */
+export function recordAttempt(attempt: Attempt): void {
+  const found = state.attempts.find(t => t.id === attempt.id)
+  if (found?.evaluationId === attempt.evaluationId) return
+  setState({ attempts: found ? state.attempts.map(t => t.id === attempt.id ? attempt : t) : [...state.attempts, attempt] })
+}
+
+/** Pin the current decision while the existing requirement controls are explored. */
+export function beginPlannerExperiment(baseline: Region): void {
+  const s = getState()
+  setState({ plannerExperiment: structuredClone({
+    mission: s.mission, input: s.scenarios.A.input, pointShown: s.pointShown, context: plannerContext(s),
+    durationDays: s.durationDays, stepMinutes: s.stepMinutes, azimuthStepDeg: s.azimuthStepDeg,
+    maxDistanceKm: s.maxDistanceKm, area: s.area, baseline,
+  }) })
+}
+
+export function restorePlannerExperiment(): void {
+  const saved = getState().plannerExperiment
+  if (!saved) return
+  setState({ durationDays: saved.durationDays, stepMinutes: saved.stepMinutes,
+    azimuthStepDeg: saved.azimuthStepDeg, maxDistanceKm: saved.maxDistanceKm,
+    area: saved.area, cursorOffsetMs: 0, plannerExperiment: null })
+  setMission(structuredClone(saved.mission))
+  setScenarioInput('A', structuredClone(saved.input))
+  setState({ pointShown: saved.pointShown })
 }

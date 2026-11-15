@@ -35,9 +35,16 @@
 
 .brief-period {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 120px;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--s-3);
-  align-items: end;
+}
+
+.brief-period .ui-dial-head {
+  flex-wrap: wrap;
+}
+
+.brief-period .ui-dial-time {
+  margin-left: 0;
 }
 
 .brief-reqs {
@@ -273,37 +280,40 @@
 }
 
 .score-check {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  padding: var(--s-1) var(--s-2);
-  border-radius: var(--r-small);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: var(--s-2);
+  padding-block: var(--s-2);
+  border-bottom: 1px solid var(--card-sunk);
   font-size: var(--text-s);
-  background: var(--card-sunk);
 }
 
-.score-check b {
+.score-check dd {
+  margin: 0;
   font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
-.score-check.is-good b {
+.score-check.is-good dd {
   color: var(--up);
 }
 
-.score-check.is-fair b {
+.score-check.is-fair dd {
   color: var(--sun-ink);
 }
 
-.score-check.is-poor {
-  background: var(--danger-soft);
-}
-
-.score-check.is-poor b {
+.score-check.is-poor dd {
   color: var(--down);
 }
 
-.score-tip {
-  font-size: var(--text-s);
+.score-details > p,
+.score-details > ul {
+  margin-block: var(--s-2);
+}
+
+.score-details li + li {
+  margin-top: var(--s-2);
 }
 
 .score-suggest {
