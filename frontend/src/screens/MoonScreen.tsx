@@ -5,14 +5,14 @@
  * Keeping both in one component keeps the Cesium viewer alive between them.
  */
 import { Minimize2, Trophy } from 'lucide-react'
-import { lazy, Suspense, useMemo, useState, type FormEvent } from 'react'
-import { formatLat, formatLon, fromUtcInput, previousMonthName, toUtcInput } from '../domain/format'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { formatLat, formatLon, previousMonthName } from '../domain/format'
 import { rank, RANK_LABELS, type AreaFilter, type Ranked, type RankBy } from '../domain/ranking'
 import { CUSTOM_SITE_NAME, EXAMPLE_SITES, normalizeLon, validateSite } from '../domain/sites'
 import type { GlobeFocus, GlobeMarker } from '../features/MoonGlobe'
 import { AudienceSwitch, DemoChip, TopBar } from '../features/TopBar'
 import { goTo, setScenarioInput, setState, useStore, type Audience } from '../state/store'
-import { ArrowIcon, BackIcon, Button, Card, Delta, Field, Input, Logo, Segmented, Select, SiteTile, SpaceWindow, StepBadge, Toggle } from '../ui'
+import { ArrowIcon, BackIcon, Button, Card, DateDial, Delta, Field, Input, Logo, Segmented, Select, SiteTile, SpaceWindow, Toggle } from '../ui'
 
 const MoonGlobe = lazy(() => import('../features/MoonGlobe'))
 
@@ -60,20 +60,75 @@ function CoordinateEditor() {
   )
 }
 
-function DateInput({ id, compact }: { id: string; compact: boolean }) {
+function StartDial({ label, minutes, strip }: { label: string; minutes: boolean; strip: boolean }) {
   const startMs = useStore((s) => s.scenarios.A.input.startMs)
+  return <DateDial label={label} value={startMs} minutes={minutes} strip={strip} onChange={(ms) => setScenarioInput('A', { startMs: ms })} />
+}
+
+/* ------------------------------------------------------------------ places */
+
+interface Place {
+  id: string
+  name: string
+  short: string
+  area: string
+  latDeg: number
+  lonEastDeg: number
+}
+
+/** Example sites first, then every region of the catalogue not already listed. */
+function usePlaces(): Place[] {
+  const catalog = useStore((s) => s.regions)
+  return useMemo(() => {
+    const out: Place[] = EXAMPLE_SITES.map((s) => ({ id: s.id, name: s.name, short: s.short, area: s.region, latDeg: s.latDeg, lonEastDeg: s.lonEastDeg }))
+    for (const r of catalog?.regions ?? []) {
+      if (out.some((p) => p.name === r.name)) continue
+      out.push({ id: r.id, name: r.name, short: r.name, area: r.area === 'south-pole' ? 'South pole' : 'Equatorial band', ...r.center })
+    }
+    return out
+  }, [catalog])
+}
+
+/** Every place, searchable. Opens from "All places" so the grid never grows. */
+function PlaceList({ places, selected, planner, onPick, onClose }: { places: Place[]; selected: string | null; planner: boolean; onPick: (p: Place) => void; onClose: () => void }) {
+  const [q, setQ] = useState('')
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const onDown = (e: PointerEvent) => {
+      if (!ref.current?.contains(e.target as Node)) onClose()
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('pointerdown', onDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('pointerdown', onDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [onClose])
+  const shown = places.filter((p) => p.name.toLowerCase().includes(q.trim().toLowerCase()))
+  const areas = [...new Set(shown.map((p) => p.area))]
   return (
-    <Input
-      id={id}
-      type="datetime-local"
-      data={compact}
-      inputSize={compact ? 's' : 'm'}
-      value={toUtcInput(startMs)}
-      onChange={(e) => {
-        const ms = fromUtcInput(e.target.value)
-        if (Number.isFinite(ms)) setScenarioInput('A', { startMs: ms })
-      }}
-    />
+    <div ref={ref} className="place-list" role="dialog" aria-label="All places">
+      <Input id="place-search" inputSize="s" placeholder="Search places" value={q} onChange={(e) => setQ(e.target.value)} autoFocus aria-label="Search places" />
+      <div className="place-list-scroll">
+        {areas.map((a) => (
+          <div key={a} className="place-list-group">
+            <span className="place-list-area">{a}</span>
+            {shown
+              .filter((p) => p.area === a)
+              .map((p) => (
+                <button key={p.id} type="button" className="place-list-row" aria-pressed={p.name === selected} onClick={() => onPick(p)}>
+                  <span className="place-list-name">{p.name.split(' · ')[0]}</span>
+                  {planner && <span className="mono ui-muted">{`${formatLat(p.latDeg, 2)} ${formatLon(p.lonEastDeg, 2)}`}</span>}
+                </button>
+              ))}
+          </div>
+        ))}
+        {shown.length === 0 && <p className="ui-muted ui-small">No place matches “{q}”.</p>}
+      </div>
+    </div>
   )
 }
 
@@ -127,18 +182,22 @@ function PlannerExtras() {
 function HomePanel({ onNext }: { onNext: () => void }) {
   const audience = useStore((s) => s.audience)
   const input = useStore((s) => s.scenarios.A.input)
-  const durationDays = useStore((s) => s.durationDays)
   const [mode, setMode] = useState<'list' | 'coords'>('list')
+  const [listOpen, setListOpen] = useState(false)
   const planner = audience === 'planner'
-  const tiles = planner ? EXAMPLE_SITES : EXAMPLE_SITES.filter((s) => s.id !== 'sp-ref' && s.id !== 'apollo15')
+  const places = usePlaces()
+  // A fixed number of equal tiles; the chosen place always shows as a tile.
+  const max = planner ? 6 : 4
+  const base = places.filter((p) => planner || (p.id !== 'sp-ref' && p.id !== 'apollo15')).slice(0, max)
+  const chosen = places.find((p) => p.name === input.siteName)
+  const tiles = chosen && !base.some((p) => p.id === chosen.id) ? [...base.slice(0, max - 1), chosen] : base
 
   return (
     <div className="moon-side">
-      <h1 className={`ui-display is-s`}>{planner ? 'Site and epoch' : 'Where shall we land?'}</h1>
+      <h1 className="ui-display is-s">{planner ? 'Landing site and date' : 'Where shall we land?'}</h1>
       <Card as="section" className="home-card" aria-label="Place and day">
         <div className="ui-card-head">
-          <StepBadge n={1} />
-          <h2 className="ui-title">{planner ? 'Site' : 'Pick a place'}</h2>
+          <h2 className="ui-title">{planner ? 'Landing site' : 'Pick a place'}</h2>
           {planner && (
             <span className="moon-card-tool">
               <Segmented
@@ -148,7 +207,7 @@ function HomePanel({ onNext }: { onNext: () => void }) {
                 value={mode}
                 onChange={setMode}
                 options={[
-                  { value: 'list', label: 'Site list' },
+                  { value: 'list', label: 'From the list' },
                   { value: 'coords', label: 'Coordinates' },
                 ]}
               />
@@ -158,52 +217,65 @@ function HomePanel({ onNext }: { onNext: () => void }) {
         {planner && mode === 'coords' ? (
           <CoordinateEditor key={`${input.site.latDeg},${input.site.lonEastDeg}`} />
         ) : (
-          <div className={`ui-site-grid${planner ? ' is-dense' : ''}`}>
-            {tiles.map((s) => (
-              <SiteTile
-                key={s.id}
-                name={planner ? s.short : s.name.split(' · ')[0]}
-                meta={planner ? `${formatLat(s.latDeg, 2)} ${formatLon(s.lonEastDeg, 2)}` : undefined}
-                selected={input.siteName === s.name}
-                onSelect={() => selectSite(s)}
+          <div className="place-picker">
+            <div className={`ui-site-grid${planner ? ' is-dense' : ''}`}>
+              {tiles.map((p) => (
+                <SiteTile
+                  key={p.id}
+                  name={planner ? p.short : p.name.split(' · ')[0]}
+                  meta={planner ? `${Math.abs(p.latDeg).toFixed(1)}°${p.latDeg < 0 ? 'S' : 'N'} ${Math.abs(p.lonEastDeg).toFixed(1)}°${p.lonEastDeg < 0 ? 'W' : 'E'}` : undefined}
+                  selected={input.siteName === p.name}
+                  onSelect={() => selectSite(p)}
+                />
+              ))}
+            </div>
+            <div className="place-more">
+              <span className="ui-field-hint">
+                {input.siteName === null
+                  ? `${CUSTOM_SITE_NAME}: ${formatLat(input.site.latDeg, 2)}, ${formatLon(input.site.lonEastDeg, 2)}`
+                  : planner
+                    ? 'Or click anywhere on the globe.'
+                    : 'Or tap any point on the Moon.'}
+              </span>
+              <button type="button" className="ui-dial-link" aria-haspopup="dialog" aria-expanded={listOpen} onClick={() => setListOpen((o) => !o)}>
+                All places ({places.length})
+              </button>
+            </div>
+            {listOpen && (
+              <PlaceList
+                places={places}
+                selected={input.siteName}
+                planner={planner}
+                onPick={(p) => {
+                  selectSite(p)
+                  setListOpen(false)
+                }}
+                onClose={() => setListOpen(false)}
               />
-            ))}
+            )}
           </div>
         )}
-        <p className="ui-field-hint">
-          {input.siteName === null
-            ? `${CUSTOM_SITE_NAME}: ${formatLat(input.site.latDeg, 2)}, ${formatLon(input.site.lonEastDeg, 2)}.`
-            : planner
-              ? 'Or click anywhere on the globe.'
-              : 'Or tap any point on the Moon.'}
-        </p>
 
         <div className="home-divider" />
 
         <div className="ui-card-head">
-          <StepBadge n={2} />
-          <h2 className="ui-title">
-            <label htmlFor="start">{planner ? 'Epoch (UTC)' : 'Pick a day'}</label>
-          </h2>
+          <h2 className="ui-title">{planner ? 'Date and time (UTC)' : 'Pick a day'}</h2>
         </div>
-        <DateInput id="start" compact={planner} />
+        <StartDial label={planner ? 'Date and time, UTC' : 'Day'} minutes={planner} strip />
         {planner ? (
           <details className="home-more">
             <summary>More options</summary>
             <PlannerExtras />
           </details>
         ) : (
-          <p className="ui-field-hint">Time is UTC, the clock mission teams share. We follow the next {durationDays} days.</p>
+          <p className="ui-field-hint">Scroll through the days and watch the light move on the Moon. Times are UTC.</p>
         )}
       </Card>
 
-      <Button size="l" step={3} block onClick={onNext}>
-        {planner ? 'Open the Moon' : 'Show the Moon'}
+      <Button size="l" block onClick={onNext} icon={<ArrowIcon />}>
+        Show the Moon
       </Button>
 
-      <p className="moon-foot ui-small ui-muted">
-        LRO imagery and LOLA relief via NASA Moon Trek. Independent tool, not endorsed by NASA. <a href="#/kit">Brand kit</a>
-      </p>
     </div>
   )
 }
@@ -323,9 +395,10 @@ function ExploreBox({ ranked, onOpen, onPick }: { ranked: Ranked[]; onOpen: () =
             ))}
           </Select>
         </Field>
-        <Field label={planner ? 'Epoch (UTC)' : 'Day (UTC)'} htmlFor="ex-start">
-          <DateInput id="ex-start" compact />
-        </Field>
+        <div className="ui-field">
+          <span className="ui-field-label">{planner ? 'Date and time (UTC)' : 'Day'}</span>
+          <StartDial label={planner ? 'Date and time, UTC' : 'Day'} minutes={planner} strip={false} />
+        </div>
         <div className="ui-field">
           <span className="ui-field-label">Rank by</span>
           <Segmented<RankBy>
@@ -480,7 +553,12 @@ export function MoonScreen({ mode }: { mode: 'moon' | 'explore' }) {
             {explore && <ExploreBox ranked={ranked} onOpen={openHorizon} onPick={pick} />}
             {planner && hover && <span className={`ui-space-caption moon-hover${explore ? ' is-explore' : ''} mono`}>{hover}</span>}
           </SpaceWindow>
-          {!explore && <p className="moon-caption">{caption(input.site.latDeg, audience)}</p>}
+          {!explore && !planner && <p className="moon-caption">{caption(input.site.latDeg, audience)}</p>}
+          {!explore && (
+            <p className="moon-foot ui-small ui-muted">
+              LRO imagery and LOLA relief via NASA Moon Trek. Independent tool, not endorsed by NASA. <a href="#/kit">Brand kit</a>
+            </p>
+          )}
         </div>
       </div>
     </div>

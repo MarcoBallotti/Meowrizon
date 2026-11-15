@@ -128,7 +128,7 @@ interface SiteTileProps {
 /** Big tappable place button. Selected = indigo border on soft indigo. */
 export function SiteTile({ name, meta, selected, onSelect }: SiteTileProps) {
   return (
-    <button type="button" className="ui-site-tile" aria-pressed={selected} onClick={onSelect}>
+    <button type="button" className="ui-site-tile" aria-pressed={selected} onClick={onSelect} title={name}>
       <span>{name}</span>
       {meta && <span className="ui-site-tile-meta">{meta}</span>}
     </button>

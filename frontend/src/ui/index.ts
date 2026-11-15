@@ -23,3 +23,4 @@ export { Card, Chip, Delta, Metric, Notice, Progress, SpaceWindow, StoryCard, Tr
 export { BothIcon, EarthIcon, EarthPhase, EclipseIcon, SunIcon } from './Bodies'
 export { phasePath } from './phase'
 export { Building } from './Building'
+export { DateDial } from './DateDial'
