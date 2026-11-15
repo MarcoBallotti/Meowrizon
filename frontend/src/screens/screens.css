@@ -130,6 +130,88 @@
   order: 2;
 }
 
+/* Wide screens: the sky fills the whole window, edge to edge, with no top bar.
+   The Moon sits on the left; the results float over the sky on the right. */
+@media (min-width: 1101px) {
+  .moon-page.is-results {
+    position: relative;
+    padding: 0;
+    gap: 0;
+    height: 100dvh;
+    background: var(--space);
+  }
+
+  .moon-page.is-results .moon-layout {
+    position: relative;
+    height: 100%;
+  }
+
+  .moon-page.is-results .moon-stage {
+    position: absolute;
+    inset: 0;
+  }
+
+  .moon-page.is-results .moon-window {
+    height: 100%;
+    border-radius: 0;
+  }
+
+  .moon-page.is-results .moon-side {
+    position: absolute;
+    z-index: 3;
+    top: var(--s-5);
+    right: var(--s-5);
+    bottom: var(--s-5);
+    width: var(--side-w);
+  }
+
+  /* The controls of the sky stay in its free part, clear of the panel. */
+  /* Reset on the left, the way back to all sites beside it. */
+  .moon-page.is-results .moon-reset {
+    left: var(--s-5);
+    right: auto;
+  }
+
+  .moon-page.is-results .moon-view {
+    left: calc(var(--s-5) + 148px);
+  }
+
+  .moon-page.is-results .moon-credits {
+    padding-right: calc(var(--side-w) + 2 * var(--s-5));
+  }
+
+  /* Left column of the sky: the period first, then the switches and the key. */
+  .moon-page.is-results .results-when {
+    position: absolute;
+    z-index: 2;
+    left: var(--s-5);
+    top: var(--s-5);
+    background: var(--card);
+    color: var(--ink);
+  }
+
+  .moon-page.is-results .moon-window-toggles {
+    left: var(--s-5);
+    top: calc(var(--s-5) + 60px);
+  }
+
+  .moon-page.is-results .moon-legend {
+    left: var(--s-5);
+    top: calc(var(--s-5) + 112px);
+  }
+
+  /* Placeholders for sites still being measured, readable on the dark sky. */
+  .moon-page.is-results .rank-card.is-pending {
+    border-color: rgb(217 238 252 / 0.35);
+    background: rgb(18 20 30 / 0.7);
+    color: #d9eefc;
+  }
+
+  .moon-page.is-results .rank-card.is-pending .ui-muted {
+    color: #d9eefc;
+  }
+}
+
 .rank-panel {
   flex: 1;
   min-height: 0;
@@ -171,6 +253,8 @@
 .rank-list {
   flex: 1;
   min-height: 0;
+  /* Scrolls, without showing a scrollbar. */
+  scrollbar-width: none;
   margin: 0;
   padding: 2px var(--s-1) 2px 2px;
   list-style: none;
@@ -178,7 +262,10 @@
   flex-direction: column;
   gap: var(--s-2);
   overflow-y: auto;
-  scrollbar-width: thin;
+}
+
+.rank-list::-webkit-scrollbar {
+  display: none;
 }
 
 .rank-card {

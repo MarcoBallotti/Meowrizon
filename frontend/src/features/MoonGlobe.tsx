@@ -54,6 +54,8 @@ const SPACE = Color.fromCssColorString('#0b0c1a')
 const SITE_FILL = Color.fromCssColorString('#6cc4f5')
 const SITE_RIM = Color.fromCssColorString('#12507c')
 const REGION_LINE = Color.fromCssColorString('#a9dcfa')
+/** The lunar equator: a thin light-grey line, always drawn. */
+const EQUATOR_LINE = Color.fromCssColorString('#d3d6de').withAlpha(0.75)
 /** Sites that cannot be chosen in the current step: same disc, in grey. */
 const SITE_OFF_FILL = Color.fromCssColorString('#9a9fb0')
 const SITE_OFF_RIM = Color.fromCssColorString('#3a3e4e')
@@ -340,6 +342,11 @@ export default function MoonGlobe({ markers, selected, focus, lightMs, regions, 
     viewer.scene.screenSpaceCameraController.minimumZoomDistance = 15_000
     viewer.scene.screenSpaceCameraController.maximumZoomDistance = 9_000_000
     viewerRef.current = viewer
+
+    // The lunar equator, as a reference line on the whole globe.
+    viewer.entities.add({
+      polyline: { positions: parallel(0), width: 1.5, arcType: ArcType.RHUMB, material: EQUATOR_LINE },
+    })
 
     ring.current = viewer.entities.add({
       billboard: { image: RING, width: 44, height: 44, disableDepthTestDistance: Number.POSITIVE_INFINITY },

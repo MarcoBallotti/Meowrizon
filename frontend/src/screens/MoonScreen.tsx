@@ -18,6 +18,22 @@ import { goTo, setScenarioInput, setState, useStore, type Audience, type Scenari
 import { ArrowIcon, Button, Card, DateDial, Field, Input, MonthCalendar, Segmented, Select, SpaceWindow, Toggle } from '../ui'
 
 const MoonGlobe = lazy(() => import('../features/MoonGlobe'))
+
+/** Above this width the results float over a full-screen sky (screens.css, .is-results). */
+const WIDE = '(min-width: 1101px)'
+/** Where the Moon sits on the results screen, -1..1 from the centre: left of the panel. */
+const RESULTS_SCREEN_X = -0.32
+
+function useWide(): boolean {
+  const [wide, setWide] = useState(() => matchMedia(WIDE).matches)
+  useEffect(() => {
+    const mq = matchMedia(WIDE)
+    const on = () => setWide(mq.matches)
+    mq.addEventListener('change', on)
+    return () => mq.removeEventListener('change', on)
+  }, [])
+  return wide
+}
 const NO_SHAPES: RegionShape[] = []
 
 /** Rings of [east longitude, latitude] from a GeoJSON Polygon or MultiPolygon. */
@@ -416,6 +432,24 @@ function nightText(h: number, audience: Audience): string {
   return audience === 'planner' ? `${h} h` : `${Math.max(1, Math.round(h / 24))} d`
 }
 
+/** The period of the results, on the left of the sky, with the way back to change it. */
+function ResultsWhen() {
+  const audience = useStore((s) => s.audience)
+  const startMs = useStore((s) => s.scenarios.A.input.startMs)
+  const durationDays = useStore((s) => s.durationDays)
+  return (
+    <div className="results-when plan-fixed">
+      <span>
+        {whenText(startMs, audience)}
+        <span className="ui-muted"> · {durationDays} days</span>
+      </span>
+      <button type="button" className="ui-dial-link" onClick={() => goTo('moon')}>
+        Change
+      </button>
+    </div>
+  )
+}
+
 /**
  * Step 2: every candidate site for the chosen period, one card each, from the
  * best to the worst. With the engine the regions are measured one at a time:
@@ -429,30 +463,19 @@ function RankedSitesPanel({ ranked, onPick, onHorizon }: { ranked: Ranked[]; onP
   const catalog = useStore((s) => s.regions)
   const error = useStore((s) => s.regionError)
   const progress = useStore((s) => s.ranking)
-  const durationDays = useStore((s) => s.durationDays)
   const student = audience === 'student'
   const planner = audience === 'planner'
   const shown = API ? ranked : ranked.slice(0, TOP_N[audience])
-  const place = input.siteName?.split(' · ')[0] ?? CUSTOM_SITE_NAME
+  // The horizon opens for a site chosen from the cards: until then the button waits.
+  const chosen = shown.find((r) => isChosen(input, r))
+  const place = chosen?.name.split(' · ')[0]
   const measuring = API && !!progress?.busy
   const done = progress ? progress.regions.length + progress.failed.length : 0
 
   return (
     <section className="rank-panel" aria-label="Sites from best to worst">
       <Card className="rank-head">
-        <div className="plan-fixed">
-          <span>
-            {whenText(input.startMs, audience)}
-            {planner && <span className="ui-muted"> · {durationDays} days</span>}
-          </span>
-          <button type="button" className="ui-dial-link" onClick={() => goTo('moon')}>
-            Change
-          </button>
-        </div>
-        <div className="results-head">
-          <h1 className="plan-title">{student ? 'Best places, best first' : 'Sites from best to worst'}</h1>
-          {!student && !API && <Segmented<AreaFilter> label="Area" size="s" tone="sunk" value={area} onChange={(v) => setState({ area: v })} options={AREA_OPTIONS} />}
-        </div>
+        {!student && !API && <Segmented<AreaFilter> label="Area" size="s" tone="sunk" value={area} onChange={(v) => setState({ area: v })} options={AREA_OPTIONS} />}
         <div className="results-rank">
           <span className="ui-field-label">{catalog?.origin === 'demo' ? 'Rank by · practice data' : 'Rank by'}</span>
           <Segmented<RankBy>
@@ -542,8 +565,8 @@ function RankedSitesPanel({ ranked, onPick, onHorizon }: { ranked: Ranked[]; onP
         </ol>
       )}
 
-      <Button size="l" block icon={<ArrowIcon />} onClick={onHorizon} className="rank-go">
-        {student ? `Fly down to ${place}` : `Open the horizon at ${place}`}
+      <Button size="l" block icon={<ArrowIcon />} onClick={onHorizon} className="rank-go" disabled={!chosen}>
+        {!place ? 'Select a site to open its horizon' : student ? `Fly down to ${place}` : `Open the horizon at ${place}`}
       </Button>
     </section>
   )
@@ -615,6 +638,7 @@ export function MoonScreen({ mode }: { mode: 'moon' | 'explore' }) {
   const [zoomed, setZoomed] = useState(false)
   const planner = audience === 'planner'
   const results = mode === 'explore'
+  const wide = useWide()
   // Numbered badges only where the answer is a ranking: the results.
   const ranking = results
   // "By date" changes the day only: the sites stay on the Moon, greyed out.
@@ -648,14 +672,19 @@ export function MoonScreen({ mode }: { mode: 'moon' | 'explore' }) {
 
   // The results frame the chosen area, and move closer to a picked site.
   // The camera only slides, it never turns.
+  // On wide screens the results panel floats over the right of the sky: the
+  // target sits in the middle of the free part on the left.
+  const offset: [number, number] | undefined = results && wide ? [RESULTS_SCREEN_X, 0] : undefined
   const focus: GlobeFocus | null = results
     ? zoomed
-      ? { ...input.site, distanceM: 260_000 }
+      ? { ...input.site, distanceM: 260_000, screen: offset }
       : area === 'south-pole' || API // the engine's candidate regions are all at the south pole
-        ? { latDeg: -87.5, lonEastDeg: 20, distanceM: 760_000 }
+        ? { latDeg: -87.5, lonEastDeg: 20, distanceM: 760_000, screen: offset }
         : area === 'equatorial'
-          ? { latDeg: 8, lonEastDeg: 15, distanceM: 2_600_000 }
-          : null
+          ? { latDeg: 8, lonEastDeg: 15, distanceM: 2_600_000, screen: offset }
+          : offset
+            ? { latDeg: -48, lonEastDeg: 15, distanceM: 4_000_000, screen: offset }
+            : null
     : view === 'pole'
       ? { latDeg: -87.5, lonEastDeg: 20, distanceM: 760_000 }
       : null
@@ -716,7 +745,8 @@ export function MoonScreen({ mode }: { mode: 'moon' | 'explore' }) {
 
   return (
     <div className={results ? 'moon-page is-results' : 'moon-page'}>
-      <TopBar demo={false} />
+      {/* The results are the sky at full screen: no top bar. */}
+      {!results && <TopBar demo={false} />}
       <div className="moon-layout">
         <div className="moon-side">
           {results ? (
@@ -742,6 +772,8 @@ export function MoonScreen({ mode }: { mode: 'moon' | 'explore' }) {
                 onHover={planner ? setHover : undefined}
               />
             </Suspense>
+
+            {results && <ResultsWhen />}
 
             <div className="moon-window-toggles">
               <Toggle checked={realLight} onChange={setRealLight} onDark>
