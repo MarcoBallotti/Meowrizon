@@ -481,19 +481,7 @@ function RankedSitesPanel({ ranked, onPick, onHorizon }: { ranked: Ranked[]; onP
   return (
     <section className="rank-panel" aria-label="Sites from best to worst">
       <Card className="rank-head">
-        <div className="plan-fixed">
-          <span>
-            {whenText(input.startMs, audience)}
-            {planner && <span className="ui-muted"> · {durationDays} days</span>}
-          </span>
-          <button type="button" className="ui-dial-link" onClick={() => goTo('moon')}>
-            Change
-          </button>
-        </div>
-        <div className="results-head">
-          <h1 className="plan-title">{API ? 'Compare catalog points' : student ? 'Best places, best first' : 'Sites from best to worst'}</h1>
-          <Segmented<AreaFilter> label="Area" size="s" tone="sunk" value={area} onChange={(v) => setState({ area: v })} options={AREA_OPTIONS} />
-        </div>
+        <Segmented<AreaFilter> label="Area" size="s" tone="sunk" value={area} onChange={(v) => setState({ area: v })} options={AREA_OPTIONS} />
         <div className="results-rank">
           <span className="ui-field-label">{catalog?.origin === 'demo' ? 'Rank by · practice data' : 'Rank by'}</span>
           <Segmented<RankBy>
