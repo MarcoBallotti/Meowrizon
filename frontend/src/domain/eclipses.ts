@@ -19,6 +19,7 @@ export function coverage(separationDeg: number): number {
 }
 
 export function eclipseIntervals(evaluation: ScenarioEvaluation): TimeInterval[] {
+  if (evaluation.origin === 'engine') return evaluation.intervals.eclipse ?? []
   const { timesMs, sun, earth } = evaluation
   const out: TimeInterval[] = []
   let start: number | null = null

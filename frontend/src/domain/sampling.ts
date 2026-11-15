@@ -30,6 +30,10 @@ export interface BodyAtTime {
   elevationDeg: number
   horizonDeg: number
   visible: boolean
+  visibleFraction?: number
+  angularRadiusDeg?: number
+  illuminatedFraction?: number
+  occultedFraction?: number
 }
 
 export function bodyAt(evaluation: ScenarioEvaluation, track: BodyTrack, intervals: TimeInterval[], t: number): BodyAtTime {
@@ -42,7 +46,18 @@ export function bodyAt(evaluation: ScenarioEvaluation, track: BodyTrack, interva
     elevationDeg: track.elevationDeg[i] + (track.elevationDeg[j] - track.elevationDeg[i]) * f,
     horizonDeg: track.horizonDeg[i] + (track.horizonDeg[j] - track.horizonDeg[i]) * f,
     visible: inIntervals(intervals, t),
+    visibleFraction: track.visibleFraction ? sampleNumber(times, track.visibleFraction, t) : undefined,
+    angularRadiusDeg: track.angularRadiusDeg ? sampleNumber(times, track.angularRadiusDeg, t) : undefined,
+    illuminatedFraction: track.illuminatedFraction ? sampleNumber(times, track.illuminatedFraction, t) : undefined,
+    occultedFraction: track === evaluation.sun && evaluation.solarOccultedFraction ? sampleNumber(times, evaluation.solarOccultedFraction, t) : undefined,
   }
+}
+
+export function sampleNumber(times: number[], values: number[], t: number): number {
+  const i = lowerIndex(times, t)
+  const j = Math.min(i + 1, times.length - 1)
+  const f = i === j ? 0 : Math.max(0, Math.min(1, (t - times[i]) / (times[j] - times[i])))
+  return values[i] + (values[j] - values[i]) * f
 }
 
 export function inIntervals(intervals: TimeInterval[], t: number): boolean {

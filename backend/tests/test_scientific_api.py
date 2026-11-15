@@ -1,8 +1,11 @@
 """Exercise the existing HttpProvider payloads without inventing scientific results."""
 
 import json
+import time
 import unittest
 from copy import deepcopy
+from threading import Event
+from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 from support import temporary_directory
@@ -29,7 +32,26 @@ class ScientificApiTests(unittest.TestCase):
         temporary = temporary_directory()
         self.addCleanup(temporary.cleanup)
         self.settings = Settings(temporary.name)
+        self.result = {
+            "id": "unit-test-result",
+            "origin": "engine",
+            "preview": False,
+            "profile": {},
+        }
+        self.calculate = self.enterContext(
+            patch("app.services.scientific_jobs.calculate", return_value=self.result)
+        )
         self.client = self.enterContext(TestClient(create_app(self.settings)))
+
+    def wait_job(self, route, identifier):
+        for _ in range(200):
+            response = self.client.get(f"/api/{route}/{identifier}")
+            self.assertEqual(response.status_code, 200)
+            job = response.json()
+            if job["status"] in {"completed", "failed"}:
+                return job
+            time.sleep(0.01)
+        self.fail("Scientific job did not finish")
 
     def test_frontend_requests_polling_and_persistence(self):
         for route, kind, payload in (
@@ -39,10 +61,17 @@ class ScientificApiTests(unittest.TestCase):
             with self.subTest(route=route):
                 response = self.client.post(f"/api/{route}", json=payload)
                 self.assertEqual(response.status_code, 202)
-                job = response.json()
-                self.assertEqual(job["status"], "failed")
-                self.assertEqual(job["error"]["code"], f"{kind}_engine_unavailable")
-                self.assertNotIn("result", job)
+                job = self.wait_job(route, response.json()["id"])
+                if kind == "terrain":
+                    self.assertEqual(job["status"], "completed")
+                    self.assertEqual(job["result"], self.result)
+                    cached = self.client.post(f"/api/{route}", json=payload).json()
+                    self.assertEqual(cached, job)
+                    self.calculate.assert_called_once()
+                else:
+                    self.assertEqual(job["status"], "failed")
+                    self.assertEqual(job["error"]["code"], "scenario_engine_unavailable")
+                    self.assertNotIn("result", job)
                 self.assertEqual(self.client.get(f"/api/{route}/{job['id']}").json(), job)
                 # A new service instance reads the same terminal state after restart.
                 self.assertEqual(ScientificJobs(self.settings).get(kind, job["id"]), job)
@@ -52,6 +81,57 @@ class ScientificApiTests(unittest.TestCase):
                 self.assertEqual(saved["parameters"], payload)
                 other = "scenario-evaluations" if kind == "terrain" else "terrain-analyses"
                 self.assertEqual(self.client.get(f"/api/{other}/{job['id']}").status_code, 404)
+
+    def test_concurrent_duplicate_is_one_job(self):
+        started, release = Event(), Event()
+
+        def calculate(root, parameters, progress):
+            progress(0.4, "Computing test fixture")
+            started.set()
+            if not release.wait(5):
+                raise RuntimeError("Test did not release worker")
+            return self.result
+
+        self.calculate.side_effect = calculate
+        first = self.client.post("/api/terrain-analyses", json=TERRAIN).json()
+        try:
+            self.assertTrue(started.wait(2))
+            second = self.client.post("/api/terrain-analyses", json=TERRAIN).json()
+            self.assertEqual(first["id"], second["id"])
+            self.assertEqual(second["status"], "running")
+            self.assertEqual(second["progress"], 0.4)
+        finally:
+            release.set()
+        self.assertEqual(self.wait_job("terrain-analyses", first["id"])["status"], "completed")
+        self.calculate.assert_called_once()
+
+    def test_failure_is_retryable_and_restart_reuses_completed_result(self):
+        from app.services.terrain.engine import TerrainError
+
+        self.calculate.side_effect = TerrainError("NoData on ray")
+        first = self.client.post("/api/terrain-analyses", json=TERRAIN).json()
+        failed = self.wait_job("terrain-analyses", first["id"])
+        self.assertEqual(failed["error"]["message"], "NoData on ray")
+        self.assertNotIn("result", failed)
+        self.calculate.side_effect = None
+        second = self.client.post("/api/terrain-analyses", json=TERRAIN).json()
+        self.assertNotEqual(first["id"], second["id"])
+        completed = self.wait_job("terrain-analyses", second["id"])
+        service = ScientificJobs(self.settings)
+        service.start()
+        try:
+            # The HTTP boundary canonicalizes all Number fields to floats.
+            saved = json.loads(
+                (self.settings.jobs / "scientific" / f"{second['id']}.json").read_text()
+            )
+            self.assertEqual(service.submit("terrain", saved["parameters"]), completed)
+        finally:
+            service.close()
+
+    def test_obsolete_earth_projection_preview_is_not_served(self):
+        self.assertEqual(
+            self.client.get("/api/terrain-preview/connecting-ridge.png").status_code, 410
+        )
 
     def test_invalid_payloads_do_not_create_job_files(self):
         for path, value in (

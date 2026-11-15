@@ -6,7 +6,9 @@
 import { useMemo, useRef, useState, type PointerEvent } from 'react'
 import { eclipseGeometry, eclipseMagnitude, geocentric, orbitState, type Vec3 } from '../domain/approxEphemeris'
 import { useElementSize } from '../hooks'
-import type { Audience } from '../state/store'
+import { useStore, type Audience } from '../state/store'
+import { bodyAt, sampleNumber } from '../domain/sampling'
+import { angularSeparation } from '../domain/sky'
 import { Segmented } from '../ui'
 
 type Frame = 'earth-moon' | 'system'
@@ -53,6 +55,8 @@ function Body({ x, y, r, fill, night, toward }: { x: number; y: number; r: numbe
 }
 
 export function OrbitView({ cursorMs, audience, compact = false }: { cursorMs: number; audience: Audience; compact?: boolean }) {
+  const evaluation = useStore((s) => s.scenarios.A.run.evaluation)
+  const real = evaluation?.orbit
   const [ref, size] = useElementSize<HTMLDivElement>()
   const [frame, setFrame] = useState<Frame>('earth-moon')
   const [cam, setCam] = useState<Camera>({ yaw: 0, pitch: 58 })
@@ -63,7 +67,8 @@ export function OrbitView({ cursorMs, audience, compact = false }: { cursorMs: n
   const cy = h / 2 + 10
   const unit = Math.max(compact ? 24 : 40, Math.min(w, h) * (compact ? 0.4 : 0.36))
 
-  const g = geocentric(cursorMs)
+  const vectorAt = (values: Vec3[]): Vec3 => [0, 1, 2].map(k => sampleNumber(real!.timesMs, values.map(v => v[k]), cursorMs)) as Vec3
+  const g = real ? { sun: vectorAt(real.sunKm), moon: vectorAt(real.moonKm) } : geocentric(cursorMs)
   const sunDir: Vec3 = (() => {
     const n = Math.hypot(g.sun[0], g.sun[1], g.sun[2])
     return [g.sun[0] / n, g.sun[1] / n, g.sun[2] / n]
@@ -75,14 +80,17 @@ export function OrbitView({ cursorMs, audience, compact = false }: { cursorMs: n
   // One lunar month around the cursor, recomputed every 6 hours of model time.
   const bucket = Math.floor(cursorMs / (6 * 3_600_000))
   const moonPath = useMemo(() => {
+    if (real) return real.moonKm.filter((_, i) => Math.abs(real.timesMs[i] - bucket * 6 * 3_600_000) <= 14 * DAY)
     const base = bucket * 6 * 3_600_000
     const pts: Vec3[] = []
     for (let d = -14; d <= 14; d += 0.5) pts.push(geocentric(base + d * DAY).moon)
     return pts
-  }, [bucket])
+  }, [bucket, real])
 
-  const ecl = eclipseGeometry(cursorMs)
-  const magnitude = eclipseMagnitude(ecl)
+  const sunAt = evaluation ? bodyAt(evaluation, evaluation.sun, evaluation.intervals.sun, cursorMs) : null
+  const earthAt = evaluation ? bodyAt(evaluation, evaluation.earth, evaluation.intervals.earth, cursorMs) : null
+  const ecl = real && sunAt && earthAt ? { separationDeg: angularSeparation(sunAt.azimuthDeg, sunAt.elevationDeg, earthAt.azimuthDeg, earthAt.elevationDeg) } : eclipseGeometry(cursorMs)
+  const magnitude = sunAt?.occultedFraction ?? eclipseMagnitude(eclipseGeometry(cursorMs))
   const moonLat = Math.asin(g.moon[2] / Math.hypot(g.moon[0], g.moon[1], g.moon[2])) / DEG
 
   const onDown = (e: PointerEvent<SVGSVGElement>) => {
@@ -147,7 +155,7 @@ export function OrbitView({ cursorMs, audience, compact = false }: { cursorMs: n
       )
     } else {
       const k = unit
-      const e = orbitState(cursorMs)
+      const e = real ? { earthAu: g.sun.map(v => -v / 149_597_870.7) as Vec3, moonKm: g.moon } : orbitState(cursorMs)
       const ep = project(e.earthAu, view)
       const ex = cx + ep.x * k
       const ey = cy + ep.y * k

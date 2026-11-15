@@ -426,7 +426,7 @@ function CandidateRegionsCard({ onPick, onHorizon }: { onPick: Pick; onHorizon: 
         <h1 className="plan-title">Candidate regions</h1>
         {!student && <Segmented<AreaFilter> label="Area" size="s" tone="sunk" value={area} onChange={(v) => setState({ area: v })} options={AREA_OPTIONS} />}
       </div>
-      <p className="ui-field-hint">NASA 2022 catalog, in catalog order. Centres are for browsing: terrain, illumination and comparison results are not available yet.</p>
+      <p className="ui-field-hint">NASA 2022 catalog, in catalog order. Centres are for browsing. Open a south-polar site to calculate its PGDA terrain horizon. Illumination and regional comparisons are not available yet.</p>
 
       {error ? (
         <p role="alert" className="catalog-status plan-body">

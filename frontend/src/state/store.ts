@@ -46,7 +46,7 @@ export type RunPhase = 'idle' | 'terrain' | 'ephemeris' | 'ready' | 'error'
 export interface ScenarioRun {
   phase: RunPhase
   progress?: number
-  /** Results stay visible while a newer run is in progress. */
+  /** Terrain becomes available independently of the subsequent scenario evaluation. */
   terrain?: TerrainAnalysis
   evaluation?: ScenarioEvaluation
   /** Same length of time just before the start, for "vs last month". */
@@ -54,6 +54,7 @@ export interface ScenarioRun {
   /** True while the shown results no longer match the inputs. */
   stale: boolean
   error?: string
+  message?: string
 }
 
 export interface Scenario {
@@ -167,7 +168,7 @@ export function updateScenario(key: ScenarioKey, fn: (s: Scenario) => Scenario):
 
 export function setScenarioInput(key: ScenarioKey, patch: Partial<ScenarioInput>): void {
   if (patch.site && !('selectionId' in patch)) patch = { ...patch, selectionId: null }
-  updateScenario(key, (s) => ({ input: { ...s.input, ...patch }, run: { ...s.run, stale: true } }))
+  updateScenario(key, (s) => ({ input: { ...s.input, ...patch }, run: { phase: 'idle', stale: true } }))
 }
 
 export function setAudience(audience: Audience): void {
