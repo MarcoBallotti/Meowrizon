@@ -16,7 +16,7 @@ export function ExperimentCard() {
   return (
     <Card as="section" className="experiments" aria-label="Experiments">
       <div className="experiments-head">
-        <h1 className="ui-title is-m">Why is landing on the Moon so difficult?</h1>
+        <h1 className="ui-display">Why is landing on the Moon so difficult?</h1>
         <p className="ui-small ui-muted">Predict, observe, then explain. Compare dates, places, or the effect of terrain using the same calculation method.</p>
       </div>
       <label className="ui-small">Site for the date and terrain experiments

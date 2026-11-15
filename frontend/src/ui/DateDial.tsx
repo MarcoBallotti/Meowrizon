@@ -162,6 +162,11 @@ function MonthGrid({ value, onPick, onClose, inline = false }: MonthGridProps) {
   const selected = dayStart(value)
   const today = dayStart(Date.now())
   const shift = (k: number) => setMonth((p) => ({ y: p.y + Math.floor((p.m + k) / 12), m: (((p.m + k) % 12) + 12) % 12 }))
+  const pickToday = () => {
+    const now = new Date()
+    setMonth({ y: now.getUTCFullYear(), m: now.getUTCMonth() })
+    onPick(dayStart(now.getTime()))
+  }
 
   // Inline, the calendar follows the value when it moves to another month (strip, wheel, Today).
   const shownMonth = `${d.getUTCFullYear()}-${d.getUTCMonth()}`
@@ -197,7 +202,7 @@ function MonthGrid({ value, onPick, onClose, inline = false }: MonthGridProps) {
           {MONTHS[month.m]} {month.y}
         </span>
         {inline && (
-          <button type="button" className="ui-dial-link" onClick={() => onPick(today)}>
+          <button type="button" className="ui-dial-link" onClick={pickToday}>
             Today
           </button>
         )}
@@ -231,7 +236,7 @@ function MonthGrid({ value, onPick, onClose, inline = false }: MonthGridProps) {
       </div>
       {!inline && (
         <div className="ui-dial-month-foot">
-          <button type="button" className="ui-dial-link" onClick={() => onPick(today)}>
+          <button type="button" className="ui-dial-link" onClick={pickToday}>
             Today
           </button>
           <button type="button" className="ui-dial-link" onClick={onClose}>
