@@ -50,6 +50,8 @@ Per questo, **dietro le quinte**, la regione si divide in celle. Le celle servon
 
 ## 4. Come si valuta una regione
 
+> ⚠️ **Superato il 15/11/2026.** I criteri sono stati ridefiniti da zero: niente punteggio con pesi né profili, ma misure con soglie NASA di riferimento su tre livelli di tempo (atterraggio, permanenza, anno). Vedi `docs/piano-logica.md`, Fase 4, e `docs/stato-decisioni.md`. Questa sezione resta solo come storia della prima proposta.
+
 ### 4.1 La griglia interna (nascosta)
 
 1. La regione si copre con **celle di 100 m**, la base su cui la NASA misura la pendenza di atterraggio e la precisione di atterraggio richiesta. Le regioni sono quadrati con gli angoli su multipli di 100 m, quindi la griglia combacia con i bordi: 160 × 160 celle per una regione di 16 km, 298 × 298 per Haworth, **circa 515.000 per tutte e 13**.
@@ -91,6 +93,8 @@ Sole e Terra sono così lontani che, a un dato istante, la loro **direzione** è
 ---
 
 ## 5. I criteri, in sintesi
+
+> ⚠️ **Superato il 15/11/2026.** I criteri sono stati ridefiniti da zero: niente punteggio con pesi né profili, ma misure con soglie NASA di riferimento su tre livelli di tempo (atterraggio, permanenza, anno). Vedi `docs/piano-logica.md`, Fase 4, e `docs/stato-decisioni.md`. Questa sezione resta solo come storia della prima proposta.
 
 Missione generica: lander solare che comunica direttamente con la Terra, per una durata di default di 6,5 giorni dopo l'atterraggio (durata prevista di Artemis III, modificabile). Soglie e fonti sono in `docs/piano-logica.md`, sezione 4; questa sezione è un riassunto della prima proposta.
 
@@ -135,6 +139,8 @@ Servirebbe definire i crateri solo se si volessero regioni diverse da quelle Art
 ---
 
 ## 7. Come lo usa una persona: uno scenario
+
+> ⚠️ **Superato il 15/11/2026.** I criteri sono stati ridefiniti da zero: niente punteggio con pesi né profili, ma misure con soglie NASA di riferimento su tre livelli di tempo (atterraggio, permanenza, anno). Vedi `docs/piano-logica.md`, Fase 4, e `docs/stato-decisioni.md`. Questa sezione resta solo come storia della prima proposta.
 
 **Chi:** un'ingegnera che prepara un lander robotico per il polo sud.
 
@@ -260,8 +266,7 @@ Note:
 - **Confine del settore.** Nel catalogo è 84°S (requisito Artemis III). Vale solo per le regioni: i siti possono stare ovunque.
 - **DEM globale** per valutare i siti fuori dal settore.
 - **Griglia delle maschere d'orizzonte.** Le celle sono da 100 m; se il calcolo delle maschere è troppo lento, le maschere si calcolano su una griglia più larga. Si decide dopo aver misurato i tempi.
-- **Soglie.** Punteggio minimo di una cella buona, zona continua minima per non scartare una regione, pendenza massima, margine minimo della Terra.
-- **Pesi** del punteggio della cella e della classifica delle regioni.
+- **Criteri.** Ridefiniti il 15/11/2026: le voci ancora aperte (C1–C6) sono in `docs/stato-decisioni.md`.
 
 ---
 

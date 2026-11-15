@@ -134,18 +134,54 @@ docs/                         Guida ai dati, piano, regioni e contratto API
 Le dipendenze Python si installano nell'immagine Docker del backend. Vedere
 [backend/README.md](backend/README.md), che spiega anche come creare l'ambiente senza Docker.
 
-## Fonti dei dati
+## Fonti
+
+Ogni dato, soglia o coordinata usata dal programma ha una fonte. L'elenco completo, con i
+riferimenti [F1]…[F24] usati nei documenti, è in [docs/piano-logica.md](docs/piano-logica.md#fonti).
+I dataset non sono inclusi nel repository (`data/**` è escluso da Git).
+
+### Dati da elaborare
 
 | Fonte | Cosa fornisce | Uso nel progetto |
 |---|---|---|
-| [JPL Horizons](https://ssd.jpl.nasa.gov/horizons/) (API) | Effemeridi di Sole e Terra viste dalla Luna | Tabella globale di punti sub-solari e sub-terrestri |
-| [LOLA GDR polari, PDS Geosciences](https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/polar/img/) | DEM del Polo Sud da 5 a 240 m/pixel | Profilo dell'orizzonte per ogni sito |
-| [Moon Trek](https://trek.nasa.gov/moon/) | Tile WMTS, visualizzazione 3D | Mappe di sfondo nel frontend |
-| [QuickMap (LROC)](https://quickmap.lroc.asu.edu/) | Immagini, topografia, illuminazione media, PSR | Esplorazione e confronto dei risultati |
-| [CSA, Moon Exploration](https://www.asc-csa.gc.ca/eng/astronomy/moon-exploration/) | Contesto sulle missioni | Parte educativa |
+| [JPL Horizons](https://ssd.jpl.nasa.gov/horizons/) ([API](https://ssd-api.jpl.nasa.gov/doc/horizons.html)) | Effemeridi di Sole e Terra viste dalla Luna (DE441, sfera di 1737,4 km) | Tabella globale di punti sub-solari e sub-terrestri, in UTC |
+| [LOLA GDR polari, PDS Geosciences](https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/polar/img/) | DEM del Polo Sud da 5 a 240 m/pixel | Maschera d'orizzonte e pendenza |
+| [PGDA, LOLA ADJ (Barker)](https://pgda.gsfc.nasa.gov/products/90) | DEM, pendenze e ombre permanenti più recenti del Polo Sud (10–240 m), in COG leggibili a pezzi | Alternativa ai DEM della PDS, da confrontare |
+| [PGDA, Lunar Polar Illumination (Mazarico et al. 2011)](https://pgda.gsfc.nasa.gov/products/69) | Ombre permanenti (`lpsr_*`) e illuminazione media di Sole e Terra (`avgvisib_*`) | Ombre permanenti e validazione |
+| [Moon Trek, ImageServer](https://trek.nasa.gov/moon/) | DEM LOLA globale (`LRO_LOLA_DEM_Global_128ppd_v04`, ~237 m) e ritagli via API | Terreno dei siti fuori dal polo e delle coordinate inserite a mano |
+| LROC, `WAC_POLE_ILL_PCT_SOUTH_100M` (su Moon Trek; Speyerer e Robinson 2013) | Percentuale di illuminazione da immagini reali, 88–90°S | Validazione indipendente |
 
-Le prime due fonti sono dati da elaborare; le altre servono all'interfaccia o al confronto.
-I dataset non sono inclusi nel repository (`data/**` è escluso da Git).
+### Regioni e siti
+
+| Fonte | Cosa fornisce |
+|---|---|
+| [Moon Trek, `A3_Named_regions_SP`](https://trek.nasa.gov/moon/trekarcgis2/rest/services/A3_Named_regions_SP/MapServer/0/query?where=1%3D1&outFields=label&returnGeometry=true&f=json) | Contorni delle 13 regioni candidate di Artemis III (lista 2022) |
+| [Aggiornamento NASA a 9 regioni (2024)](https://www.space.com/space-exploration/artemis/nasa-announces-9-possible-moon-landing-sites-for-artemis-3-lunar-mission) | Regioni ancora in lista nel 2024 |
+| [Moon Trek, `Lunar_Landing_Impact_Sites`](https://trek.nasa.gov/moon/trekarcgis2/rest/services/Lunar_Landing_Impact_Sites/MapServer) (dati [NSSDCA](https://nssdc.gsfc.nasa.gov/planetary/lunar/lunar_artifact_impacts.html)) | Coordinate di Apollo 11–17, Luna 9, Luna 17, Chang'e 4 |
+| LROC: [Chandrayaan-3](https://www.lroc.asu.edu/images/1314), [Chang'e 6](https://www.lroc.asu.edu/images/1374), [Blue Ghost M1](https://www.lroc.asu.edu/images/1407) | Posizione dei lander misurata nelle immagini di LRO |
+| [USGS / IAU, Gazetteer of Planetary Nomenclature](https://planetarynames.wr.usgs.gov/) | Centri delle formazioni bersaglio delle missioni CLPS future |
+
+### Criteri e soglie
+
+| Fonte | Cosa fornisce |
+|---|---|
+| [NASA, *Artemis Human Landing System Overview*, Space Apps 2025](https://ntrs.nasa.gov/api/citations/20250009323/downloads/ArtemisOverview2025IntSPAPPSChallenge.pdf) | Requisiti di Artemis III: entro 6° dal polo, pendenza < 10° su 100 m, precisione di 100 m, pendenza < 20° su 2 km per gli astronauti, Sole e Terra a 2–7° sull'orizzonte |
+| [NASA, Scoville, *Artemis III EVA Mission Capability*](https://ntrs.nasa.gov/api/citations/20210026296/downloads/Scoville%20Final%20presentation%20-%20compressed.pptx.pdf) | Tolleranza di pendenza del lander umano: 8° |
+| [LPSC 2022, sito di Blue Ghost M1](https://www.hou.usra.edu/meetings/lpsc2022/pdf/1390.pdf) | Requisiti di pendenza CLPS e del lander: ≤ 10° |
+| [NASA, *VIPER Lunar Operations*](https://science.nasa.gov/mission/viper/lunar-operations/) | Rover: pendenze fino a 15°, al massimo 50 ore di buio continuo |
+| [Wueller et al. 2026, JGR Planets](https://agupubs.onlinelibrary.wiley.com/doi/10.1029/2025JE009434) | Siti illuminati con ombre permanenti raggiungibili nelle regioni Artemis |
+| [Gläser et al. 2014, Icarus](https://elib.dlr.de/94240) | Punti più illuminati del polo sud: 92,27% delle ore a 2 m, su Connecting Ridge |
+| [Mazarico et al. 2011, Icarus](https://ntrs.nasa.gov/citations/20120010094) | Illuminazione dei poli dai dati LOLA: punto sul bordo di Shackleton illuminato 240 giorni di fila |
+| [NASA, Artemis III Site Selection Update, LPSC 2026](https://www.hou.usra.edu/meetings/lpsc2026/pdf/1901.pdf) | Regioni favorite se robuste rispetto alle date; la luce al polo si sposta di 2–3 settimane l'anno |
+| [NASA Space Apps 2026, *Lunar Landing Site Navigator*](https://www.spaceappschallenge.org/2026/challenges/lunar-landing-site-navigator/) | Obiettivi della challenge |
+
+### Interfaccia e confronto
+
+| Fonte | Uso nel progetto |
+|---|---|
+| [Moon Trek](https://trek.nasa.gov/moon/) ([WMTS](https://trek.nasa.gov/tiles/apidoc/trekAPI.html?body=moon)) | Mappe di sfondo nel frontend |
+| [QuickMap (LROC)](https://quickmap.lroc.im-ldi.com/) | Verifica manuale (Create Panorama, Visibility Analysis), non come fonte di dati |
+| [CSA, Moon Exploration](https://www.asc-csa.gc.ca/eng/astronomy/moon-exploration/) | Parte educativa |
 
 ## Riduzione dei dati
 
@@ -202,8 +238,9 @@ I file `ldec_*` (conteggi), `ldrm_*`, `ldac_*` e le immagini non servono al calc
 | Eventi | intervalli di Sole visibile e Terra visibile | qualche KB/sito/anno |
 | Riassunto mensile | % di sole, % di Terra, notte più lunga, elevazione solare, indice di potenza | < 1 KB/sito/mese |
 
-Il Sole conta come visibile quando metà del disco supera l'orizzonte locale. La Terra conta
-come visibile quando il suo centro lo supera.
+Il Sole e la Terra contano come visibili quando se ne vede almeno metà del disco (decisione C3
+del 15/11/2026, in [docs/stato-decisioni.md](docs/stato-decisioni.md)). La frazione di disco
+visibile si salva sempre, così la soglia si può cambiare.
 
 ## Agente AI
 
@@ -238,7 +275,7 @@ Verifiche fatte:
 Limiti noti:
 
 - i siti a nord di 75°S non hanno terreno e usano l'orizzonte della sfera;
-- le regioni Artemis III ora arrivano da Moon Trek (`init-regions`); mancano ancora i siti di
-  atterraggio, da definire in `backend/catalog/sites.toml` con la loro fonte;
+- le regioni Artemis III arrivano da Moon Trek (`init-regions`), e i 16 siti sono in
+  `backend/catalog/sites.toml`, ognuno con la sua fonte;
 - le coordinate personalizzate richiedono il calcolo al volo della horizon mask, non ancora
   implementato.
