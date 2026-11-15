@@ -8,7 +8,7 @@ import { Info, Minimize2, RotateCcw } from 'lucide-react'
 import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { provider } from '../api'
 import { formatLat, formatLon, formatUtcDate, formatUtcLong } from '../domain/format'
-import { CURRENT_LIST_SIZE } from '../domain/catalogs'
+import { areaOfLatitude, comparisonCandidates } from '../domain/catalogs'
 import { rank, rankColor, type AreaFilter, type Ranked, type RankBy } from '../domain/ranking'
 import { CUSTOM_SITE_NAME, normalizeLon, validateSite } from '../domain/sites'
 import type { GlobeFocus, GlobeMarker, MarkerSymbol, RegionBands, RegionShape } from '../features/MoonGlobe'
@@ -64,6 +64,7 @@ const AREA_OPTIONS: { value: AreaFilter; label: string }[] = [
   { value: 'all', label: 'All' },
   { value: 'south-pole', label: 'South pole' },
   { value: 'equatorial', label: 'Equator' },
+  { value: 'other', label: 'Other latitudes' },
 ]
 
 const pct = (v: number) => `${Math.round(v * 100)}%`
@@ -200,8 +201,8 @@ function siteSymbol(s: { id: string; kind?: string }): MarkerSymbol {
   return 'site'
 }
 
-const areaOf = (lat: number): Place['area'] => (lat < -80 ? 'south-pole' : Math.abs(lat) <= 30 ? 'equatorial' : 'other')
-const AREA_LABEL: Record<Place['area'], string> = { 'south-pole': 'South pole', equatorial: 'Equator', other: 'Mid-latitude' }
+const areaOf = areaOfLatitude
+const AREA_LABEL: Record<Place['area'], string> = { 'south-pole': 'South pole', equatorial: 'Equator', other: 'Other latitudes' }
 
 /**
  * With the backend: its site catalog, then the NASA candidate region centres,
@@ -462,6 +463,9 @@ function RankedSitesPanel({ ranked, onPick, onHorizon }: { ranked: Ranked[]; onP
   const area = useStore((s) => s.area)
   const catalog = useStore((s) => s.regions)
   const error = useStore((s) => s.regionError)
+  const siteError = useStore((s) => s.siteError)
+  const sites = useStore((s) => s.sites)
+  const sitesLoaded = useStore((s) => s.sitesLoaded)
   const progress = useStore((s) => s.ranking)
   const student = audience === 'student'
   const planner = audience === 'planner'
@@ -471,11 +475,25 @@ function RankedSitesPanel({ ranked, onPick, onHorizon }: { ranked: Ranked[]; onP
   const place = chosen?.name.split(' · ')[0]
   const measuring = API && !!progress?.busy
   const done = progress ? progress.regions.length + progress.failed.length : 0
+  const completed = new Set([...(progress?.regions ?? []), ...(progress?.failed ?? [])].map(p => p.id))
+  const pending = comparisonCandidates(catalog, sites).filter(p => !completed.has(p.id) && (area === 'all' || p.area === area))
 
   return (
     <section className="rank-panel" aria-label="Sites from best to worst">
       <Card className="rank-head">
-        {!student && !API && <Segmented<AreaFilter> label="Area" size="s" tone="sunk" value={area} onChange={(v) => setState({ area: v })} options={AREA_OPTIONS} />}
+        <div className="plan-fixed">
+          <span>
+            {whenText(input.startMs, audience)}
+            {planner && <span className="ui-muted"> · {durationDays} days</span>}
+          </span>
+          <button type="button" className="ui-dial-link" onClick={() => goTo('moon')}>
+            Change
+          </button>
+        </div>
+        <div className="results-head">
+          <h1 className="plan-title">{API ? 'Compare catalog points' : student ? 'Best places, best first' : 'Sites from best to worst'}</h1>
+          <Segmented<AreaFilter> label="Area" size="s" tone="sunk" value={area} onChange={(v) => setState({ area: v })} options={AREA_OPTIONS} />
+        </div>
         <div className="results-rank">
           <span className="ui-field-label">{catalog?.origin === 'demo' ? 'Rank by · practice data' : 'Rank by'}</span>
           <Segmented<RankBy>
@@ -484,7 +502,7 @@ function RankedSitesPanel({ ranked, onPick, onHorizon }: { ranked: Ranked[]; onP
             tone="sunk"
             value={rankBy}
             onChange={(v) => setState({ rankBy: v })}
-            options={(['overall', 'sun', 'earth', 'both'] as const).map((v) => ({ value: v, label: RANK_SHORT[audience][v] }))}
+            options={(API ? ['sun', 'earth', 'both'] as const : ['overall', 'sun', 'earth', 'both'] as const).map((v) => ({ value: v, label: RANK_SHORT[audience][v] }))}
           />
         </div>
         {measuring && progress && (
@@ -495,22 +513,15 @@ function RankedSitesPanel({ ranked, onPick, onHorizon }: { ranked: Ranked[]; onP
             Measuring {progress.current} · {done} of {progress.total}. The first time takes about a minute per site.
           </p>
         )}
-        {API && progress && progress.failed.length > 0 && <p className="ui-small ui-muted">Could not measure: {progress.failed.join(', ')}.</p>}
+        {API && <p className="ui-small ui-muted">All catalog locations are considered. Region results describe their centre point, not the whole region. Comparisons use geometric visibility only; terrain resolution and model limitations apply.</p>}
+        {API && progress && <p role="status" className="ui-small">{progress.regions.length} evaluated · {progress.failed.length} not evaluable · {progress.total - done} pending · {progress.total} catalog points</p>}
+        {API && (error || siteError) && <p role="alert">Catalog incomplete: {[error, siteError].filter(Boolean).join(' ')} <Button size="s" onClick={() => { void loadRegionCatalog(); void loadSiteCatalog() }}>Reload catalogs</Button></p>}
       </Card>
 
-      {error ? (
-        <p role="alert" className="catalog-status">
-          {error}{' '}
-          <Button size="s" onClick={() => void loadRegionCatalog()}>
-            Retry
-          </Button>
-        </p>
-      ) : !catalog ? (
-        <p role="status" className="ui-muted">
-          Loading the regions…
-        </p>
+      {API && ((!catalog && !error) || !sitesLoaded) ? (
+        <p role="status" className="ui-muted">Loading catalog points…</p>
       ) : shown.length === 0 && !measuring ? (
-        <p className="ui-muted">No candidate site in this area yet.</p>
+        <p className="ui-muted">No evaluable results in this area for the requested period.</p>
       ) : (
         <ol className="rank-list" aria-label="Ranking">
           {shown.map((r) => (
@@ -521,8 +532,8 @@ function RankedSitesPanel({ ranked, onPick, onHorizon }: { ranked: Ranked[]; onP
                     {r.rank}
                   </span>
                   <span className="rank-card-name">{r.name.split(' · ')[0]}</span>
-                  {r.rank === 1 && <span className="results-tag">Recommended</span>}
-                  {planner && (
+                  {!API && r.rank === 1 && <span className="results-tag">Recommended</span>}
+                  {planner && !API && (
                     <span className="rank-card-score mono" title="Overall score">
                       {r.score}
                     </span>
@@ -545,25 +556,36 @@ function RankedSitesPanel({ ranked, onPick, onHorizon }: { ranked: Ranked[]; onP
                   )}
                   {planner && (
                     <span className="results-metric">
-                      <small>Longest night</small>
+                      <small>{API ? 'Longest below C3' : 'Longest night'}</small>
                       <b>{nightText(r.longestNightH, audience)}</b>
                     </span>
                   )}
                 </span>
-                {r.rank === 1 && <span className="results-why">{why(r, rankBy, audience)}</span>}
+                {API && <span className="ui-small ui-muted">{r.pointKind === 'region-center' ? 'Region centre · point estimate' : 'Catalog site'}</span>}
+                {!API && r.rank === 1 && <span className="results-why">{why(r, rankBy, audience)}</span>}
               </button>
+              {API && r.warnings?.length ? <details className="ui-small"><summary>Data resolution and limitations</summary>{r.warnings.map((w, i) => <p key={i}>{w}</p>)}</details> : null}
             </li>
           ))}
           {measuring &&
             progress &&
-            Array.from({ length: Math.max(0, progress.total - done) }, (_, i) => (
-              <li key={`pending-${i}`} className="rank-card is-pending" aria-hidden="true">
+            pending.map(p => (
+              <li key={p.id} className="rank-card is-pending">
                 <span className="rank-badge" />
-                <span className="ui-muted ui-small">{i === 0 ? `Measuring ${progress.current}…` : 'Waiting'}</span>
+                <span className="ui-muted ui-small">{p.name} · {p.name === progress.current ? 'Measuring…' : 'Pending'}</span>
               </li>
             ))}
         </ol>
       )}
+
+      {API && progress && progress.failed.length > 0 && <section aria-label="Not evaluable points">
+        <h2>Not evaluable for this period</h2>
+        <ul>{progress.failed.filter(p => area === 'all' || areaOfLatitude(p.center.latDeg) === area).map(p => <li key={p.id}>
+          <button type="button" className="ui-dial-link" onClick={() => onPick({ ...p.center, name: p.name, id: p.id })}>{p.name}</button>
+          <p>{p.reason}</p>
+        </li>)}</ul>
+        {!progress.busy && <Button size="s" onClick={() => void runRegionRanking(true)}>Retry comparison</Button>}
+      </section>}
 
       <Button size="l" block icon={<ArrowIcon />} onClick={onHorizon} className="rank-go" disabled={!chosen}>
         {!place ? 'Select a site to open its horizon' : student ? `Fly down to ${place}` : `Open the horizon at ${place}`}
@@ -626,6 +648,13 @@ export function MoonScreen({ mode }: { mode: 'moon' | 'explore' }) {
   const audience = useStore((s) => s.audience)
   const input = useStore((s) => s.scenarios.A.input)
   const catalog = useStore((s) => s.regions)
+  const sites = useStore((s) => s.sites)
+  const sitesLoaded = useStore((s) => s.sitesLoaded)
+  const regionError = useStore((s) => s.regionError)
+  const durationDays = useStore((s) => s.durationDays)
+  const stepMinutes = useStore((s) => s.stepMinutes)
+  const azimuthStepDeg = useStore((s) => s.azimuthStepDeg)
+  const maxDistanceKm = useStore((s) => s.maxDistanceKm)
   const rankBy = useStore((s) => s.rankBy)
   const area = useStore((s) => s.area)
   const places = usePlaces()
@@ -647,12 +676,12 @@ export function MoonScreen({ mode }: { mode: 'moon' | 'explore' }) {
   // With the engine the regions are measured for the chosen period; practice data carries its own numbers.
   const measured = useStore((s) => s.ranking)
   const ranked = useMemo(
-    () => (API ? rank(measured?.regions ?? [], rankBy, 'all') : catalog ? rank(catalog.regions, rankBy, area) : []),
+    () => (API ? rank(measured?.regions ?? [], rankBy, area) : catalog ? rank(catalog.regions, rankBy, area) : []),
     [catalog, measured, rankBy, area],
   )
   useEffect(() => {
-    if (results && catalog) void runRegionRanking()
-  }, [results, catalog, input.startMs, input.observerHeightM])
+    if (results && (catalog || regionError) && sitesLoaded) void runRegionRanking()
+  }, [results, catalog, regionError, sites, sitesLoaded, input.startMs, input.observerHeightM, durationDays, stepMinutes, azimuthStepDeg, maxDistanceKm])
 
   const markers = useMemo<GlobeMarker[]>(() => {
     // Results: a numbered badge per site, coloured by its place from best (green) to worst (red).
@@ -660,11 +689,11 @@ export function MoonScreen({ mode }: { mode: 'moon' | 'explore' }) {
     if (ranking) {
       const top = API ? ranked : ranked.slice(0, TOP_N[audience])
       const badges: GlobeMarker[] = top.map((r) => ({ id: r.id, label: r.name.split(' · ')[0], rank: r.rank, color: rankColor(r.rank, top.length), ...r.center }))
-      const waiting = API ? (catalog?.locations ?? []).filter((l) => !top.some((r) => r.id === l.id)) : []
-      return [...badges, ...waiting.map((l) => ({ id: l.id, label: l.name, ...l.center, symbol: 'artemis' as const }))]
+      const waiting = API ? comparisonCandidates(catalog, sites).filter(l => (area === 'all' || l.area === area) && !top.some(r => r.id === l.id)) : []
+      return [...badges, ...waiting.map((l) => ({ id: l.id, label: l.name, ...l.center, symbol: l.pointKind === 'region-center' ? 'artemis' as const : 'site' as const }))]
     }
     return places.map((p) => ({ id: p.id, label: p.short, latDeg: p.latDeg, lonEastDeg: p.lonEastDeg, symbol: p.symbol }))
-  }, [ranking, ranked, audience, places, catalog])
+  }, [ranking, ranked, audience, places, catalog, sites, area])
 
   const selectedId = API
     ? (input.selectionId ?? null)
@@ -798,7 +827,7 @@ export function MoonScreen({ mode }: { mode: 'moon' | 'explore' }) {
                 {shapes.length > 0 && (
                   <li>
                     <span className="moon-legend-mark is-artemis" aria-hidden="true" />
-                    Artemis III candidate region, crewed · NASA, Oct 2024 ({shapes.length} of {CURRENT_LIST_SIZE} outlined)
+                    Published region outlines · NASA / Moon Trek ({shapes.length} in catalog)
                   </li>
                 )}
                 {symbolsShown.has('site') && (

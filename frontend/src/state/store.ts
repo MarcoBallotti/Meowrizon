@@ -43,8 +43,8 @@ export interface RegionRanking {
   total: number
   /** Measured regions (Sun, Earth, both, longest night). */
   regions: Region[]
-  /** Names of the regions the engine could not measure. */
-  failed: string[]
+  /** Catalog points that could not be evaluated, with an explicit reason. */
+  failed: { id: string; name: string; reason: string; center: SiteCoordinates }[]
   /** Name of the region being measured now. */
   current: string | null
 }
@@ -96,6 +96,7 @@ export interface AppState {
   coverage: CoverageCatalog | null
   regions: RegionCatalog | null
   sites: ExampleSite[]
+  sitesLoaded: boolean
   regionError: string | null
   siteError: string | null
   /** Top regions of the ranking, computed for the same period as scenario A. */
@@ -158,11 +159,12 @@ const initialState: AppState = {
   coverage: null,
   regions: null,
   sites: provider.kind === 'demo' ? EXAMPLE_SITES : [],
+  sitesLoaded: provider.kind === 'demo',
   regionError: null,
   siteError: null,
   comparison: null,
   ranking: null,
-  rankBy: 'overall',
+  rankBy: provider.kind === 'api' ? 'sun' : 'overall',
   area: 'all',
   flyRequest: null,
 }

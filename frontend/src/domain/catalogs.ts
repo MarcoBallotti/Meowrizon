@@ -24,26 +24,36 @@ function features(value: unknown): ObjectValue[] {
   return rows
 }
 
-/** The NASA list of Artemis III candidate regions in force since October 2024. */
-export const CURRENT_LIST = '2024'
-/** Regions in the October 2024 announcement; Moon Trek publishes outlines for the 2022 list only. */
-export const CURRENT_LIST_SIZE = 9
-function inCurrentList(p: ObjectValue): boolean {
-  return !Array.isArray(p.lists) || p.lists.includes(CURRENT_LIST)
+export function areaOfLatitude(lat: number): 'south-pole' | 'equatorial' | 'other' {
+  return lat < -80 ? 'south-pole' : Math.abs(lat) <= 35 ? 'equatorial' : 'other'
+}
+
+export interface ComparisonCandidate {
+  id: string
+  name: string
+  center: { latDeg: number; lonEastDeg: number }
+  area: 'south-pole' | 'equatorial' | 'other'
+  pointKind: 'region-center' | 'site'
+}
+
+export function comparisonCandidates(catalog: RegionCatalog | null, sites: ExampleSite[]): ComparisonCandidate[] {
+  const regions = (catalog?.locations ?? []).map(r => ({ id: r.id, name: r.name,
+    center: r.center, area: areaOfLatitude(r.center.latDeg), pointKind: 'region-center' as const }))
+  const points = sites.map(s => ({ id: s.id, name: s.name,
+    center: { latDeg: s.latDeg, lonEastDeg: s.lonEastDeg }, area: areaOfLatitude(s.latDeg), pointKind: 'site' as const }))
+  return [...new Map([...regions, ...points].map(p => [p.id, p])).values()]
 }
 
 export function regionCatalog(value: unknown): RegionCatalog {
   return {
-    origin: 'engine', note: 'NASA Artemis III candidate regions (October 2024 list), outlines via Moon Trek. Catalog order; scientific comparison unavailable.',
+    origin: 'engine', note: 'All published region outlines in the backend catalog, via Moon Trek. Region centres are sample points, not regional assessments.',
     period: { days: 0 }, regions: [],
-    // Only the current NASA list (October 2024, nine regions): the 2022 regions it
-    // dropped are not candidates any more. Rows that name no list are kept.
-    locations: features(value).filter((row) => inCurrentList(object(row.properties))).map((row) => {
+    locations: features(value).map((row) => {
       const p = object(row.properties)
       const geometry = object(row.geometry)
       if (row.type !== 'Feature' || !['Polygon', 'MultiPolygon'].includes(String(geometry.type)) || !Array.isArray(geometry.coordinates) || typeof p.active !== 'boolean') throw new Error('Invalid region geometry or status.')
       return {
-        id: `region:${text(p.id)}`, name: text(p.name), area: 'south-pole',
+        id: `region:${text(p.id)}`, name: text(p.name), area: areaOfLatitude(number(p.center_lat, -90, 90)),
         center: { latDeg: number(p.center_lat, -90, 90), lonEastDeg: number(p.center_lon, -180, 180) },
         active: p.active, geometry, properties: p,
       }
