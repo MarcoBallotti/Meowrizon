@@ -24,7 +24,6 @@ export const EXAMPLE_SITES: ExampleSite[] = [
   { id: 'malapert', name: 'Malapert massif', short: 'Malapert', region: 'South pole', latDeg: -86.0, lonEastDeg: 2.9 },
   { id: 'sp-ref', name: 'Horizons reference point', short: 'Horizons ref.', region: 'South pole', latDeg: -89.5, lonEastDeg: 0 },
   { id: 'apollo11', name: 'Apollo 11 · Tranquility Base', short: 'Apollo 11', region: 'Equatorial band', latDeg: 0.6741, lonEastDeg: 23.473 },
-  { id: 'apollo15', name: 'Apollo 15 · Hadley Rille', short: 'Apollo 15', region: 'Equatorial band', latDeg: 26.1322, lonEastDeg: 3.6339 },
 ]
 
 export const CUSTOM_SITE_NAME = 'Custom point'
