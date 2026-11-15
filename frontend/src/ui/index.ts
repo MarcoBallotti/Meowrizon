@@ -1,10 +1,10 @@
 /**
- * Meowrizon UI kit. Import components from here; the living reference is the
+ * Moonrizon UI kit. Import components from here; the living reference is the
  * Brand kit page (#/kit).
  */
 import './ui.css'
 
-export { Logo, MoonCatMark } from './Logo'
+export { Logo, MoonriseMark } from './Logo'
 export {
   ArrowIcon,
   BackIcon,
@@ -23,4 +23,4 @@ export { Card, Chip, Delta, Metric, Notice, Progress, SpaceWindow, StoryCard, Tr
 export { BothIcon, EarthIcon, EarthPhase, EclipseIcon, SunIcon } from './Bodies'
 export { phasePath } from './phase'
 export { Building } from './Building'
-export { DateDial } from './DateDial'
+export { DateDial, MonthCalendar } from './DateDial'

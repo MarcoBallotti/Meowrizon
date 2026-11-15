@@ -2,6 +2,12 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "frontend-win",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "cd frontend && npx vite --port 5182 --strictPort"],
+      "port": 5182
+    },
+    {
       "name": "frontend",
       "runtimeExecutable": "bash",
       "runtimeArgs": ["-lc", "source ~/.nvm/nvm.sh && nvm use >/dev/null && cd frontend && npx vite --port 5180 --strictPort"],

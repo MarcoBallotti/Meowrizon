@@ -26,13 +26,13 @@ export function DemoChip() {
   )
 }
 
-export function TopBar({ start, children }: { start?: ReactNode; children?: ReactNode }) {
+export function TopBar({ start, children, demo = true }: { start?: ReactNode; children?: ReactNode; demo?: boolean }) {
   return (
     <header className="topbar">
       <div className="topbar-start">{start ?? <Logo size={40} href="#/" />}</div>
       <div className="topbar-middle">{children}</div>
       <div className="topbar-end">
-        <DemoChip />
+        {demo && <DemoChip />}
         <AudienceSwitch />
       </div>
     </header>

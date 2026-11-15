@@ -1,4 +1,4 @@
-# Meowrizon
+# Moonrizon
 
 Strumento per valutare rapidamente siti e date di allunaggio, sviluppato per il NASA Space Apps
 Challenge 2026, challenge

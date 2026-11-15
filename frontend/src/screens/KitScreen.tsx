@@ -21,7 +21,7 @@ import {
   Input,
   Logo,
   Metric,
-  MoonCatMark,
+  MoonriseMark,
   Notice,
   PauseIcon,
   PlayIcon,
@@ -163,7 +163,7 @@ export function KitScreen() {
             ['The horizon is the hero', 'Every screen leads to the view from the ground. Data explains the picture, never the other way round.'],
             ['Two colours, two meanings', 'Amber = Sun and power. Blue = Earth and radio. Indigo is for actions only.'],
             ['Real size, or say so', 'Sun and Earth are drawn at their true angular size. Any stretch is written on screen.'],
-            ['One tool, three readers', 'Student, Teacher, Planner change words, numbers and density. Never three different apps.'],
+            ['One tool, three readers', 'Engineer, Teacher, Student change words, numbers and density. Never three different apps.'],
             ['Honest numbers', 'Practice data is labelled. Decoration never hides what the engine says is visible.'],
             ['Big enough for the back row', 'Projector first: 18 px body, 60 px targets, short sentences.'],
           ].map(([t, b]) => (
@@ -175,31 +175,35 @@ export function KitScreen() {
         </div>
       </Section>
 
-      <Section id="logo" title="Logo" lead="The moon-cat: two ears and a shadow leave an amber crescent. Clear space equals one ear height. Minimum size 24 px.">
+      <Section
+        id="logo"
+        title="Logo"
+        lead="Twin suns over the Moon: like the double sunset on Tatooine, the Earth and the Sun hang one above the other over the curved, cratered edge of the Moon. From the Moon the Earth looks about four times wider than the Sun, so it is the large disc. It is the app in one picture: Sun and Earth over a real lunar horizon. Clear space equals the Sun's radius. Minimum size 20 px."
+      >
         <div className="kit-grid">
           <div className="kit-logo-stage is-light">
             <Logo size={56} />
           </div>
           <div className="kit-logo-stage is-white">
-            <MoonCatMark size={96} />
+            <MoonriseMark size={96} />
           </div>
           <div className="kit-logo-stage is-dark">
             <Logo size={56} tone="dark" />
           </div>
           <div className="kit-logo-stage is-white">
             <div className="kit-row">
-              <MoonCatMark size={24} />
-              <MoonCatMark size={32} />
-              <MoonCatMark size={44} />
-              <MoonCatMark size={64} />
+              <MoonriseMark size={24} />
+              <MoonriseMark size={32} />
+              <MoonriseMark size={44} />
+              <MoonriseMark size={64} />
             </div>
           </div>
         </div>
         <Card tone="sunk">
           <ul className="kit-do">
-            <li>Keep the crescent amber and the ears the same colour as the shadow.</li>
+            <li>Keep the Sun amber and Earth blue: they mean the same as in the data.</li>
             <li>Use the dark version only inside the space window.</li>
-            <li>Do not add outlines, gradients, whiskers or a face.</li>
+            <li>No background behind the mark, no gradients, no glow.</li>
           </ul>
         </Card>
       </Section>
@@ -515,7 +519,7 @@ export function KitScreen() {
             <h3 className="ui-title">Avoid</h3>
             <ul className="kit-do">
               <li>Jargon in Student mode: illumination fraction, DTE, ephemeris.</li>
-              <li>Exclamation marks and cat puns in data.</li>
+              <li>Exclamation marks and puns in data.</li>
               <li>Claims of safety or certification: visibility is geometry only.</li>
               <li>Colour as the only signal: always pair with a word or icon.</li>
             </ul>

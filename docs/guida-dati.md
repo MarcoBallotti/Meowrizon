@@ -1,6 +1,6 @@
 # Guida ai dati per Lunar Landing Site Navigator
 
-Questa guida spiega come ricavare dalle fonti della challenge (JPL Horizons, NASA Moon Trek, LROC QuickMap) le informazioni che servono a Meowrizon: la posizione di Sole e Terra rispetto all'orizzonte **reale** di un sito lunare, e da lì potenza solare, finestre di comunicazione con la Terra e tempo rimanente a tramonto del Sole e tramonto della Terra.
+Questa guida spiega come ricavare dalle fonti della challenge (JPL Horizons, NASA Moon Trek, LROC QuickMap) le informazioni che servono a Moonrizon: la posizione di Sole e Terra rispetto all'orizzonte **reale** di un sito lunare, e da lì potenza solare, finestre di comunicazione con la Terra e tempo rimanente a tramonto del Sole e tramonto della Terra.
 
 Le chiamate marcate ✅ sono state provate il 2026-11-14 e hanno risposto correttamente. Le parti marcate ⚠️ vanno verificate prima di scriverci codice.
 
@@ -16,7 +16,7 @@ Per ogni coppia **(sito, intervallo di date)** bisogna sapere, istante per istan
 
 Horizons da solo non basta. Calcola l'elevazione rispetto a una **Luna sferica liscia** e non conosce montagne e crateri. Al polo sud il Sole sta a pochi gradi sopra l'orizzonte geometrico, mentre i rilievi intorno arrivano spesso a 2–5°. Senza il terreno il risultato è sbagliato proprio dove conta.
 
-L'obiettivo di Meowrizon va oltre: **dati una data e un'ora, trovare i luoghi migliori dove atterrare**. Lo stesso calcolo si ripete quindi su una griglia di punti, come descritto nella sezione 5 bis.
+L'obiettivo di Moonrizon va oltre: **dati una data e un'ora, trovare i luoghi migliori dove atterrare**. Lo stesso calcolo si ripete quindi su una griglia di punti, come descritto nella sezione 5 bis.
 
 Il punto chiave per le prestazioni: **l'orizzonte del terreno di un sito non dipende dalla data**. Si calcola una sola volta per sito (la "maschera d'orizzonte") e si riusa per tutte le date. Il confronto tra date diverse, che è il cuore della challenge, diventa quindi quasi istantaneo.
 
@@ -275,7 +275,7 @@ Per ogni istante si confronta l'elevazione dell'astro con il valore della masche
 
 ## 5 bis. Obiettivo principale: dati data e ora, trovare i luoghi migliori
 
-L'obiettivo di Meowrizon è rispondere a una domanda: **"atterro il giorno X all'ora Y: dove conviene farlo?"**. Non si tratta quindi solo di valutare siti scelti dall'utente, ma di dare un **punteggio a ogni punto di una regione** e restituire una mappa e una classifica. La pipeline della sezione 5 resta valida; cambia la scala: da un sito a una griglia di punti.
+L'obiettivo di Moonrizon è rispondere a una domanda: **"atterro il giorno X all'ora Y: dove conviene farlo?"**. Non si tratta quindi solo di valutare siti scelti dall'utente, ma di dare un **punteggio a ogni punto di una regione** e restituire una mappa e una classifica. La pipeline della sezione 5 resta valida; cambia la scala: da un sito a una griglia di punti.
 
 ### Cosa rende "buono" un luogo in un certo istante
 

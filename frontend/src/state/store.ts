@@ -8,9 +8,10 @@ export type ScenarioKey = 'A' | 'B'
 /** Who is reading: the whole tool adapts its copy, density and data. */
 export type Audience = 'student' | 'teacher' | 'planner'
 export const AUDIENCES: { id: Audience; label: string; hint: string }[] = [
-  { id: 'student', label: 'Student', hint: 'Plain words, big pictures, no jargon.' },
+  // Most technical first. The id stays `planner`; the label says who it is for.
+  { id: 'planner', label: 'Engineer', hint: 'For mission engineers: full technical data, exact times, A/B comparison.' },
   { id: 'teacher', label: 'Teacher', hint: 'Numbers with explanations and prompts for the class.' },
-  { id: 'planner', label: 'Planner', hint: 'Full technical data, exact times, A/B comparison.' },
+  { id: 'student', label: 'Student', hint: 'Plain words, big pictures, no jargon.' },
 ]
 
 export type Screen = 'moon' | 'explore' | 'site' | 'kit'
@@ -132,7 +133,7 @@ const initialState: AppState = {
   regions: null,
   comparison: null,
   rankBy: 'overall',
-  area: 'south-pole',
+  area: 'all',
   flyRequest: null,
 }
 
@@ -171,15 +172,9 @@ export function setAudience(audience: Audience): void {
 export function goTo(screen: Screen): void {
   const hash = screen === 'moon' ? '#/' : `#/${screen}`
   if (location.hash !== hash) history.pushState(null, '', hash)
-  const apply = () => {
-    setState({ screen, playing: false })
-    window.scrollTo(0, 0)
-  }
-  // Morph the Moon window between the home and the full-screen view.
-  const doc = document as Document & { startViewTransition?: (cb: () => void) => unknown }
-  const morph = (screen === 'explore' && state.screen === 'moon') || (screen === 'moon' && state.screen === 'explore')
-  if (morph && doc.startViewTransition && !matchMedia('(prefers-reduced-motion: reduce)').matches) doc.startViewTransition(apply)
-  else apply()
+  // Plan and results share one layout and one Moon window: no transition to run.
+  setState({ screen, playing: false })
+  window.scrollTo(0, 0)
 }
 
 function subscribe(l: Listener): () => void {

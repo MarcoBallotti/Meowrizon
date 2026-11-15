@@ -1,4 +1,4 @@
-# Meowrizon — contratto API per il backend Flask
+# Moonrizon — contratto API per il backend Flask
 
 Data di ricognizione: **14 novembre 2026**. Versione del contratto: **1.0 proposta**.
 

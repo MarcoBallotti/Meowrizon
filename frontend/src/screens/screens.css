@@ -36,6 +36,8 @@
 /* ---------------------------------------------------------------- opening */
 
 .moon-page {
+  /* Width of the home's left column; changed per screen size in responsive.css. */
+  --side-w: 400px;
   display: flex;
   flex-direction: column;
   gap: var(--s-6);
@@ -47,23 +49,17 @@
   flex: 1;
   display: flex;
   flex-wrap: wrap;
+  align-items: flex-start;
   gap: var(--s-7);
 }
 
 .moon-side {
-  flex: 0 0 488px;
+  flex: 0 0 var(--side-w);
   max-width: 100%;
   min-width: 0;
   display: flex;
   flex-direction: column;
   gap: var(--s-5);
-}
-
-.moon-intro {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-3);
-  padding-top: var(--s-2);
 }
 
 .moon-lead {
@@ -72,21 +68,13 @@
   max-width: 34em;
 }
 
-.moon-card-tool {
-  margin-left: auto;
-}
-
-.moon-coords,
 .moon-period {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: var(--s-3);
 }
 
-.moon-foot {
-  margin-top: auto;
-}
-
+/* The Moon scrolls with the page: no sticky stage. */
 .moon-stage {
   flex: 999 1 520px;
   min-width: 0;
@@ -96,14 +84,562 @@
 }
 
 .moon-window {
+  flex: none;
+  height: clamp(420px, calc(100dvh - 248px), 1400px);
+}
+
+/* Side by side, the page is exactly one screen tall: the plan card and the
+   Moon box take every pixel left under the top bar, down to the bottom margin,
+   whatever the card shows. What does not fit scrolls inside the card. A floor
+   keeps very low windows usable; below it the page scrolls. */
+@media (min-width: 1101px) {
+  .moon-page {
+    height: 100dvh;
+    min-height: 640px;
+  }
+
+  /* One line only: a wrapping flex container would size its row to the content
+     and let the card grow past the screen. */
+  .moon-layout {
+    min-height: 0;
+    flex-wrap: nowrap;
+    align-items: stretch;
+  }
+
+  .moon-side,
+  .moon-stage {
+    min-height: 0;
+  }
+
+  .moon-window {
+    flex: 1 1 auto;
+    height: auto;
+    min-height: 0;
+  }
+}
+
+/* ---------------------------------------------------------------- plan card */
+
+.plan-card {
   flex: 1;
-  min-height: 560px;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.plan-title {
+  margin: 0;
+  font: 800 var(--title-s) / 1.15 var(--font-display);
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+/* What fills the card between the heading and the button. Lists scroll in their
+   own box; on very low windows the whole body scrolls instead of overlapping. */
+.plan-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+/* Date view: the calendar does the day-to-day steps, so the dial is one row:
+   no arrows, no extra padding. */
+.plan-card .plan-body > .ui-dial {
+  padding-block: 0;
+}
+
+.plan-card .ui-dial-date {
+  padding-inline: var(--s-2);
+}
+
+.plan-body > .ui-dial .ui-dial-head > .ui-dial-icon {
+  display: none;
+}
+
+/* Duration, step and observer height on one row, with compact fields. */
+.plan-body > .moon-period {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s-2);
+}
+
+.plan-body > .moon-period .ui-input {
+  padding-left: 12px;
+  font-size: var(--text-s);
+}
+
+.plan-body > .moon-period select.ui-input {
+  padding-right: 30px;
+  background-position: right 8px center;
+  background-size: 16px;
+}
+
+.plan-body > .moon-period .ui-input-unit .ui-input {
+  padding-right: 32px;
+}
+
+.plan-body > .moon-period .ui-input-unit span {
+  right: 12px;
+}
+
+.plan-go {
+  flex: none;
+}
+
+.plan-caption {
+  flex: none;
+  margin: 0;
+  font-size: var(--text-s);
+  color: var(--ink-2);
+}
+
+/* By date / by site / by both */
+.plan-modes {
+  flex: none;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding: 4px;
+  border-radius: var(--r-control);
+  background: var(--card-sunk);
+}
+
+.plan-modes button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-height: var(--target-s);
+  padding: var(--s-1) 4px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink);
+  font: 600 var(--text-s) var(--font-text);
+  cursor: pointer;
+}
+
+.plan-modes button small {
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+
+.plan-modes button:hover {
+  background: var(--primary-soft);
+}
+
+.plan-modes button[aria-pressed='true'] {
+  background: var(--ink);
+  color: var(--card);
+}
+
+.plan-modes button[aria-pressed='true'] small {
+  color: var(--line);
+}
+
+.plan-modes button:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* The date (or the date and site) already chosen, with the way back. */
+.plan-fixed {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+  padding: var(--s-1) var(--s-1) var(--s-1) var(--s-3);
+  border-radius: var(--r-control);
+  background: var(--card-sunk);
+  font-weight: 600;
+}
+
+.plan-fixed .ui-dial-link {
+  flex: none;
+}
+
+/* The inline calendar takes the height left in the date view. */
+.plan-body > .ui-dial-month {
+  flex: 1;
+}
+
+/* ---------------------------------------------------------------- site list */
+
+.site-picker {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.site-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+
+.site-tools .ui-input {
+  flex: 1 1 140px;
+  min-width: 0;
+}
+
+.site-list {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 0 var(--s-1) 0 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.site-row {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: var(--target-s);
+  padding: 6px var(--s-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-control);
+  background: var(--card);
+  color: var(--ink);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+.site-row:hover {
+  border-color: var(--ink-3);
+}
+
+.site-row[aria-pressed='true'] {
+  border: 2px solid var(--primary);
+  padding: 5px calc(var(--s-2) - 1px);
+  background: var(--primary-soft);
+}
+
+.site-row:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.site-row-radio {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--line);
+}
+
+.site-row[aria-pressed='true'] .site-row-radio {
+  border: 6px solid var(--primary);
+}
+
+.site-row-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.site-row-name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.site-row-coords {
+  font-size: 12px;
+  color: var(--ink-2);
+}
+
+.site-row-area {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-2);
+  padding: 2px var(--s-1);
+  border-radius: var(--r-pill);
+  background: var(--card-sunk);
+  white-space: nowrap;
+}
+
+.site-list-empty {
+  padding: var(--s-3);
+  color: var(--ink-2);
+}
+
+/* ---------------------------------------------------------------- results card */
+
+.results-head {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+}
+
+.results-best {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-3);
+  border: 2px solid var(--primary);
+  border-radius: var(--r-card);
+  background: var(--card);
+  color: var(--ink);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+.results-best[aria-pressed='true'] {
+  background: var(--primary-soft);
+}
+
+.results-best:focus-visible,
+.results-row:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.results-best-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.results-best-name {
+  font: 700 var(--text-l) / 1.2 var(--font-display);
+  min-width: 0;
+}
+
+.results-tag {
+  margin-left: auto;
+  flex: none;
+  padding: 2px var(--s-1);
+  border-radius: var(--r-pill);
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.results-best[aria-pressed='true'] .results-tag {
+  background: var(--card);
+}
+
+.results-n {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--card-sunk);
+  font: 600 14px var(--font-data);
+}
+
+.results-n.is-lead {
+  width: 32px;
+  height: 32px;
+  background: var(--primary);
+  color: var(--on-primary);
+  font-size: 16px;
+}
+
+.results-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.results-metrics.is-teacher {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.results-metrics.is-student {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.results-metric {
+  display: flex;
+  flex-direction: column;
+  padding: 6px var(--s-1);
+  border-radius: var(--r-small);
+  background: var(--card-sunk);
+  min-width: 0;
+}
+
+.results-metric small {
+  font-size: 12px;
+  color: var(--ink-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.results-metric b {
+  font: 600 var(--text-m) var(--font-data);
+}
+
+.results-metric.is-sun b {
+  color: var(--sun-ink);
+}
+
+.results-metric.is-earth b {
+  color: var(--earth-ink);
+}
+
+.results-why {
+  font-size: var(--text-xs);
+  color: var(--ink-2);
+}
+
+.results-rank {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+}
+
+.results-list {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 0 var(--s-1) 0 0;
+  list-style: none;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.results-row {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) 96px auto;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: var(--target-s);
+  padding: 4px var(--s-1);
+  border: 0;
+  border-top: 1px solid var(--line-soft);
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+.results-row:hover {
+  background: var(--card-sunk);
+}
+
+.results-row[aria-pressed='true'] {
+  background: var(--primary-soft);
+}
+
+.results-name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.results-bar {
+  height: 8px;
+  border-radius: var(--r-pill);
+  background: var(--card-sunk);
+  overflow: hidden;
+}
+
+.results-bar span {
+  display: block;
+  height: 100%;
+  border-radius: var(--r-pill);
+  background: var(--ink-3);
+}
+
+.results-row[aria-pressed='true'] .results-bar span {
+  background: var(--primary);
+}
+
+.results-value {
+  min-width: 3ch;
+  text-align: right;
+  font-weight: 600;
+}
+
+/* Imagery credits close the bottom of the Moon box, on one line. */
+.moon-window.has-credits {
+  --credits-h: 36px;
+}
+
+.moon-window.has-credits .moon-globe {
+  bottom: var(--credits-h);
+}
+
+.moon-window.has-credits .moon-view,
+.moon-window.has-credits .moon-reset {
+  bottom: calc(16px + var(--credits-h));
+}
+
+.moon-credits {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+  height: var(--credits-h);
+  margin: 0;
+  padding: 0 var(--s-4);
+  border-top: 1px solid var(--space-line);
+  background: var(--space-2);
+  color: var(--space-ink-2);
+  font-family: var(--font-text);
+  font-size: 13px;
+  line-height: calc(var(--credits-h) - 1px);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+/* Narrow screens: the line no longer fits even at the smallest size, so it wraps. */
+.moon-credits.is-wrapped {
+  height: auto;
+  padding-block: var(--s-1);
+  line-height: 1.35;
+  white-space: normal;
 }
 
 .moon-globe,
 .moon-globe-canvas {
   position: absolute;
   inset: 0;
+}
+
+.moon-stars {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  fill: #ffffff;
+}
+
+.moon-globe-canvas .cesium-viewer,
+.moon-globe-canvas .cesium-widget {
+  background: transparent;
 }
 
 .moon-globe-canvas .cesium-viewer,
@@ -113,11 +649,9 @@
   height: 100%;
 }
 
+/* Imagery credits are printed in the band at the bottom of the box (.moon-credits). */
 .moon-globe-canvas .cesium-viewer-bottom {
-  left: auto;
-  right: 16px;
-  bottom: 16px;
-  opacity: 0.6;
+  display: none;
 }
 
 .moon-globe-canvas .cesium-widget-credits {
@@ -167,335 +701,80 @@
 
 .moon-hover {
   position: absolute;
+  right: 16px;
+  top: 16px;
+}
+
+/* Home: which part of the Moon is framed, and the way back to it. */
+.moon-view {
+  position: absolute;
   left: 16px;
   bottom: 16px;
 }
 
-.moon-caption {
-  font-size: var(--text-l);
-  color: var(--ink-2);
-  max-width: 44em;
+.moon-reset {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
 }
 
-.moon-page.is-descending .moon-side {
-  opacity: 0.55;
-  transition: opacity var(--t-slow) var(--ease);
+.moon-globe .globe-chip {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: none;
+  padding: 6px 14px;
+  border-radius: var(--r-pill);
+  background: #ffffff;
+  color: var(--ink);
+  font: 600 16px/1.2 var(--font-text);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  box-shadow: 0 0 0 1px rgba(11, 13, 26, 0.12), 0 2px 10px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+  -webkit-font-smoothing: antialiased;
 }
 
-.moon-window {
-  view-transition-name: moon-window;
+/* Site picker on the home card */
+.home-hint {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--text-m);
+  font-weight: 600;
+  line-height: 1.3;
 }
 
-::view-transition-group(moon-window) {
-  animation-duration: 280ms;
-  animation-timing-function: cubic-bezier(0.2, 0.7, 0.2, 1);
+/* The same blue disc as the sites on the globe. */
+.home-hint-dot {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #6cc4f5;
+  border: 3px solid #12507c;
 }
 
-/* ---------------------------------------------------------------- home (1A) */
-
-.moon-side .ui-display.is-s {
-  padding-top: var(--s-1);
+/* The card's own padding already frames the dial on the sides: only space above
+   and below, so the date, the time and the strip fill the card and stay centred. */
+.plan-card .ui-dial {
+  padding-block: var(--s-3);
 }
 
-.home-card {
-  gap: var(--s-3);
+.plan-card .ui-dial-head {
+  flex-wrap: wrap;
+}
+
+.plan-card .ui-dial-date {
+  flex: 1 1 auto;
+  min-width: 0;
+  justify-content: center;
 }
 
 .home-divider {
-  height: 1px;
-  margin: var(--s-1) 0;
-  background: var(--line-soft);
-}
-
-.ui-site-grid.is-dense {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--s-2);
-}
-
-.ui-site-grid.is-dense .ui-site-tile {
-  min-height: 52px;
-  padding: 8px 16px;
-  font-size: var(--text-s);
-}
-
-.home-more > summary {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--s-2);
-  min-height: 36px;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: var(--text-s);
-  color: var(--primary);
-}
-
-.home-more[open] > summary {
-  margin-bottom: var(--s-2);
-}
-
-/* ---------------------------------------------------------------- explore (FA) */
-
-.moon-page.is-explore {
-  height: 100vh;
-  min-height: 0;
-  padding: var(--s-3);
-}
-
-.moon-page.is-explore .moon-layout,
-.moon-page.is-explore .moon-stage {
-  height: 100%;
-}
-
-.moon-page.is-explore .moon-window {
-  flex: 1;
-  height: 100%;
-  min-height: 0;
-  border-radius: 28px;
-}
-
-.explore-top {
-  position: absolute;
-  left: 16px;
-  right: 16px;
-  top: 16px;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--s-3);
-  pointer-events: none;
-}
-
-.explore-top > * {
-  pointer-events: auto;
-}
-
-.explore-top-start {
-  display: flex;
-  align-items: center;
-  gap: var(--s-3);
-}
-
-.explore-logo .ui-logo-word {
-  color: var(--space-ink);
-}
-
-.moon-window-toggles.is-explore {
-  top: 72px;
-  left: 16px;
-}
-
-.moon-hover.is-explore {
-  left: 16px;
-  bottom: auto;
-  top: 128px;
-}
-
-.ranking {
-  position: absolute;
-  right: 16px;
-  top: 72px;
-  bottom: 16px;
-  width: min(400px, 36%);
-  padding: var(--s-5);
-  gap: var(--s-3);
-  overflow: hidden;
-}
-
-.ranking-head {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.ranking-list,
-.ranking-scroll {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-2);
-  overflow-y: auto;
-  min-height: 0;
-}
-
-.ranking-row {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-2);
-  padding: var(--s-3);
-  border: 1px solid transparent;
-  border-radius: var(--r-control);
-  background: var(--card-sunk);
-  text-align: left;
-  cursor: pointer;
-  transition: border-color var(--t-fast) var(--ease), background var(--t-fast) var(--ease);
-}
-
-.ranking-row:hover {
-  border-color: var(--line);
-}
-
-.ranking-row[aria-pressed='true'] {
-  border-color: var(--primary);
-  background: var(--primary-soft);
-}
-
-.ranking-line {
-  display: flex;
-  align-items: baseline;
-  gap: var(--s-2);
-  min-width: 0;
-}
-
-.ranking-n {
-  min-width: 24px;
-  font-family: var(--font-data);
-  font-variant-numeric: tabular-nums;
-  color: var(--ink-3);
-}
-
-.ranking-name {
-  flex: 1;
-  min-width: 0;
-  font-weight: 600;
-  line-height: 1.25;
-}
-
-.ranking-best {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--s-1);
-  font-size: var(--text-xs);
-  font-weight: 600;
-  color: var(--primary);
-  align-self: center;
-}
-
-.ranking-value {
-  min-width: 48px;
-  text-align: right;
-  font-size: var(--text-m);
-}
-
-.ranking-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--s-1) var(--s-3);
-  padding-left: 32px;
-  font-size: var(--text-xs);
-  color: var(--ink-2);
-}
-
-.ranking-meta.mono {
-  font-size: 12px;
-}
-
-.ranking-bar {
-  position: relative;
-  height: 8px;
-  margin-left: 32px;
-  border-radius: var(--r-pill);
-  background: var(--line-soft);
-  overflow: hidden;
-}
-
-.ranking-bar span {
-  position: absolute;
-  inset: 0 auto 0 0;
-  border-radius: inherit;
-  background: var(--ink-2);
-}
-
-.ranking-row[aria-pressed='true'] .ranking-bar span {
-  background: var(--primary);
-}
-
-.explore-all {
-  position: absolute;
-  left: 16px;
-  top: 128px;
-}
-
-.explore-box {
-  position: absolute;
-  left: 16px;
-  bottom: 16px;
-  right: calc(min(400px, 36%) + 32px);
-  max-width: 980px;
-  flex-direction: row;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: var(--s-3) var(--s-4);
-  padding: var(--s-4) var(--s-5);
-}
-
-.explore-fields {
-  flex: 1 1 520px;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: var(--s-3) var(--s-4);
-  min-width: 0;
-}
-
-.explore-fields > .ui-field:first-child {
-  flex: 1 1 200px;
-}
-
-.explore-fields > .ui-field:nth-child(2) {
-  flex: 0 1 230px;
-}
-
-.explore-box .home-more {
-  flex-basis: 100%;
-  order: 3;
-}
-
-.explore-go {
   flex: none;
-}
-
-@media (max-width: 980px) {
-  .moon-page.is-explore {
-    height: auto;
-    min-height: 100vh;
-  }
-
-  .moon-page.is-explore .moon-window {
-    height: auto;
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
-    gap: var(--s-3);
-    padding: 80px var(--s-3) var(--s-3);
-  }
-
-  .moon-page.is-explore .moon-globe {
-    position: relative;
-    inset: auto;
-    height: 52vh;
-    border-radius: var(--r-card);
-    overflow: hidden;
-  }
-
-  .ranking,
-  .explore-box {
-    position: static;
-    width: auto;
-    max-width: none;
-  }
-
-  .ranking {
-    max-height: 60vh;
-  }
-
-  .moon-window-toggles.is-explore {
-    top: 80px;
-    left: 24px;
-  }
+  height: 1px;
+  background: var(--line-soft);
 }
 
 /* ---------------------------------------------------------------- site */
@@ -1841,10 +2120,6 @@
     padding: var(--s-4);
   }
 
-  .moon-window {
-    min-height: 420px;
-  }
-
 
   .timeline-bars {
     padding-left: 0;
@@ -1941,92 +2216,4 @@
 
 .timeline-axis span:last-child:not(:first-child) {
   transform: translateX(-100%);
-}
-
-/* ---------------------------------------------------------------- place picker */
-
-.place-picker {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-2);
-}
-
-.place-more {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--s-2);
-}
-
-.place-list {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: calc(100% + 8px);
-  z-index: 30;
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-2);
-  padding: var(--s-3);
-  border: 1px solid var(--line);
-  border-radius: var(--r-card);
-  background: var(--card);
-  box-shadow: 0 8px 24px rgb(23 26 38 / 0.12);
-}
-
-.place-list-scroll {
-  max-height: 320px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-3);
-}
-
-.place-list-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-
-.place-list-area {
-  padding: 0 var(--s-2);
-  font-size: var(--text-xs);
-  font-weight: 600;
-  color: var(--ink-2);
-}
-
-.place-list-row {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--s-3);
-  min-height: 40px;
-  padding: 0 var(--s-2);
-  border: 0;
-  border-radius: var(--r-small);
-  background: transparent;
-  color: var(--ink);
-  font: 400 var(--text-s) var(--font-text);
-  text-align: left;
-  cursor: pointer;
-  align-items: center;
-}
-
-.place-list-row:hover {
-  background: var(--card-sunk);
-}
-
-.place-list-row[aria-pressed='true'] {
-  background: var(--primary-soft);
-  font-weight: 600;
-}
-
-.place-list-row .mono {
-  font-size: 12px;
-}
-
-.explore-fields > .ui-field:nth-child(2) {
-  flex: 0 1 auto;
 }
