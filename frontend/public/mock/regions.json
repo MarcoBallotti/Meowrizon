@@ -251,25 +251,6 @@
         "bothFraction": 0.5,
         "longestNightH": 354
       }
-    },
-    {
-      "id": "apollo15",
-      "name": "Apollo 15 · Hadley Rille",
-      "area": "equatorial",
-      "center": {
-        "latDeg": 26.1322,
-        "lonEastDeg": 3.6339
-      },
-      "sunFraction": 0.5,
-      "earthFraction": 0.99,
-      "bothFraction": 0.49,
-      "longestNightH": 354,
-      "previous": {
-        "sunFraction": 0.5,
-        "earthFraction": 0.99,
-        "bothFraction": 0.49,
-        "longestNightH": 354
-      }
     }
   ]
 }

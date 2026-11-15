@@ -185,7 +185,7 @@ Connecting Ridge, proposta in una prima versione, non è più nella lista 2024. 
 
 ### 8.4 Siti
 
-**Catalogo del team (14/11/2026), interpretazione aggiornata il 15/11.** Il catalogo contiene **16 siti**. Le misure valutabili dipendono dalla qualità delle coordinate e del terreno; la presenza nel catalogo non garantisce una valutazione locale a 100 m:
+**Catalogo del team (14/11/2026), interpretazione aggiornata il 15/11.** Il catalogo contiene **9 siti**. Le misure valutabili dipendono dalla qualità delle coordinate e del terreno; la presenza nel catalogo non garantisce una valutazione locale a 100 m:
 
 - **12 atterraggi riusciti tra i più conosciuti dal pubblico**: tutti quelli con equipaggio, più le missioni robotiche con un primato storico. Niente atterraggi falliti né riusciti solo in parte: IM-1, IM-2 e SLIM si sono rovesciati;
 - **4 missioni CLPS future**. Non hanno ancora un punto di atterraggio pubblicato, quindi il punto è il **centro della formazione bersaglio**: indica la zona, non il punto in cui atterreranno.
@@ -202,15 +202,8 @@ Ogni sito sta in `backend/catalog/sites.toml` con nome, coordinate planetocentri
 | Apollo 11 | 1969-07-20 | 0,67416 | 23,47314 | Moon Trek / NSSDCA | Primi esseri umani sulla Luna |
 | Apollo 12 | 1969-11-19 | −3,0128 | −23,4219 | Moon Trek / NSSDCA | Atterraggio di precisione accanto a Surveyor 3 |
 | Apollo 14 | 1971-02-05 | −3,64589 | −17,47194 | Moon Trek / NSSDCA | Missione con equipaggio |
-| Apollo 15 | 1971-07-30 | 26,13239 | 3,6333 | Moon Trek / NSSDCA | Primo rover con equipaggio |
-| Apollo 16 | 1972-04-21 | −8,9734 | 15,5011 | Moon Trek / NSSDCA | Prima missione sugli altopiani |
-| Apollo 17 | 1972-12-11 | 20,1911 | 30,7723 | Moon Trek / NSSDCA | Ultimi esseri umani sulla Luna |
 | Luna 9 | 1966-02-03 | 7,13 | −64,37 | Moon Trek / NSSDCA | Primo atterraggio morbido |
-| Luna 17 / Lunokhod 1 | 1970-11-17 | 38,23764 | −35,00163 | Moon Trek / NSSDCA (lander) | Primo rover robotico |
-| Chang'e 4 | 2019-01-03 | −45,457 | 177,589 | Moon Trek / NSSDCA | Primo atterraggio sulla faccia nascosta |
 | Chang'e 6 | 2024-06-01 | −41,6385 | 206,0148 | LROC 1374 (±30 m) | Primi campioni dalla faccia nascosta |
-| Chandrayaan-3 | 2023-08-23 | −69,3741 | 32,32 | LROC 1314 | Primo atterraggio vicino al polo sud |
-| Blue Ghost M1 | 2025-03-02 | 18,5623 | 61,8103 | LROC 1407 | Primo atterraggio commerciale riuscito del tutto |
 | Griffin-1 *(previsto)* | — | −84,6 | 31,0 | USGS Gazetteer (nomi IAU), centro di Mons Mouton | CLPS, polo sud. **Nel settore** |
 | Blue Moon MK1 Pathfinder *(previsto)* | — | −89,4632 | −137,4896 | Centro della regione Artemis Connecting Ridge | CLPS, polo sud. **Nel settore**, dentro Connecting Ridge |
 | IM-3 *(previsto)* | — | 7,3853 | 301,0417 | USGS Gazetteer (nomi IAU), centro di Reiner Gamma | CLPS, vortice lunare |
@@ -219,11 +212,9 @@ Ogni sito sta in `backend/catalog/sites.toml` con nome, coordinate planetocentri
 Note:
 
 - "Moon Trek / NSSDCA" è il layer *Lunar Anthropogenic Impacts and Spacecraft Sites* (`Lunar_Landing_Impact_Sites`), del novembre 2022. Le missioni successive vengono dalle pagine LROC, con la posizione del lander misurata nelle immagini di LRO.
-- Per Blue Ghost M1 si usa il punto del lander dopo l'atterraggio (LROC 1407), non il centro della zona prevista (LROC 1400).
 - **Luna 9:** NASA NSSDCA segnala l'incertezza delle coordinate storiche e una possibile distanza di almeno 10 km dal punto reale. La coordinata può essere analizzata come punto nominale, ma non usata per validare pendenza o orizzonte del lander alla scala di 100 m.
 - **Centri di formazioni bersaglio:** i risultati descrivono il centro nominale analizzato, non il futuro atterraggio. Fonte, tipo di coordinata e incertezza devono accompagnare le misure.
 - **Siti sulla faccia nascosta:** assenza di visibilità geometrica della Terra non implica impossibilità di una missione con relay. Restano nel confronto con questa proprietà esplicita.
-- Chandrayaan-3: le coordinate 70,8°S 23,5°E che si trovano spesso sono il bersaglio di Chandrayaan-2, che è fallito.
 - Per Griffin-1 il punto è Mons Mouton e non il cratere Nobile, perché il centro di Nobile cade sul fondo del cratere, probabilmente in ombra permanente.
 - ⚠️ Lo stato delle missioni CLPS va ricontrollato: al 14/11/2026 Griffin-1 è previsto non prima di novembre 2026, le altre nel 2027.
 - Possibili aggiunte con lo stesso criterio: CP-12 (bacino di Schrödinger) e Blue Ghost M3 (Gruithuisen Domes).

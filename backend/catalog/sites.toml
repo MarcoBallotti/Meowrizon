@@ -65,38 +65,7 @@ date = "1971-02-05"
 source = "https://trek.nasa.gov/moon/trekarcgis2/rest/services/Lunar_Landing_Impact_Sites/MapServer/2/query?where=1%3D1&outFields=*&returnGeometry=true&outSR=4326&f=json"
 note = "NSSDCA 1971-008C"
 
-[[site]]
-id = "apollo-15"
-name = "Apollo 15 · Hadley Rille"
-lat = 26.13239
-lon = 3.6333
-kind = "atterrato"
-date = "1971-07-30"
-source = "https://trek.nasa.gov/moon/trekarcgis2/rest/services/Lunar_Landing_Impact_Sites/MapServer/2/query?where=1%3D1&outFields=*&returnGeometry=true&outSR=4326&f=json"
-note = "Primo rover con equipaggio. NSSDCA 1971-063C"
-
-[[site]]
-id = "apollo-16"
-name = "Apollo 16 · Descartes"
-lat = -8.9734
-lon = 15.5011
-kind = "atterrato"
-date = "1972-04-21"
-source = "https://trek.nasa.gov/moon/trekarcgis2/rest/services/Lunar_Landing_Impact_Sites/MapServer/2/query?where=1%3D1&outFields=*&returnGeometry=true&outSR=4326&f=json"
-note = "Prima missione con equipaggio sugli altopiani. NSSDCA 1972-031C"
-
-[[site]]
-id = "apollo-17"
-name = "Apollo 17 · Taurus-Littrow"
-lat = 20.1911
-lon = 30.7723
-kind = "atterrato"
-date = "1972-12-11"
-source = "https://trek.nasa.gov/moon/trekarcgis2/rest/services/Lunar_Landing_Impact_Sites/MapServer/2/query?where=1%3D1&outFields=*&returnGeometry=true&outSR=4326&f=json"
-note = "Ultimi esseri umani sulla Luna. NSSDCA 1972-096C"
-
 # --- Atterrati: missioni robotiche con un primato ----------------------------------------------
-
 [[site]]
 id = "luna-9"
 name = "Luna 9 · Oceanus Procellarum"
@@ -108,26 +77,6 @@ source = "https://trek.nasa.gov/moon/trekarcgis2/rest/services/Lunar_Landing_Imp
 note = "Primo atterraggio morbido sulla Luna. NSSDCA 1966-006A"
 
 [[site]]
-id = "luna-17"
-name = "Luna 17 / Lunokhod 1 · Mare Imbrium"
-lat = 38.23764
-lon = -35.00163
-kind = "atterrato"
-date = "1970-11-17"
-source = "https://trek.nasa.gov/moon/trekarcgis2/rest/services/Lunar_Landing_Impact_Sites/MapServer/1/query?where=1%3D1&outFields=*&returnGeometry=true&outSR=4326&f=json"
-note = "Primo rover robotico. Punto del lander: il rover si è fermato a 38,315°N 35,0081°W. NSSDCA 1970-095A"
-
-[[site]]
-id = "change-4"
-name = "Chang'e 4 · von Kármán"
-lat = -45.457
-lon = 177.589
-kind = "atterrato"
-date = "2019-01-03"
-source = "https://trek.nasa.gov/moon/trekarcgis2/rest/services/Lunar_Landing_Impact_Sites/MapServer/1/query?where=1%3D1&outFields=*&returnGeometry=true&outSR=4326&f=json"
-note = "Primo atterraggio sulla faccia nascosta: la Terra non è mai visibile. NSSDCA 2018-103A"
-
-[[site]]
 id = "change-6"
 name = "Chang'e 6 · bacino Apollo"
 lat = -41.6385
@@ -137,29 +86,8 @@ date = "2024-06-01"
 source = "https://www.lroc.asu.edu/images/1374"
 note = "Primi campioni dalla faccia nascosta. Precisione LROC ±30 m"
 
-[[site]]
-id = "chandrayaan-3"
-name = "Chandrayaan-3 · alte latitudini sud"
-lat = -69.3741
-lon = 32.32
-kind = "atterrato"
-date = "2023-08-23"
-source = "https://www.lroc.asu.edu/images/1314"
-note = "Primo atterraggio vicino al polo sud. Longitudine LROC con 2 decimali (~300 m). Da non confondere con il bersaglio di Chandrayaan-2 (70,8°S 23,5°E)"
-
-[[site]]
-id = "blue-ghost-m1"
-name = "Blue Ghost Mission 1 · Mare Crisium"
-lat = 18.5623
-lon = 61.8103
-kind = "atterrato"
-date = "2025-03-02"
-source = "https://www.lroc.asu.edu/images/1407"
-note = "Primo atterraggio commerciale riuscito del tutto (Firefly, CLPS). Punto del lander dopo l'atterraggio, non il centro della zona prevista (LROC 1400)"
-
 # --- Previsti: missioni CLPS future (centro della formazione bersaglio) ------------------------
 # Stato al 14/11/2026, da ricontrollare: le date slittano spesso.
-
 [[site]]
 id = "griffin-1"
 name = "Griffin Mission One · Mons Mouton"

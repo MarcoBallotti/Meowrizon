@@ -50,7 +50,7 @@ def test_real_catalog(catalog):
         "nobile-rim-2",
     }
     kinds = [s.kind for s in catalog.sites]
-    assert (kinds.count("atterrato"), kinds.count("previsto")) == (12, 4)
+    assert (kinds.count("atterrato"), kinds.count("previsto")) == (5, 4)
     assert all(s.date for s in catalog.sites if s.kind == "atterrato")
     in_sector = {s.id for s in catalog.sites if s.in_sector}
     assert in_sector == {"griffin-1", "blue-moon-mk1-pathfinder"}

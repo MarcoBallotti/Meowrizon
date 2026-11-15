@@ -185,8 +185,8 @@ traiettoria storica, non sostituisce Horizons come fonte scelta per Sole e Terra
 |---|---|
 | [Moon Trek, `A3_Named_regions_SP`](https://trek.nasa.gov/moon/trekarcgis2/rest/services/A3_Named_regions_SP/MapServer/0/query?where=1%3D1&outFields=label&returnGeometry=true&f=json) | Contorni delle 13 regioni candidate di Artemis III (lista 2022) |
 | [Aggiornamento NASA a 9 regioni (2024)](https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/) | Evoluzione del catalogo storico; non definisce un filtro universale |
-| [Moon Trek, `Lunar_Landing_Impact_Sites`](https://trek.nasa.gov/moon/trekarcgis2/rest/services/Lunar_Landing_Impact_Sites/MapServer) (dati [NSSDCA](https://nssdc.gsfc.nasa.gov/planetary/lunar/lunar_artifact_impacts.html)) | Coordinate di Apollo 11–17, Luna 9, Luna 17, Chang'e 4 |
-| LROC: [Chandrayaan-3](https://www.lroc.asu.edu/images/1314), [Chang'e 6](https://www.lroc.asu.edu/images/1374), [Blue Ghost M1](https://www.lroc.asu.edu/images/1407) | Posizione dei lander misurata nelle immagini di LRO |
+| [Moon Trek, `Lunar_Landing_Impact_Sites`](https://trek.nasa.gov/moon/trekarcgis2/rest/services/Lunar_Landing_Impact_Sites/MapServer) (dati [NSSDCA](https://nssdc.gsfc.nasa.gov/planetary/lunar/lunar_artifact_impacts.html)) | Coordinate di Apollo 11, 12 e 14, Luna 9 |
+| LROC: [Chang'e 6](https://www.lroc.asu.edu/images/1374) | Posizione dei lander misurata nelle immagini di LRO |
 | [USGS / IAU, Gazetteer of Planetary Nomenclature](https://planetarynames.wr.usgs.gov/) | Centri delle formazioni bersaglio delle missioni CLPS future |
 
 ### Criteri e soglie
@@ -349,7 +349,7 @@ dell'incertezza. Per ogni caso si registrano metrica, errore, tolleranza motivat
 ed esito. I dati mancanti restano sconosciuti: non si sostituisce un orizzonte reale
 assente con una sfera liscia presentandola come analisi del terreno.
 
-Le regioni del catalogo NASA 2022 arrivano da Moon Trek (`init-regions`); i 16 siti sono
+Le regioni del catalogo NASA 2022 arrivano da Moon Trek (`init-regions`); i 9 siti sono
 in `backend/catalog/sites.toml`. Precisione delle coordinate e copertura DEM vanno
 qualificate prima di valutarli alla scala di 100 m. I servizi scientifici, il calcolo
 per coordinate personalizzate e l'integrazione successiva con il frontend restano da

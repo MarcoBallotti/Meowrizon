@@ -36,7 +36,7 @@ def test_init_offline_then_api(data_env, moontrek_bytes, capsys):
     active = client.get("/api/regions", params={"active": "true"}).json()
     assert {f["id"] for f in active["features"]} == {"de-gerlache-rim-2", "malapert-massif"}
     sites = client.get("/api/sites").json()["features"]
-    assert len(sites) == 16
+    assert len(sites) == 9
     polar = {f["id"]: f["properties"] for f in sites if f["properties"]["in_sector"]}
     assert set(polar) == {"griffin-1", "blue-moon-mk1-pathfinder"}
     assert polar["blue-moon-mk1-pathfinder"]["region"] == "connecting-ridge"

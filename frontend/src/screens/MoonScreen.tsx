@@ -886,7 +886,7 @@ export function MoonScreen({ mode }: { mode: 'moon' | 'explore' }) {
             <Button variant="quiet" pill size="s" icon={<RotateCcw size={20} strokeWidth={1.75} aria-hidden="true" />} className="moon-reset" onClick={resetView}>
               Reset view
             </Button>
-            {planner && hover && <span className="ui-space-caption moon-hover mono">{hover}</span>}
+            {planner && !results && hover && <span className="ui-space-caption moon-hover mono">{hover}</span>}
             {!results && <CreditsBar />}
           </SpaceWindow>
         </div>

@@ -104,8 +104,9 @@ function sectionsFor(audience: Audience): Section[] {
       key: 'choose',
       title: 'Decision',
       cells: [
-        { key: 'period', span: 6, node: <PeriodPanel />, rest: 480 },
-        { key: 'cmp', span: 6, node: <CompareCard audience="planner" />, rest: 480 },
+        // The comparison first; the period table after it, across the whole row.
+        { key: 'cmp', span: 12, node: <CompareCard audience="planner" />, rest: 480 },
+        { key: 'period', span: 12, node: <PeriodPanel />, rest: 480 },
         { key: 'win', span: 12, node: <WindowsCard audience="planner" />, rest: 240 },
       ],
     },
