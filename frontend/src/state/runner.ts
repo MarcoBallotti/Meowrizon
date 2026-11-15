@@ -1,5 +1,6 @@
 import { catalogApi, provider } from '../api'
 import { runJob } from '../api/jobs'
+import { withRetry } from '../api/retry'
 import type { ScenarioEvaluation, SiteCoordinates } from '../api/types'
 import { loadRegions, rank, type Region } from '../domain/ranking'
 import { regionCatalog, siteCatalog } from '../domain/catalogs'
@@ -266,6 +267,8 @@ export async function runRegionRanking(force = false): Promise<void> {
   update({ busy: false, current: null, message: null })
 }
 
+// Catalog requests retry on their own while the backend restarts (api/retry.ts);
+// the panels keep showing "Loading…" meanwhile, and an error only after the retries.
 let regionRequest: ReturnType<typeof catalogApi.getRegions> | null = null
 let siteRequest: ReturnType<typeof catalogApi.getSites> | null = null
 
@@ -273,7 +276,7 @@ export async function loadRegionCatalog(): Promise<void> {
   setState({ regionError: null })
   try {
     const catalog = provider.kind === 'api'
-      ? regionCatalog(await (regionRequest ??= catalogApi.getRegions()))
+      ? regionCatalog(await (regionRequest ??= withRetry(() => catalogApi.getRegions())))
       : await loadRegions()
     setState({ regions: catalog })
   } catch (err) {
@@ -286,7 +289,7 @@ export async function loadSiteCatalog(): Promise<void> {
   if (provider.kind !== 'api') return
   setState({ siteError: null })
   try {
-    const sites = siteCatalog(await (siteRequest ??= catalogApi.getSites()))
+    const sites = siteCatalog(await (siteRequest ??= withRetry(() => catalogApi.getSites())))
     setState({ sites, sitesLoaded: true })
   } catch (err) {
     siteRequest = null
@@ -296,7 +299,7 @@ export async function loadSiteCatalog(): Promise<void> {
 
 export async function loadCoverage(): Promise<void> {
   try {
-    setState({ coverage: await provider.getCoverage() })
+    setState({ coverage: await withRetry(() => provider.getCoverage()) })
   } catch {
     setState({ coverage: null })
   }
