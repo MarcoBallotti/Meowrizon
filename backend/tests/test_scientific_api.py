@@ -84,6 +84,31 @@ class ScientificApiTests(unittest.TestCase):
                 other = "scenario-evaluations" if kind == "terrain" else "terrain-analyses"
                 self.assertEqual(self.client.get(f"/api/{other}/{job['id']}").status_code, 404)
 
+    def test_sunlight_screening_is_cached_separately_from_full_evaluations(self):
+        self.result["id"] = SCENARIO["terrainAnalysisId"]
+        terrain = self.client.post("/api/terrain-analyses", json=TERRAIN).json()
+        self.assertEqual(self.wait_job("terrain-analyses", terrain["id"])["status"], "completed")
+        skipped = {
+            "skipped": True, "origin": "engine", "reason": "sunlight_below_threshold",
+            "terrainAnalysisId": SCENARIO["terrainAnalysisId"], "minSunFraction": .45,
+            "sunFractionUpperBound": .3,
+        }
+        with patch("app.services.scientific_jobs.calculate_scenario", return_value=skipped) as calc:
+            payload = {**SCENARIO, "includeContext": False, "minSunFraction": .45}
+            submitted = self.client.post("/api/scenario-evaluations", json=payload).json()
+            job = self.wait_job("scenario-evaluations", submitted["id"])
+            self.assertEqual(job["status"], "completed")
+            self.assertEqual(job["result"], skipped)
+            self.assertEqual(
+                self.client.post("/api/scenario-evaluations", json=payload).json(), job
+            )
+            calc.assert_called_once()
+            self.assertEqual(calc.call_args.args[1], payload)
+            full = self.client.post("/api/scenario-evaluations", json=SCENARIO).json()
+            self.assertNotEqual(full["id"], job["id"])
+            self.wait_job("scenario-evaluations", full["id"])
+            self.assertEqual(calc.call_count, 2)
+
     def test_concurrent_duplicate_is_one_job(self):
         started, release = Event(), Event()
 
@@ -142,6 +167,7 @@ class ScientificApiTests(unittest.TestCase):
             (("site", "latDeg"), "-89"),
             (("site", "lonEastDeg"), True),
             (("observerHeightM",), -1),
+            (("includeLocalTerrain",), "true"),
             (("config", "azimuthStepDeg"), 0),
             (("config", "azimuthStepDeg"), 7),
             (("config", "maxDistanceKm"), 0),
@@ -160,6 +186,10 @@ class ScientificApiTests(unittest.TestCase):
             ("startUtc", "2026-11-15T00:00:00+01:00"),
             ("stepMinutes", True),
             ("stepMinutes", 0),
+            ("minSunFraction", -0.01),
+            ("minSunFraction", 1.01),
+            ("minSunFraction", True),
+            ("minSunFraction", "0.45"),
         ):
             response = self.client.post("/api/scenario-evaluations", json={**SCENARIO, key: value})
             self.assertEqual(response.status_code, 422, response.text)

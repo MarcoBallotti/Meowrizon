@@ -51,6 +51,7 @@ class TerrainAnalysisRequest(ScientificInput):
     site: SiteCoordinates
     observerHeightM: Annotated[Number, Field(ge=0)]
     config: TerrainConfig
+    includeLocalTerrain: Annotated[bool, Field(strict=True)] | None = None
 
 
 class ScenarioEvaluationRequest(ScientificInput):
@@ -59,6 +60,7 @@ class ScenarioEvaluationRequest(ScientificInput):
     stopUtc: str
     stepMinutes: Annotated[int, Field(strict=True, gt=0)]
     includeContext: Annotated[bool, Field(strict=True)] = True
+    minSunFraction: Annotated[Number, Field(ge=0, le=1)] | None = None
 
     @field_validator("startUtc", "stopUtc")
     @classmethod
@@ -94,7 +96,7 @@ class ScientificJob(BaseModel):
 
 def _submit(kind, body, request):
     try:
-        return request.app.state.scientific_jobs.submit(kind, body.model_dump())
+        return request.app.state.scientific_jobs.submit(kind, body.model_dump(exclude_none=True))
     except ValueError as exc:
         raise HTTPException(429, str(exc)) from exc
 

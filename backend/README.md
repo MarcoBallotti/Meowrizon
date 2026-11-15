@@ -1,14 +1,6 @@
 # Backend
 
-<<<<<<< Updated upstream
 > **Stato effettivo dopo implementazione e revisione (15/11/2026):** engine puntuale V1 implementato; validazione osservativa ancora incompleta. Il [rapporto della revisione](../docs/validazione-engine-v1-revisione.md) documenta test, convergenza, classificazione e limiti. Le affermazioni storiche di engine non implementato non descrivono lo stato corrente. In questo branch i documenti scientifici seguono il perimetro V1 approvato.
-=======
-> **Stato effettivo dopo implementazione e revisione (15/11/2026):** engine puntuale V1 implementato; validazione osservativa ancora incompleta. Il [rapporto della revisione](../docs/validazione-engine-v1-revisione.md) documenta test, convergenza, classificazione e limiti. Le affermazioni storiche di engine non implementato e le sezioni in conflitto sotto non descrivono lo stato corrente. I conflitti preesistenti sono conservati, senza scegliere una versione del lavoro altrui.
-
-**Priorità approvata V1 (15/11/2026):** engine puntuale Python per 2–3 punti e date esplicite, con CLI/JSON e validazione; aggregazioni regionali, P50 e robustezza sono V2. HTTP scientifico e frontend seguono il nucleo. I dettagli estesi sotto non ampliano questo incarico: vedere il [piano V1](../docs/piano-logica.md).
-
-Python 3.12 e FastAPI, eseguito in Docker. Qui sta **tutta la logica** del progetto: dati, calcoli, confronto delle regioni, API e agente AI. Il frontend TypeScript si occupa solo della visualizzazione.
->>>>>>> Stashed changes
 
 **Priorità approvata V1 (15/11/2026):** engine puntuale Python per 2–3 punti e date esplicite, con CLI/JSON e validazione; aggregazioni regionali, P50 e robustezza sono V2. HTTP scientifico e frontend seguono il nucleo. I dettagli estesi sotto non ampliano questo incarico: vedere il [piano V1](../docs/piano-logica.md).
 

@@ -183,6 +183,7 @@ def calculate(root, parameters, progress):
     az = np.arange(round(360 / step), dtype=float) * step
     results, sources = [], []
     z0 = None
+    local_terrain = None
     for pixel, start, stop in [(20, 10, near), (240, near, distance)]:
         if pixel == 240 and stop <= start:
             continue
@@ -190,10 +191,14 @@ def calculate(root, parameters, progress):
         path, source = window_for(root, lat, lon, stop, pixel)
         sources.append(source)
         with rasterio.open(path) as src:
-            values, transform = src.read(1), src.transform
+            values, transform = src.read(1, masked=True).filled(np.nan), src.transform
         if z0 is None:
             x, y = PROJECT.transform(lon, lat)
             z0 = float(bilinear(values, transform, x, y))
+            if parameters.get("includeLocalTerrain"):
+                from .local_assessment import assess_local_terrain
+
+                local_terrain = assess_local_terrain(values, transform, x, y, lat, source)
         ds = np.unique(np.append(np.arange(start, stop, pixel), stop))
         maxima = []
         for chunk in np.array_split(az, max(1, math.ceil(len(az) / 90))):
@@ -232,4 +237,7 @@ def calculate(root, parameters, progress):
     identifier = hashlib.sha256(
         json.dumps([VERSION, parameters, [s["sha256"] for s in sources]], sort_keys=True).encode()
     ).hexdigest()
-    return {"id": identifier, "origin": "engine", "preview": False, "profile": profile}
+    result = {"id": identifier, "origin": "engine", "preview": False, "profile": profile}
+    if local_terrain is not None:
+        result["localTerrain"] = local_terrain
+    return result

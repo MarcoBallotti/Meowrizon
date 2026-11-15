@@ -53,6 +53,7 @@ def test_complete_pipeline_against_constant_radius_sphere(tmp_path):
     parameters = {
         "site": {"latDeg": lat, "lonEastDeg": lon},
         "observerHeightM": 2,
+        "includeLocalTerrain": True,
         "config": {"azimuthStepDeg": 5, "maxDistanceKm": 5},
     }
     source = {"productId": "analytic-test-only", "sha256": "test", "pixelSizeM": 20}
@@ -63,6 +64,10 @@ def test_complete_pipeline_against_constant_radius_sphere(tmp_path):
     np.testing.assert_allclose(profile["elevationDeg"], expected, atol=1e-6, rtol=0)
     assert len(profile["azimuthDeg"]) == 72
     assert profile["observer"]["surfaceHeightM"] == pytest.approx(100)
+    assert result["localTerrain"]["status"] == "ok"
+    assert result["localTerrain"]["slopeDeg"] == pytest.approx(0, abs=1e-10)
+    assert result["localTerrain"]["roughnessRmsM"] == pytest.approx(0, abs=1e-10)
+    assert result["localTerrain"]["sourcePixelSizeM"] == 20
 
 
 def test_geodesic_rays_preserve_requested_distance_and_azimuth():
