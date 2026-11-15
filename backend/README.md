@@ -1,8 +1,15 @@
 # Backend
 
-Python 3.12 e FastAPI, eseguito in Docker. Qui sta **tutta la logica** del progetto: dati, calcoli, classifica delle regioni, API e agente AI. Il frontend TypeScript si occupa solo della visualizzazione. Per l'avvio locale, il percorso dati predefinito è `backend/data/`.
+Python 3.12 e FastAPI, eseguito in Docker. Qui sta **tutta la logica** del progetto: dati, calcoli, confronto delle regioni, API e agente AI. Il frontend TypeScript si occupa solo della visualizzazione. Per l'avvio locale, il percorso dati predefinito è `backend/data/`.
 
-Per ora ci sono le regioni Artemis III (`GET /api/regions`) e i siti di atterraggio (`GET /api/sites`); la valutazione non è ancora implementata (vedi `docs/piano-logica.md`). `GET /api/coverage` restituisce un catalogo vuoto finché non esiste un DEM preparato e verificato per l'analisi. Il prodotto scelto per i calcoli futuri è il GeoTIFF PGDA LOLA adjusted 20 m/pixel (`LDEM_80S_20MPP_ADJ`); la sua pubblicazione online da sola non lo rende disponibile per le analisi. Non c'è un database: i dati stanno in file in `data/`.
+Per ora ci sono le regioni Artemis III (`GET /api/regions`) e i siti di atterraggio (`GET /api/sites`); la valutazione non è ancora implementata (vedi `docs/piano-logica.md`). `GET /api/coverage` restituisce un catalogo vuoto finché non esiste un DEM preparato e verificato per l’analisi. Il prodotto scelto per i calcoli futuri è il GeoTIFF PGDA LOLA adjusted 20 m/pixel (`LDEM_80S_20MPP_ADJ`); la sua pubblicazione online da sola non lo rende disponibile per le analisi. Non c'è un database: i dati stanno in file in `data/`.
+
+**Specifica scientifica approvata il 15/11/2026:** [criteri-algoritmo.md](../docs/criteri-algoritmo.md)
+prevale sui precedenti appunti in `backend/docs/` e sulle ipotesi scientifiche del contratto
+client. L'engine è indipendente dal veicolo: fasce descrittive della pendenza [0°,5°),
+[5°,10°), [10°,15°), ≥15°, nessun filtro automatico a 10°, confronto per metriche senza
+punteggio globale. Questa revisione è documentale; engine e successiva integrazione
+del frontend non sono ancora implementati.
 
 - `app/main.py`: crea l'applicazione, configura il CORS e registra i router.
 - `app/cli.py`: comandi da terminale (`init-regions`).
@@ -106,7 +113,7 @@ Sezione scritta da Kevin sul branch `backend` e integrata il 15/11/2026. Note di
 - in Docker i comandi qui sotto diventano `docker compose run --rm backend python -m app ...`. I dati di questa parte stanno in `backend/data/` (raw, prepared, jobs), separati da `data/` della radice, che contiene regioni e siti;
 - i comandi `fetch`, `prepare` e `data-info` stanno nella stessa CLI di `init-regions`: `python -m app <comando>` o `python -m app.cli <comando>`.
 
-The backend uses **FastAPI and files only**, as requested. It downloads original API responses and prepares JSON manifests, compressed Parquet tables and GeoTIFF metadata for Python analysis. HTTP collection, preparation, job polling and filtered-data routes are implemented. Scientific terrain/scenario/ranking routes remain to be implemented; [API_CONTRACT.md](API_CONTRACT.md) describes that separate client integration proposal. All code, configurations, runtime data and test files live inside this directory. No repository-root or frontend files are needed to run the service. The internal file schemas are independent of the scientific client contract.
+The backend uses **FastAPI and files only**, as requested. It downloads original API responses and prepares JSON manifests, compressed Parquet tables and GeoTIFF metadata for Python analysis. HTTP collection, preparation, job polling and filtered-data routes are implemented. Scientific terrain, surface-condition and regional-comparison routes remain to be implemented; [API_CONTRACT.md](API_CONTRACT.md) links the current integration contract, complete interaction map, data dictionary and TanStack Query plan. The earlier proposal is archived; open scientific DTO and HTTP decisions are explicitly documented, subordinate to the approved criteria. All code, configurations, runtime data and test files live inside this directory. No repository-root or frontend files are needed to run the service. The internal file schemas are independent of the scientific client contract.
 
 ## Install and run
 
@@ -161,7 +168,7 @@ Job states are `queued`, `running`, `completed` and `failed`. Completed collecti
 
 Use the dataset IDs from `/datasets`, not a product ID or job ID. Invalid inputs/time bounds return 422; unknown jobs/datasets return 404; datasets that are not prepared return 409. Collection accepts only the bundled/configured profiles, not arbitrary URLs or filesystem paths. Edit dates, positions and other native provider parameters in `config/*.json`; HTTP domain-specific user parameter mapping remains future work.
 
-These are source-data service endpoints. `/api/coverage`, terrain/scenario calculation and optimal-site ranking are still pending; the existing frontend scientific client is not connected by these data routes alone.
+These are source-data service endpoints. Coverage, terrain/surface-condition calculation and regional comparisons by explicit metrics remain to be implemented; the existing frontend scientific client is not connected by these data routes alone. Their HTTP contract will be aligned after the algorithm.
 
 Retrieve a separate historical Blue Ghost trajectory sample:
 
@@ -296,24 +303,25 @@ Raster windows return all intersecting pixels at native resolution, their actual
 
 To change a source date, location or product: edit the request configuration, run `fetch`, then `prepare`. To change parser behavior: edit `normalization.py`/`storage.py`, increment `PARSER_VERSION`, then run `prepare` against existing raw files. For incompatible manifest changes use a new prepared directory or add a deliberate migration; schema versions are checked. Write new Parquet files for derived columns/results rather than editing source measurements. You can inspect tables with PyArrow (`read_table(...).to_pylist()`) or load them into pandas after installing pandas; Parquet files themselves are binary, not text documents to edit by hand. Raw acquisitions remain the recovery path.
 
-## Next: user parameters to filtered and ranked results
+## Next: surface conditions and regional comparisons
 
-The intended flow is:
+The approved scientific flow is defined in [the criteria](../docs/criteri-algoritmo.md):
 
 ```text
-React parameters → FastAPI validation → resolve exact source versions/coverage
+Surface epoch T (UTC) → input validation → resolve exact source versions/coverage
   → reuse or calculate terrain metrics and time-dependent visibility
-  → apply required limits → rank qualifying candidates → return metrics + reasons + provenance
+  → aggregate geometric conditions and descriptive slope bands
+  → return comparable metrics + coverage + uncertainty + provenance
 ```
 
 1. **Prepare shared inputs once.** Download appropriate terrain and ephemerides for supported regions/dates, keeping provenance. Acquire only missing data and serialize JPL requests. The current collector is for bounded API responses (128 MiB default), not multi-GB global DEM mirroring.
 2. **Cache terrain independently of dates.** Key slope/roughness and horizon results by source hashes, site, observer height, radius, sampling, frame/datum and algorithm version. A date change can reuse this work.
-3. **Calculate a scenario.** Resolve Sun/Earth positions for the actual 3D observer and requested time window, compare against the terrain horizon, refine visibility transitions, then compute sunlight fraction, longest darkness, Earth visibility and outages. Cache against terrain ID, source versions, dates, step and algorithm settings. These numerical engines and job persistence are not implemented yet.
-4. **Filter required limits first.** Vehicle slope/roughness limits, supported coverage, minimum illumination and maximum darkness/communication gaps are possible constraints. Missing inputs mean `unknown`, not zero risk or automatically feasible. These thresholds must come from the selected mission/vehicle requirements.
-5. **Rank feasible candidates.** A transparent weighted sum of normalized metrics is a reasonable first algorithm: `score = Σ(weight × desirability)`. Define desirability using documented mission thresholds/fixed reference bounds, with higher values always meaning better. Keep weights configurable and return individual metrics and rejection reasons. No score, normalization bounds or weights have been invented in this storage implementation. AI training and Kalman filtering are not prerequisites.
-6. **Return compact products.** Use the existing terrain/scenario client proposal for horizons, tracks and intervals; add a separately agreed candidate-ranking contract. Long work belongs in a worker with persistent jobs. The frontend should reuse results during playback, not trigger upstream queries per frame.
+3. **Calculate physical geometry.** Resolve Sun/Earth positions from JPL Horizons for the actual 3D observer; report horizontal elevation and terrain clearance separately. Compute visible-disc fractions including Earth occultation of the Sun. Distinguish complete darkness from solar visibility below 50%; Earth visibility does not guarantee a radio link. Refine events, test convergence and search beyond a lunation until an event is found or source coverage ends. Preserve unknowns and clipped intervals. These scientific calculations remain to be implemented.
+4. **Describe slope without a vehicle filter.** Fit a plane over a circular 100 m diameter support on the 100 m sampling grid; publish value, uncertainty/quality and the four descriptive bands. No automatic slope threshold rejects a cell or region. Inadequate DEM resolution produces an unavailable metric, not invented detail from interpolation.
+5. **Aggregate comparable areas.** Let B(T) contain cells with at least half of both Sun and Earth discs visible at T. Report B(T) and its cumulative subsets with slopes <5°, <10° and <15° in km² and percent of the region, with valid-data coverage and the largest four-neighbour connected component. Compare alternative availability at T ±1, 2, 3 days with the intersection of the same favourable cells; daily samples do not establish continuous availability. Preserve gaps rather than discarding later successful dates.
+6. **Return explicit comparisons.** There is no global score or lexicographic winner. Each ordering names its metric; paired durations for a representative point must use that same identified point. Annual solar availability uses the full UTC calendar year, including leap years, and the 80% highlight is a team convention. VIPER's 50-hour hibernation reference is informational only. Thermal, electrical and radio-link models remain outside scope. HTTP/client contracts will be aligned after the engine, without changing the current frontend here.
 
-Still required: suitable DEM coverage around actual sites, frame/datum consistency, terrain/horizon and visibility calculations, reference-case validation, mission thresholds, ranking rules and FastAPI endpoints. A full launch-to-landing trajectory also needs vehicle/launch-pad models and a flight solver; the stored historical trajectory is only a reference. The current frontend surface date is not a solved launch date.
+Still required: suitable DEM coverage around actual sites, frame/datum consistency, terrain/horizon and visibility calculations, reproducible reference-case validation, measured numerical error/uncertainty and scientific FastAPI endpoints. Earlier full-flight and vehicle-dependent scoring proposals are not prerequisites for this general surface engine; the stored historical trajectory is a separate acquisition example. Source preparation is not scientific validation.
 
 Local preparation on 2026-11-14 imported 1,652 catalog records, 13 region polygons, 75 Horizons samples, 3 historical WebGeocalc samples and one 20 × 20 terrain grid. Five supporting metadata/image responses remain archived. Prepared files total approximately 450 KiB; original response bodies remain approximately 4.0 MiB. These sizes describe these examples only, not a general compression benchmark. These are acquisition examples: the 100 m terrain sample at the pole and one-day ephemerides do not cover the frontend's default site, 150 km horizon radius or 30-day duration.
 

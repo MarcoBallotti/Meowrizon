@@ -2,7 +2,19 @@
 
 > Historical planning record, moved inside the backend at the user's request. Current runnable service instructions and backend-local data paths are in [../README.md](../README.md). References to frontend/repository files below are planning context, not runtime dependencies.
 
-## 1. Confirmed objective
+**Superseded scope, 2026-11-15.** The general surface engine follows
+[criteria](../../docs/criteri-algoritmo.md) and [implementation plan](../../docs/piano-logica.md),
+which take precedence over this earlier full-flight pipeline. It accepts a surface epoch T
+without a vehicle profile or flight solver; measures Sun/Earth visible-disc fractions,
+terrain slope, areas and time windows; and does not produce a global or lexicographic
+ranking. Slope bands [0°,5°), [5°,10°), [10°,15°), ≥15° describe terrain rather than
+vehicle limits; the automatic 10° filter is removed. Eclipse handling, complete darkness
+versus sub-threshold light, separate horizontal elevation/terrain clearance, coverage
+limits and convergence are governed by the approved criteria. This file preserves the
+older reasoning, not active implementation instructions. Engine implementation comes
+before any update to the frontend or its HTTP contract.
+
+## 1. Historical objective discussed on 2026-11-14
 
 The web app should let a user choose **launch date and time**, calculate the **full flight from launch-pad liftoff through ascent, Earth-to-Moon transfer and lunar landing**, and inspect the spacecraft's position at another selected time. It should connect the calculated touchdown time and location to the lunar landing-site analysis: sunlight, Earth visibility, terrain and surface-operation windows.
 
@@ -145,7 +157,7 @@ At the selected surface point:
 
 Solar elevation/visible duration are illumination measures. Actual electrical power requires panel orientation/area, efficiency, temperature, shadow fraction and load/storage models. Earth-centre visibility is a geometric proxy, not a complete communications link budget.
 
-### Ranking mission/location combinations
+### Historical ranking of mission/location combinations — not adopted for the general engine
 
 - Separate **trajectory feasibility** from **surface suitability**. Reject missions violating modeled vehicle/arrival/landing constraints; mark uncomputed or uncertain cases separately.
 - Make environmental constraints configurable: sunlight/DTE at landing, maximum darkness/outage, slope threshold and PSR exclusion. Avoid interpreting a source layer's selection flag as a safety classification.
@@ -182,13 +194,13 @@ backend/app/
     terrain/              DEMs, slope/quality masks and horizon profiles
     flight/               Vehicle, atmosphere, guidance, propagation and phase events
     planning/             Mission targeting, constraints and candidate search
-    analysis/             Surface visibility, windows, metrics and ranking
+    analysis/             Surface visibility, windows, metrics and comparisons
   db/                     Mission metadata, cache index, scenario history
 ```
 
-This is a proposed structure extending the existing folders. Updated implementation decision (2026-11-14): **FastAPI with file storage, no database**. Preserve source downloads in `data/raw/`; use compressed Parquet tables and JSON manifests in `data/prepared/`, GeoTIFF for terrain and versioned derived files in `data/cache/`. The raw acquisition/preparation commands are implemented; scientific results, ranking and flight solving remain pending. Keep reusable request configurations in `backend/config/`; runtime `data/**` files are ignored by Git.
+This structure preserves the earlier full-flight proposal; its flight/planning modules are not requirements of the approved surface engine. Updated implementation decision (2026-11-14): **FastAPI with file storage, no database**. Preserve source downloads in `data/raw/`; use compressed Parquet tables and JSON manifests in `data/prepared/`, GeoTIFF for terrain and versioned derived files in `data/cache/`. The raw acquisition/preparation commands are implemented; surface-condition metrics and regional comparisons remain to be implemented. Global ranking and flight solving belong to the superseded proposal. Keep reusable request configurations in `backend/config/`; runtime `data/**` files are ignored by Git.
 
-Suggested API contract, not existing endpoints:
+Historical full-flight API proposal, not the approved surface-engine contract or a list of existing endpoints:
 
 | Endpoint | Purpose |
 |---|---|
@@ -212,7 +224,7 @@ Use background jobs for expensive propagation, grid horizons and optimization. D
 | Full flight | A reproducible complete profile reaches all required events, respects modeled constraints and reaches a valid touchdown. A partial transfer plot is not sufficient evidence. |
 | Position lookup | Compare inspection states to the solver at ordinary times and before/after events; verify behaviour outside coverage and after touchdown. |
 | Lunar geometry | Compare local Sun/Earth angles with matched Horizons queries. Check terrain horizons on synthetic geometry and against QuickMap with the same coordinates and height. |
-| Visibility and ranking | Refine time/azimuth/radial sampling until results stabilize within an explicit error budget; explain differences with time-averaged reference maps. Missing data must not receive a favorable score. |
+| Visibility and regional metrics | Refine time/azimuth/radial sampling until results stabilize within an explicit error budget; explain differences with time-averaged reference maps. Missing data must remain unknown, with coverage reported separately. |
 
 Horizons can validate the body's ephemerides and existing spacecraft coverage; it cannot supply the correct reference trajectory for an arbitrary new rocket mission just from a launch timestamp. Compare flight solvers with the same initial conditions, forces and maneuvers.
 

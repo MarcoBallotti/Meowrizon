@@ -2,9 +2,22 @@
 
 > Historical planning record, moved inside the backend at the user's request. Current runnable service instructions and backend-local data paths are in [../README.md](../README.md). References to frontend/repository files below are planning context, not runtime dependencies.
 
-This document describes the data entering the application, examples of real responses, their types and units, and the derived data the backend must produce. The confirmed scope includes **launch-pad liftoff, ascent, Earth-to-Moon transfer, lunar landing, and spacecraft position at a selected time**, followed by landing-site conditions. Read [pipeline.md](pipeline.md) for execution order and application behavior.
+**Scientific precedence, 2026-11-15:** [criteria](../../docs/criteri-algoritmo.md) and
+[implementation plan](../../docs/piano-logica.md) define the approved general surface
+engine. Earlier flight/vehicle inputs, fixed stays, weighted scores and automatic slope
+rejections below are historical proposals. The selected model uses visible-disc fractions
+(Sun including Earth occultation), descriptive slope bands [0°,5°), [5°,10°), [10°,15°),
+≥15°, no automatic 10° filter, cumulative areas and four-neighbour connected areas,
+with data coverage and uncertainty. Events extend until found or source coverage ends;
+the annual statistic uses the complete 365/366-day UTC year. Source responses remain
+valid acquisition examples, not proof that these calculations or HTTP contracts exist.
 
-The user selects a launch date/time. A defined launch site, vehicle, guidance and mission model must also supply the physical initial conditions; the lunar data APIs alone cannot generate a new spacecraft's full flight. Section 11 specifies those additional inputs and outputs.
+This document preserves source-response examples, types and units, alongside the earlier
+proposal for **launch-pad liftoff, ascent, Earth-to-Moon transfer, lunar landing, and
+spacecraft position at a selected time**. That full-flight proposal is outside the
+current general surface engine. [pipeline.md](pipeline.md) preserves its historical flow.
+
+In that historical full-flight proposal, a launch date/time also required a defined launch site, vehicle, guidance and mission model; the lunar data APIs alone cannot generate a new spacecraft's full flight. Section 11 records those additional inputs and outputs. The current surface engine instead accepts T directly and does not require them.
 
 Implemented storage update, 2026-11-14: **FastAPI with files, no database**. Original downloads remain in `data/raw/`; `python -m backend.app prepare` creates a JSON provenance manifest and compressed Parquet tables in `data/prepared/`. Numerical time-series columns use int64 UTC milliseconds and float64 measurements; native geometry and auxiliary fields retain their original JSON, while terrain pixels stay in GeoTIFF with their original dtype/CRS/masks. See [backend/README.md](../README.md#storage-for-analysis) for the exact internal formats, Python filtering examples and supported parser layouts. Prepared data is not yet a scientific scenario result or landing-site ranking.
 
@@ -33,9 +46,9 @@ The numeric examples below are **observed source responses** unless marked **pro
 | Terrain elevation | Moon Trek ImageServer | GeoTIFF with float32 samples | Height, terrain horizon and terrain-derived metrics. |
 | Alternative terrain download | PDS LOLA | PDS3 text label plus binary IMG | Local terrain processing with explicit scaling and projection metadata. |
 | Sun/Earth ephemerides | JPL Horizons | JSON envelope containing a text/CSV table | Direction and distance over time. |
-| Offline ephemerides | NAIF/SPICE | Kernel files consumed by SpiceyPy | Alternative to repeated network calculations; requires compatible frame/time kernels. |
+| Offline ephemerides | Cached JPL Horizons responses | Original text/CSV within JSON and prepared tables | Reuse selected-source data with verified coverage and provenance. The earlier NAIF/SPICE alternative is outside the approved engine. |
 | Basemap | Moon Trek WMTS | XML capabilities and JPEG/PNG image tiles | Visual context in React/Cesium. Pixels are not numerical elevation. |
-| Horizon masks, windows, rankings | Our backend | Numeric arrays and JSON | Calculated outputs; NASA services do not return our final suitability score. |
+| Horizon masks, windows, regional metrics | Our backend, planned calculations | Numeric arrays and JSON | Derived measurements with coverage and provenance; no global suitability score or automatic slope rejection. |
 
 ## 3. Moon Trek product catalog
 
@@ -331,7 +344,7 @@ JSON has `number`, not separate float/int storage types; TypeScript uses `number
 | Conditions | One timestamp with angles, terrain clearance and nullable visibility | `visible`, `blocked`, or `unknown`; no invented confidence percentage. |
 | Events/windows | UTC start/end strings, duration seconds, boundary status | Half-open intervals `[start,end)`; distinguish observed transitions from intervals clipped by the query boundary. |
 | Site summary | Fractions in `[0,1]`, durations in seconds, nullable next-event time | Analysis interval, definitions and data coverage; no event found within the window is not proof of perpetual visibility. |
-| Grid ranking | Cell/site IDs, `eligible/rejected/unknown`, nullable score, metrics and reasons | Grid spacing, score config/version and spatial separation rule. No score for unknown cells. |
+| Regional comparison (approved scope) | Geometric joint area, cumulative areas below 5°/10°/15°, largest four-neighbour components, same-zone intersections and identified representative-site metrics | Grid/support, definitions, total-region percentages and valid-data coverage; unknowns remain explicit, with no global score or automatic slope rejection. |
 | Provenance | Structured strings, numbers and flags | Source URLs, retrieval time, product epoch/version, hashes, algorithm/version, assumptions and limitations. |
 
 Proposed normalized local Sun sample, using the observed values above:
@@ -352,7 +365,7 @@ Proposed normalized local Sun sample, using the observed values above:
 
 The visibility is deliberately unknown: this task has not calculated a horizon for that observer.
 
-Example **proposed surface-analysis subrequest**, containing illustrative settings rather than verified vehicle requirements. In the full-flight workflow, `landing_time_utc` comes from the simulated touchdown event; it is distinct from the user's launch time:
+**Historical subrequest, superseded on 2026-11-15; do not implement as the general engine contract.** The following example preserves the earlier vehicle-constrained, full-flight proposal and contains illustrative settings rather than verified vehicle requirements. Its slope limit, PSR exclusion, fixed stay and ranking weights are not current decisions:
 
 ```json
 {
@@ -372,7 +385,7 @@ Example **proposed surface-analysis subrequest**, containing illustrative settin
 }
 ```
 
-Validate UTC/time range, duration, supported grid size, finite numbers, height, slope limits, nonnegative weights and `top_n` limits. Weights must have a defined normalization. This coarse grid is a planning resolution; it cannot establish touchdown-footprint safety.
+For that historical request, validation would have covered its mission-specific limits and weights. For the approved engine, use the canonical criteria instead: UTC epoch, documented grid/support, finite measurements, source coverage and numerical quality. Do not import the historical slope filter or score weights into the new specification. Sampling resolution cannot establish touchdown-footprint safety.
 
 ## 10. Data still needed
 
@@ -381,12 +394,12 @@ Validate UTC/time range, duration, supported grid size, finite numbers, height, 
 - Record compatible frame definitions and source-specific no-data/quality metadata. Coverage/quality products may be needed to distinguish interpolated terrain from well-supported terrain.
 - Verify the desired current candidate-region/site catalog and maintain the source epoch; the checked 2022 polygons remain useful historical examples.
 - Discover/verify the slope, PSR and comparison products actually used, including slope measurement scale and time span for averages.
-- Provision SPICE kernels if selecting offline ephemerides; do not assume matching filenames/frames are already installed.
+- Keep JPL Horizons as the selected source of solar/terrestrial ephemerides and preserve request parameters and raw headers; offline use reuses its cached responses. A separate SPICE-kernel workflow is not part of the approved engine.
 - Add tracked manifests and small reference fixtures under `docs/` or another tracked path. The current `.gitignore` excludes almost everything under `data/`, so provenance placed there would otherwise be lost.
 
 These documents define the integration work; they do not imply a working scientific backend already exists.
 
-## 11. Additional data for full launch-to-landing simulation
+## 11. Historical additional data for full launch-to-landing simulation
 
 ### Launch, departure and touchdown are different events
 

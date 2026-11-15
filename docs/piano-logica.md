@@ -2,7 +2,7 @@
 
 Questo piano descrive cosa fare **prima e durante** l'implementazione della logica di Meowrizon. La domanda a cui il programma deve rispondere è:
 
-> **Data una data, quali regioni del polo sud sono le migliori per atterrare, e perché?**
+> **Data una data, come si confrontano le condizioni geometriche, topografiche e temporali delle regioni del polo sud?**
 
 Regole del documento:
 
@@ -12,27 +12,27 @@ Regole del documento:
 
 Tecnologie: quelle del `README.md` [F13]. Backend Python 3.12 con FastAPI, GDAL, Rasterio e NumPy, dipendenze da conda-forge in `backend/environment.yml`. **Nessun database**: i dati stanno in file (GeoJSON, JSON, NumPy) in `data/` (decisione del team, 14/11/2026). Le effemeridi arrivano **solo dall'API di Horizons**: SpiceyPy è stato tolto (decisione del team, 14/11/2026). Frontend React, TypeScript, Vite e CesiumJS.
 
-**Ripartizione (decisione del team, 14/11/2026):** tutta la logica è in **Python**: dati, calcoli, classifica, API e agente AI. **TypeScript** serve solo al frontend: globo, mappe, grafici, animazione. Il framework web resta FastAPI; Flask è stato scartato perché non dà nulla in più e perde lo schema OpenAPI automatico.
+**Ripartizione (decisione del team, 14/11/2026):** tutta la logica è in **Python**: dati, calcoli, confronto delle metriche, API e agente AI. **TypeScript** serve solo al frontend: globo, mappe, grafici, animazione. Il framework web resta FastAPI; Flask è stato scartato perché non dà nulla in più e perde lo schema OpenAPI automatico.
 
-Documenti collegati: `docs/siti-e-regioni.md` (modello a regioni) e `docs/guida-dati.md` (API e dati).
+Documenti collegati: `docs/criteri-algoritmo.md` (specifica scientifica di riferimento), `docs/siti-e-regioni.md` (modello a regioni) e `docs/guida-dati.md` (API e dati).
 
 ---
 
 ## 0. Da dove partiamo
 
-Il `README.md` contiene già decisioni e criteri del team [F13], che questo piano riprende:
+Il `README.md` descrive l'architettura e il prototipo precedente [F13]. La revisione del 15/11/2026 stabilisce:
 
-- **effemeridi** come tabella unica per tutta la Luna: Horizons con `COMMAND='301'`, `CENTER='500@399'`, `QUANTITIES='14,15,20'`;
+- **effemeridi** come tabella unica per tutta la Luna: Horizons con `COMMAND='301'`, `CENTER='500@399'`, `QUANTITIES='14,15,19,20'`, conservando header e unità; la ricostruzione locale va verificata contro Horizons topocentrico;
 - **terreno** dai DEM LOLA polari della PDS (`ldem_*`): uno lontano a 240 m e uno vicino a 20–40 m;
-- **horizon mask** di 360 valori, con curvatura lunare e osservatore alto 2 m;
-- **Sole visibile** quando metà del disco supera l'orizzonte locale; **Terra visibile** quando il suo centro lo supera;
-- **riassunti**: % di sole, % di Terra, notte più lunga, elevazione solare, indice di potenza;
-- **prototipo Python** fuori dal repository, provato su 9 siti per il 2027–2028 e validato: az/el coincide con Horizons topocentrico, l'orientamento LOLA è giusto, il fondo di Shackleton risulta senza Sole né Terra. Va portato in `backend/app/services/`.
+- **horizon mask** con 360 valori iniziali, curvatura lunare e osservatore alto 2 m; risoluzione definitiva da convergenza;
+- **Sole e Terra visibili** quando almeno metà del rispettivo disco risulta visibile; per il Sole si includono terreno ed eclissi terrestri;
+- **riassunti**: frazioni, finestre temporali, elevazioni, pendenza e aree, con qualità e copertura. Non si deducono potenza elettrica, temperatura o collegamento radio;
+- **prototipo Python esterno**: il README riporta prove su 9 siti per il 2027–2028 e confronti con Horizons e LOLA. Senza codice, configurazioni e risultati riproducibili disponibili nel repository, queste sono verifiche dichiarate, non evidenza già acquisita per il futuro engine.
 
-Cosa cambia rispetto al README:
+Cosa cambia rispetto al prototipo precedente:
 
 - l'oggetto valutato è la **regione** (modello concordato in `docs/siti-e-regioni.md`), misurata con celle interne, non più il singolo sito;
-- il README nota che "mancano le coordinate verificate delle regioni Artemis III": ora le abbiamo da Moon Trek [F3].
+- i poligoni storici delle regioni Artemis del 2022 provengono da Moon Trek [F3]; disponibilità della geometria e validità dei risultati scientifici sono verifiche distinte.
 
 ---
 
@@ -56,7 +56,7 @@ Solo quelle che servono a un passo preciso di questo piano:
 
 | Pacchetto | Serve a |
 |---|---|
-| `scipy` | Trovare la **zona continua più grande** di celle buone (`scipy.ndimage.label`) |
+| `scipy` | Trovare la **componente connessa più grande**, con connettività a 4 vicini, negli insiemi B e Aθ (`scipy.ndimage.label`) |
 | `pyproj` | Convertire la stereografica polare lunare in latitudine e longitudine (poligoni Artemis, DEM) |
 | `shapely` | Sapere quali celle stanno dentro il poligono di una regione |
 | `httpx` | Scaricare da Horizons, Moon Trek e PDS, con tentativi ripetuti e timeout |
@@ -85,13 +85,13 @@ Solo quelle che servono a un passo preciso di questo piano:
 
 ### 2.1 Settore
 
-Il primo requisito di atterraggio di Artemis III è "atterrare entro 6° di latitudine dal polo sud" [F1, slide 21]. Anche il layer delle regioni Artemis le descrive "entro sei gradi di latitudine dal polo sud" [F3].
+La presentazione NASA del 2025 indica l'atterraggio entro 6° di latitudine dal polo sud fra i requisiti Artemis III descritti allora [F1, slide 21]. Anche il layer storico delle regioni usa questa estensione [F3]. È il contesto della scelta geografica del progetto, non una verifica dell'architettura di missione corrente.
 
-**Proposta:** settore = **sud di 84°S**, invece degli 80°S scritti finora in `docs/siti-e-regioni.md`. Così il settore coincide con un requisito NASA invece che con una nostra scelta. I poligoni Artemis si tengono interi anche se sporgono di poco: Nobile Rim 2 ha il centro a 83,98°S e arriva fino a circa 83,6°S.
+**Decisione:** settore = **sud di 84°S**, coerente con il contesto NASA citato. I poligoni Artemis si tengono interi anche se sporgono di poco: Nobile Rim 2 ha il centro a 83,95°S e arriva fino a circa 83,6°S.
 
-### 2.2 Regioni: le due liste NASA
+### 2.2 Regioni: le liste storiche NASA 2022 e 2024
 
-| Regione | Lista 2022 (13) [F3] | Lista 2024 (9) [F4] | Poligono disponibile |
+| Regione | Lista 2022 (13) [F3] | Lista 2024 (9), stesso nome [F4] | Poligono nel catalogo locale |
 |---|---|---|---|
 | Faustini Rim A | sì | no | sì [F3] |
 | Peak Near Shackleton | sì | no | sì |
@@ -111,27 +111,24 @@ Il primo requisito di atterraggio di Artemis III è "atterrare entro 6° di lati
 | Mons Mouton | no | sì | **no** |
 | Slater Plain | no | sì | **no** |
 
-Per le 4 regioni nuove del 2024 **non abbiamo trovato poligoni pubblici**: la NASA le ha annunciate con un'immagine [F4] e Moon Trek ha solo il layer del 2022. Non si possono disegnare a mano senza inventare i confini, quindi **non entrano nel catalogo** (decisione del team, 14/11/2026): non si possono né rappresentare sulla mappa né valutare. Si aggiungono quando esce una geometria ufficiale. Mons Mouton resta comunque presente come zona bersaglio di Griffin-1, tra i siti.
+Per i quattro nomi del 2024 senza corrispondenza esplicita nella tabella, **il catalogo locale non integra ancora una geometria verificata**: usa il layer Moon Trek del 2022. Questo non dimostra l'assenza di prodotti pubblici successivi; i prodotti USGS vanno verificati per geometrie, nomi e provenienza [F4]. Non ricavare confini a mano dall'immagine NASA e non presumere che una ridenominazione conservi lo stesso poligono. Il catalogo resta invariato in questo intervento. Mons Mouton è comunque presente come bersaglio di Griffin-1 fra i siti, con coordinate indicative.
 
-**Opzioni (decisione D2):**
-
-- **A. Tutte le 13 del 2022**, mostrando nell'interfaccia se una regione è ancora nella lista 2024. Più regioni da confrontare, tutte con dati completi.
-- **B. Solo le 5 presenti in entrambe le liste** (in grassetto). Solo regioni ancora attuali, ma meno confronto.
+**Decisione D2:** mantenere le 13 geometrie del catalogo 2022 con appartenenza storica dichiarata. La corrispondenza fra nomi 2022 e 2024 è un metadato da verificare; la presenza di un contorno non garantisce copertura completa di tutte le metriche.
 
 **Per sviluppare la pipeline si parte da due regioni**, entrambe in tutte e due le liste:
 
-- **de Gerlache Rim 2** (88,1°S): coperta per intero dal DEM a 5 m del polo; la sua parte a sud di 88°S è dentro la mappa di illuminazione LROC 88–90°S [F8], quindi validabile con immagini reali;
-- **Malapert Massif** (85,9°S): rilievo esteso, condizioni di luce e di Terra diverse dalla prima.
+- **de Gerlache Rim 2** (88,2°S): coperta per intero dal DEM a 5 m del polo; la sua parte a sud di 88°S è dentro la mappa di illuminazione LROC 88–90°S [F8], quindi validabile con immagini reali;
+- **Malapert Massif** (86,0°S): rilievo esteso, condizioni di luce e di Terra diverse dalla prima.
 
-Connecting Ridge, consigliata in `docs/siti-e-regioni.md`, non è più nella lista 2024 [F4]: per questo la sostituisco con de Gerlache Rim 2.
+Connecting Ridge non è elencata con quel nome nella lista 2024 [F4]; de Gerlache Rim 2 e Malapert Massif sono le regioni iniziali di sviluppo.
 
 ### 2.3 Passi
 
 **Stato (14/11/2026): fatto**, con il comando `python -m app.cli init-regions`.
 
 1. **Catalogo versionato** in `backend/catalog/`:
-    - `regions.toml` decide quali regioni usare: le 13 con contorno, con le liste di appartenenza (2022, 2024) e `active`. Le 4 regioni del 2024 senza contorno non ci sono. Contiene anche il limite del settore e la dimensione delle celle;
-    - `sites.toml` contiene i siti di atterraggio, ognuno con fonte obbligatoria. Per ora è vuoto: l'elenco è da definire.
+    - `regions.toml` decide quali regioni usare: le 13 con contorno, con le liste di appartenenza (2022, 2024) e `active`. I 4 nomi del 2024 senza geometria integrata nel catalogo locale non ci sono. Contiene anche il limite del settore e la dimensione delle celle;
+    - `sites.toml` contiene i 16 siti di atterraggio del catalogo, ognuno con fonte obbligatoria e stato delle coordinate.
 2. **Download** dei poligoni da Moon Trek (`A3_Named_regions_SP`, `f=json`) [F3]. La risposta grezza è salvata in `data/sources/` con il registro `manifest.json` (URL, data, dimensione, SHA-256). `--offline` riusa l'ultimo download dopo averne controllato lo SHA-256.
 3. **Conversione** dalla stereografica polare sud (sfera di 1 737 400 m) a latitudine e longitudine con pyproj, verificata contro la formula scritta a mano. Lati infittiti ogni 250 m per disegnarli in gradi; longitudine Est tra −180 e 180.
 4. **Controlli che fermano il comando:**
@@ -146,12 +143,12 @@ Connecting Ridge, consigliata in `docs/siti-e-regioni.md`, non è più nella lis
 5. **Risultato** in `data/regions/regions.geojson` e `sites.geojson`. Per ogni regione: area sulla sfera, centro, angoli in metri, griglia di celle (le regioni sono quadrati con gli angoli su multipli di 100 m, quindi la griglia combacia con i bordi) e DEM LOLA che la copre. Per ogni sito: posizione in metri, cella di 100 × 100 m, regione Artemis in cui cade, DEM.
 6. **API:** `GET /api/regions` (con `?active=true`) e `GET /api/sites`.
 
-**Siti di atterraggio (decisione del team, 14/11/2026):** ogni sito si valuta come **una cella di 100 × 100 m** attorno al punto, con gli stessi vincoli e metriche delle celle delle regioni, e compare in una tabella separata dalla classifica delle regioni.
+**Siti di atterraggio (decisione del team, 14/11/2026):** ogni sito si campiona come **una cella di 100 × 100 m** attorno al punto, con le stesse definizioni delle metriche delle regioni. La qualità delle coordinate e la risoluzione disponibile stabiliscono quali misure siano valutabili; il confronto dei siti resta distinto da quello delle aree regionali.
 
-**Quali siti (decisione del team, 14/11/2026):** all'apertura la mappa mostra le regioni Artemis III e 16 siti, tutti valutabili. L'elenco completo, con le coordinate, è in `docs/siti-e-regioni.md` (8.4) e in `backend/catalog/sites.toml`:
+**Quali siti (decisione del team, 14/11/2026):** il catalogo contiene le regioni Artemis e 16 siti. L'elenco completo, con le coordinate, è in `docs/siti-e-regioni.md` (8.4) e in `backend/catalog/sites.toml`. L'inclusione non garantisce che tutte le metriche a 100 m siano calcolabili:
 
 - **12 atterraggi riusciti tra i più famosi**: Apollo 11, 12, 14, 15, 16 e 17, Luna 9, Luna 17 / Lunokhod 1, Chang'e 4 e 6, Chandrayaan-3, Blue Ghost M1. Coordinate dal layer di Moon Trek *Lunar Anthropogenic Impacts and Spacecraft Sites* (dati NSSDCA) [F16] e dalle pagine LROC [F17]. Niente atterraggi falliti o riusciti in parte, quindi niente IM-1, IM-2 e SLIM;
-- **4 missioni CLPS future**: Griffin-1, Blue Moon MK1 Pathfinder, IM-3, Blue Ghost M2. Il punto è il centro della formazione bersaglio, dal Gazetteer IAU [F18] o dalla regione Artemis.
+- **4 bersagli CLPS pianificati nel catalogo**: Griffin-1, Blue Moon MK1 Pathfinder, IM-3, Blue Ghost M2. Il punto è il centro della formazione bersaglio, dal Gazetteer IAU [F18] o dalla regione Artemis; non è un punto di atterraggio certificato e gli stati di missione richiedono aggiornamento separato.
 
 **Il limite di 84°S vale solo per le regioni.** I siti possono stare ovunque: quelli fuori dal settore (14 su 16) hanno `in_sector = false` e servirà un **DEM globale** per il loro orizzonte (vedi Fase 3).
 
@@ -163,14 +160,14 @@ Errore corretto durante il lavoro: i centri delle regioni nella prima versione d
 
 | Dato | Fonte | Prodotto | Uso |
 |---|---|---|---|
-| Posizione di Sole e Terra | JPL Horizons [F5] | `COMMAND='301'`, `CENTER='500@399'`, `QUANTITIES='14,15,20'`. Verificato il 14/11/2026: restituisce punto sub-terrestre, punto sub-solare e distanza Terra-Luna, con Luna sferica di 1737,4 km ed effemeridi DE441 | Az/el di Sole e Terra per ogni cella e ogni ora |
+| Posizione di Sole e Terra | JPL Horizons [F5], [F32] | `COMMAND='301'`, `CENTER='500@399'`, `QUANTITIES='14,15,19,20'`: punti sub-terrestre/sub-solare e distanze Sole-Luna/Terra-Luna. Conservare header, effemeride effettiva, frame, epoche, unità e conversioni | Az/el di Sole e Terra, con validazione topocentrica |
 | Dimensione apparente della Terra | Horizons [F5] | Raggio terrestre nell'intestazione della risposta (6378,137 km) e distanza `delta` | Raggio angolare della Terra (~0,95°), per il criterio del disco |
 | Dimensione apparente del Sole | IAU 2015 B3 [F11] e Horizons [F5] | Raggio solare nominale 695 700 km e distanza del Sole | Raggio angolare del Sole (~0,27°), per la frazione di disco visibile |
 | Terreno | PDS, LOLA GDR polari [F6] | Verificati sul server: `ldem_875s_5m/10m/20m`, `ldem_85s_10m/20m/40m`, `ldem_80s_20m/40m/80m`, `ldem_75s_30m/60m/120m/240m` | Horizon mask, pendenza |
-| Pendenza | Calcolata da noi dai DEM [F6] | Su una base di **100 m**, come nel requisito NASA [F1, slide 21] | Vincolo di pendenza |
+| Pendenza | Calcolata da noi dai DEM [F6], [F19] | Piano locale su supporto circolare di **100 m di diametro**, distinto dal passo della griglia; confronto con il prodotto PGDA alla stessa scala | Valore, fascia descrittiva e qualità; nessun filtro automatico |
 | Ombre permanenti | PGDA / PDS, illuminazione LOLA [F7] | `lpsr_85s_060m_201608` (60 m, 85–90°S); per le regioni a nord di 85°S `lpsr_75s_120m_201608` (120 m, 75–90°S) | Validazione e informazione |
-| Illuminazione media | PGDA / PDS [F7] | `avgvisib_85s_060m_201608` (Sole) e `avgvisib_85s_060m_201608_earth` (Terra); per le regioni a nord di 85°S le versioni `75s_120m`. Medie su 18,6 anni a passo orario | Validazione; eventuale prefiltro (D11) |
-| Illuminazione osservata | LROC, Moon Trek [F8] | `WAC_POLE_ILL_PCT_SOUTH_100M`: % di illuminazione da immagini reali, 88–90°S, febbraio 2010 – febbraio 2011 | Validazione indipendente dal nostro modello |
+| Illuminazione media | PGDA / PDS [F7] | `avgvisib_85s_060m_201608` (Sole) e `avgvisib_85s_060m_201608_earth` (Terra); per le regioni a nord di 85°S le versioni `75s_120m`. Medie su 18,6 anni a passo orario, con definizione `f > 0` | Confronto nelle stesse condizioni; nessun prefiltro |
+| Illuminazione osservata | LROC, Moon Trek [F8], [F30] | WAC PCT e TWI da immagini reali, 88–90°S; rispettare periodo, campionamento e pesi temporali del prodotto | Confronto osservativo, anche ai tempi delle singole immagini |
 | Regioni | Moon Trek [F3] | `A3_Named_regions_SP` | Poligoni |
 | Siti | Moon Trek [F16], LROC [F17], Gazetteer IAU [F18] | `Lunar_Landing_Impact_Sites`, pagine LROC, `MOON_nomenclature_center_pts` | Coordinate dei 16 siti |
 | Terreno fuori dal settore | Moon Trek, ImageServer (`exportImage`) | `LRO_LOLA_DEM_Global_128ppd_v04`: tutta la Luna, ~237 m all'equatore, float32. Provato il 14/11/2026: un ritaglio di 6,3° × 6,3° attorno ad Apollo 15 (806 × 806 pixel, 3 MB) arriva in ~5 s. Per 45–90°S c'è anche `LRO_LOLA_DEM_SPole45_100mp_v04_EQ` (100 m), che copre Chandrayaan-3 | Horizon mask dei siti con `in_sector = false`, ritagli attorno a ogni sito |
@@ -178,7 +175,8 @@ Errore corretto durante il lavoro: i centri delle regioni nella prima versione d
 Note:
 
 - Il layer `PSR_SP` di Moon Trek contiene solo le **164 ombre permanenti più grandi di 10 km²** [F9]: per celle da 100 m non basta, perché le ombre piccole nei fondi dei crateri mancano. Per questo si usa la mappa raster `lpsr_*` [F7].
-- Per ogni file scaricato si scrive un **manifest** con URL, versione, data, dimensione e SHA-256, come previsto da `data/README.md`.
+- Per ogni file scaricato si scrive un **manifest** con URL, versione, data, dimensione e SHA-256, come previsto da `data/README.md`. Registrare anche unità, frame, datum, NoData, copertura, incertezza e risoluzione effettiva quando disponibili.
+- Il DEM globale a circa 237 m non consente una pendenza indipendente su supporto di 100 m: il ricampionamento non crea dettaglio. Senza un DEM locale adeguato, tale metrica è non valutabile, mentre altre possono essere calcolate con qualità esplicita.
 - ⚠️ **Alternativa più recente per il terreno del polo sud [F19]** (trovata il 14/11/2026 guardando le fonti dati di QuickMap): i DEM LOLA "ADJ" di Barker et al. (PGDA, prodotto 90), con orbite ricalcolate e meno artefatti rispetto ai `ldem_*` della PDS. Ci sono:
     - DEM `LDEM_83S_10MPP_ADJ`, `LDEM_80S_20/40/80MPP_ADJ`, `LDEM_75S_30MPP_ADJ`, `LDEM_60S_60/120/240MPP_ADJ`. Le versioni a 60°S coprono anche Chandrayaan-3;
     - mappe di pendenza `LDSM_*`, ombre permanenti `LPSR_80S_20MPP_ADJ`, errore di quota `*_ERR` e risoluzione effettiva `*_EFFRES`.
@@ -187,213 +185,200 @@ Note:
 
 ---
 
-## 4. Fase 4: criteri
+## 4. Fase 4: criteri approvati
 
-**Ridefiniti da zero il 15/11/2026.** I criteri scritti in precedenza (vincoli V1–V5, metriche M1–M8, area buona e zona continua, ordinamento senza pesi) sono **superati** e non vanno usati. Restano valide le decisioni su architettura, punti sulla mappa e fonti dei dati.
-
-Tutti i criteri, con il perché di ogni scelta, sono raccolti anche in `docs/criteri-algoritmo.md`.
+**Revisione approvata il 15/11/2026.** La specifica di riferimento è `docs/criteri-algoritmo.md`. Sono superati il filtro automatico di pendenza a 10°, l'associazione fra colori e idoneità dei veicoli, l'avviso generale delle 50 ore e l'ordinamento lessicografico delle regioni. Qui si pianifica la futura implementazione; questo aggiornamento non implementa l'engine né modifica il frontend.
 
 ### 4.1 Principi
 
-- **Niente profili di missione.** Il programma non dice "passa / non passa" per un veicolo preciso: **misura e colora**, e ogni colore ha come riferimento una soglia NASA con la sua fonte. Il giudizio finale resta all'utente.
-- **Niente valori fissi su Sole e Terra.** La loro elevazione cambia con il punto e con la data: si calcola ogni ora, per ogni cella, dalle effemeridi Horizons in UTC [F5]. Come ordine di grandezza, al polo sud Sole e Terra stanno a pochi gradi sopra l'orizzonte (2–7° [F1, slide 19]). Il Sole al polo esatto non supera ~1,5°, l'inclinazione dell'asse lunare; la Terra oscilla per la librazione ed è visibile circa due settimane su quattro [F1, slide 19].
-- **Dati in locale per i punti predefiniti.** Le 13 regioni e i 16 siti si calcolano in anticipo e si salvano in file, così l'app si apre subito anche senza rete. I server NASA servono ad aggiornare la cache e a valutare le coordinate inserite a mano.
+- **Indipendente dal mezzo:** il programma misura condizioni geometriche e topografiche. Le fasce descrittive sono scelte del team, non certificazioni di sicurezza.
+- **Fonti definite:** JPL Horizons per le effemeridi [F5]; NASA Moon Trek per geometrie, layer e prodotti via API; archivi NASA PDS/PGDA per i DEM LOLA [F6], [F19]. QuickMap serve a consultazione e confronto manuale.
+- **Nessuna durata di permanenza obbligatoria:** le misure partono da T e proseguono fino all'evento o al limite dei dati disponibili. La copertura è dichiarata.
+- **Misure e dati mancanti distinti:** zero, evento non ancora osservato e dato non valutabile sono esiti diversi. Nessuna sostituzione con dati sintetici.
+- **Cache riproducibile:** dati e risultati locali conservano provenienza e intervalli coperti; offline si usano solo gli intervalli disponibili.
 
-### 4.2 Linea di vista verso Sole e Terra
+### 4.2 Geometria, dischi ed eventi
 
-È il cuore del calcolo. Per ogni cella:
+Per ogni centro di cella o sito:
 
-1. dal DEM si ricava la **maschera d'orizzonte**: per ognuna di 360 direzioni, l'**angolo** sotto cui si vede il terreno più alto, tenendo conto della curvatura lunare, per un osservatore a 2 m dal suolo [F13];
-2. per ogni ora si confronta l'elevazione di Sole e Terra con l'angolo della maschera **nella loro direzione** (azimut);
-3. se il disco sta sotto la maschera, la linea di vista è bloccata. Per il Sole questo vuol dire **ombra**: i pannelli non caricano e la temperatura scende. Per la Terra vuol dire **niente comunicazione diretta**.
+1. calcolare la maschera d'orizzonte dal DEM con curvatura lunare e osservatore a **2 m**, altezza di riferimento dichiarata;
+2. ricavare da Horizons azimut, elevazione rispetto all'orizzontale locale e distanze di Sole e Terra, gestendo parallasse terrestre, frame ed epoca delle quantità apparenti [F32];
+3. restituire separatamente **elevazione** `e` e **margine sul terreno** `e - H(azimut)`: il margine del centro non descrive da solo l'occultazione del disco;
+4. integrare il disco rispetto al terreno lungo la sua estensione angolare. Per il Sole includere anche l'occultazione da parte della Terra: la frazione effettiva è l'area del disco non coperta da nessuno dei due occultatori. Non moltiplicare semplicemente due frazioni, perché le occultazioni possono sovrapporsi;
+5. conservare frazione solare da solo terreno, frazione solare effettiva `f_S` e frazione terrestre `f_E`, con cause dell'oscuramento (terreno, eclissi, entrambe). Sono grandezze geometriche, non potenza elettrica né bilancio radio.
 
-Al polo basta un piccolo rilievo a bloccare la vista, e le ombre arrivano a chilometri di distanza: per questo serve l'orizzonte reale e non quello geometrico.
+**C3 confermata:** Sole e Terra sono riassunti come visibili se rispettivamente `f_S >= 0,5` e `f_E >= 0,5`. È una **Scelta del team**. Il confronto con `AVGVISIB` richiede invece `f > 0` e le condizioni dello specifico prodotto [F7].
 
-Il Sole (~0,27° di raggio apparente) e la Terra (~0,95°) non sono punti: si calcola la **frazione di disco visibile** (Mazarico et al. [F7]), un numero tra 0 e 1 che si salva sempre.
+Distinguere **buio completo** (`f_S = 0`), **intervallo sotto soglia** (`f_S < 0,5`, anche con luce parziale), **finestra di luce sopra soglia** (`f_S >= 0,5`) e **finestra di visibilità geometrica terrestre** (`f_E >= 0,5`). Le eclissi interrompono le finestre solari anche quando il Sole supera i rilievi [F29]. Il buio è assenza di luce solare diretta nel modello: luce diffusa, riflessa o rifratta non viene convertita in disponibilità energetica.
 
-**Deciso (C3, 15/11/2026): Sole e Terra contano come visibili quando se ne vede almeno metà del disco (frazione ≥ 0,5).**
+**Configurazione numerica iniziale:** 360 direzioni e passo di un'ora, da verificare con convergenza. Confrontare almeno 1°/0,5°/0,25° e passi temporali più fitti su casi critici. Raffinare gli attraversamenti e controllare anche gli intervalli fra campioni con lo stesso stato, che possono nascondere un evento breve. Le tolleranze sono obiettivi numerici del team, da documentare prima delle prove.
 
-- **Sole:** la potenza dei pannelli cresce con la parte di disco visibile. Con metà disco arriva circa metà dell'energia; con uno spicchio sottile quasi niente, quindi contarlo come "luce" sarebbe ottimistico. È anche la definizione del prototipo già validato [F13].
-- **Terra:** la PGDA la conta visibile se se ne vede una parte qualsiasi, ma avverte che è "leggermente ottimistico" per le comunicazioni radio [F7]. Metà disco equivale circa a "il centro della Terra è sopra l'orizzonte", la definizione del prototipo [F13], ed è più prudente per un segnale fragile.
-- La soglia è un parametro: per confrontarsi con le mappe PGDA nella validazione (Fase 6) si ricalcola con frazione > 0. Nell'interfaccia si mostra anche la frazione, per esempio "Sole visibile al 70%".
+La ricerca si estende progressivamente entro la copertura disponibile, senza limite scientifico di 29,5 giorni. Se a T la condizione non è soddisfatta, la durata residua della finestra corrente è zero e si cerca separatamente la prossima. Per intervalli già aperti a T, distinguere durata residua e totale; un inizio o una fine non osservati producono un intervallo troncato al relativo bordo. Anche un'interruzione nei dati produce censura, non continuità presunta. Registrare ultimo istante valutato, stato e limiti temporali anziché inventare eventi o dichiararli impossibili per sempre.
 
-### 4.3 I criteri
+### 4.3 I dieci criteri
 
-Non c'è una durata di permanenza da scegliere (decisione del 15/11/2026): la challenge chiede il **tempo rimanente** al tramonto del Sole e della Terra, la **durata della luce** e le **finestre di visibilità della Terra** [F12]. Si misurano da T **in avanti, fino all'evento**, senza fissare una fine.
+| # | Criterio | Misura |
+|---|---|---|
+| 1 | Sole visibile a T | `f_S` e confronto con 0,5; distinguere terreno ed eclissi |
+| 2 | Terra visibile a T | `f_E` e confronto con 0,5; non garantisce comunicazione radio |
+| 3 | Elevazione del Sole | Elevazione rispetto all'orizzontale e margine sul terreno, separati |
+| 4 | Elevazione della Terra | Elevazione rispetto all'orizzontale e margine sul terreno, separati |
+| 5 | Luce continua | Durata residua sopra soglia da T e prossime finestre, con eventuale censura |
+| 6 | Visibilità geometrica continua della Terra | Durata residua sopra soglia da T e prossime finestre, con eventuale censura |
+| 7 | Buio e luce ridotta | Primo intervallo di buio completo e primo intervallo sotto soglia, distinti; inizio, fine e durata osservata |
+| 8 | Pendenza | Valore numerico, base di misura 100 m, fascia descrittiva e qualità |
+| 9 | Illuminazione annua | Percentuale del tempo con `f_S >= 0,5` nell'anno UTC scelto; copertura e indicatore >=80% |
+| 10 | Robustezza alle date | Misure a T e T ± 1, 2, 3 giorni; alternative regionali e persistenza delle stesse celle |
 
-| # | Criterio | Livello | Cosa si misura | Riferimento |
-|---|---|---|---|---|
-| 1 | Sole visibile | Atterraggio (T) | Sì / no, con la frazione di disco (C3) | Energia solare [F12] |
-| 2 | Terra visibile | Atterraggio (T) | Sì / no, con la frazione di disco (C3) | Comunicazione diretta [F1, slide 21], [F12] |
-| 3 | Elevazione del Sole | Atterraggio (T) | Gradi sopra l'orizzonte **locale** (margine sulla maschera) | "Elevazione solare in evidenza" [F12] |
-| 4 | Elevazione della Terra | Atterraggio (T) | Gradi sopra l'orizzonte locale | Al polo basta un piccolo rilievo a bloccare il segnale |
-| 5 | Luce continua | Dopo l'atterraggio | Ore da T al primo tramonto del Sole | "Tempo rimanente al tramonto", "durata della luce" [F12] |
-| 6 | Contatto continuo con la Terra | Dopo l'atterraggio | Ore da T al primo tramonto della Terra | "Finestre di visibilità della Terra" [F12] |
-| 7 | Prima notte | Dopo l'atterraggio | Quando inizia e quanto dura il primo buio; 🔴 oltre 50 ore | VIPER, 50 ore di buio al massimo [F20] |
-| 8 | Pendenza | Terreno | Classe su 100 m: 🟢 🟡 🟠 🔴 (4.4) | [F1], [F2], [F20], [F21], [F22] |
-| 9 | Illuminazione annua | Anno (365 giorni) | % di ore con il Sole nell'anno, picchi > 80% (C6), calendario dei giorni con 1 e 2 veri | [F7], [F8] |
-| 10 | **Tenuta se l'atterraggio slitta** | T ± 1, 2, 3 giorni | Si ricalcolano i criteri 1–9 con le date vicine, alla stessa ora | Le date slittano spesso: contesto esplicito della challenge [F12]. I giorni (1–3) sono una **Scelta del team** |
+La pendenza non dipende da T. Il criterio 9 si riusa solo fra date nello stesso anno UTC: vicino a Capodanno può cambiare l'anno di riferimento. Una finestra grafica di un mese lunare non limita la ricerca. L'integrazione frontend è successiva all'algoritmo.
 
-Note:
+### 4.4 Pendenza, buio e illuminazione annua
 
-- per il criterio 10 la NASA indica la stessa direzione: nella scelta delle regioni di Artemis III sono state favorite quelle "più robuste tra le diverse epoche di missione" e "meno sensibili alle incertezze sui tempi" [F26];
-- solo i criteri 1–7 cambiano davvero con la data: pendenza (8) e illuminazione annua (9) sono le stesse per tutte le date vicine. Il ricalcolo usa le stesse maschere e la stessa tabella di effemeridi, quindi costa poco;
-- quando si può dire che un sito "regge" uno slittamento di k giorni è la decisione C7;
-- l'interfaccia mostra anche le **prossime finestre** di Sole e Terra dopo T, e una timeline di un mese lunare (~29,5 giorni) con zoom libero. È visualizzazione, non un criterio.
+**Pendenza: fasce approvate, Scelta del team.**
 
-### 4.4 Soglie di riferimento (con fonte)
+| Fascia | Intervallo esatto |
+|---|---|
+| 1 | `0 <= p < 5°` |
+| 2 | `5° <= p < 10°` |
+| 3 | `10° <= p < 15°` |
+| 4 | `p >= 15°` |
 
-**Pendenza**, misurata su una base di **100 m** come nel requisito NASA [F1, slide 21] (decisa il 15/11/2026):
+Le fasce sono fisse fra regioni e date, non derivano dai percentili locali e non significano idoneità per lander o rover. **Nessun filtro automatico a 10°.** Conservare valore numerico, qualità e incertezza, evidenziando i casi che attraversano un confine di fascia.
 
-| Colore | Pendenza su 100 m | Significato | Fonte |
-|---|---|---|---|
-| 🟢 Verde | < 8° | Adatta anche al lander umano più esigente | Tolleranza HLS ≥ 8° [F2] |
-| 🟡 Giallo | 8–10° | Entro il limite di atterraggio di Artemis III e dei lander CLPS | < 10° [F1, slide 21]; ≤ 10° per Blue Ghost [F21] e nei bandi CLPS [F22] |
-| 🟠 Arancione | 10–15° | Non adatta all'atterraggio, ma percorribile da un rover | VIPER percorre pendenze fino a 15° [F20] |
-| 🔴 Rosso | > 15° | Non adatta né all'atterraggio né al rover | Oltre il limite nominale di VIPER [F20] |
+La griglia di aggregazione ha celle di 100 × 100 m. Il **supporto del fit** è distinto: finestra circolare di diametro 100 m, centrata nel punto, con coordinate locali metriche. Il confronto con `LDRM_80S_50MPP_ADJ_SLP_100M.TIF` [F19] deve uniformare anche campionamento e metodo. Griglia, base della pendenza e precisione di atterraggio sono grandezze diverse; i requisiti storici dei veicoli [F1], [F2], [F20]–[F23] non definiscono le nostre classi.
 
-Altri riferimenti, da mostrare come informazione: il modulo lunare Apollo poteva non riuscire a ripartire oltre ~12° di inclinazione [F23, ⚠️ da leggere nel documento]; gli astronauti a piedi richiedono pendenze < 20° su 2 km [F1, slide 24].
+**Buio continuo:** nessun avviso generale o punteggio a 50 ore. VIPER rimane una nota: lo studio distingue 50 ore di sopravvivenza in ibernazione e circa 9 ore di normali operazioni all'ombra [F28]. Non sono limiti universali né si applicano automaticamente all'intervallo con una parte del Sole ancora visibile.
 
-**Buio continuo** (criterio 7): l'avviso rosso scatta quando la prima notte dopo l'atterraggio supera **50 ore**, il buio massimo che il rover VIPER sopporta [F20]. Nell'interfaccia va scritto che il riferimento è VIPER: veicoli diversi hanno limiti diversi. Il programma **non** calcola la temperatura, ma solo la durata del buio.
+**Modello termico escluso.** Esistono dati NASA LRO Diviner sulle temperature superficiali [F27]. La risposta dell'hardware richiede geometria, materiali, isolamento, proprietà radiative, dissipazione, riscaldatori, batterie e stato iniziale del mezzo. L'engine generale misura luce e buio senza calcolare temperatura, autonomia o sopravvivenza.
 
-**Illuminazione annua** (criterio 9, decisione C6 del 15/11/2026): i punti con almeno l'**80%** di ore di Sole nell'anno si evidenziano come picchi adatti a produrre energia stabile.
+**Illuminazione annua, C6:** `P50` è il rapporto fra durata con `f_S >= 0,5` e durata dell'intero anno UTC della data scelta, dal 1° gennaio al successivo (365 o 366 giorni). Con passi variabili si sommano durate degli intervalli, non campioni con pesi uguali. **P50 >= 80%** è un'evidenziazione del team, senza promessa di stabilità energetica.
 
-- La soglia dell'80% è una **Scelta del team**: nessuna fonte primaria la definisce. Lo studio NASA di Mazarico et al. 2011 non la usa [F7]; la cifra "5 km² sopra l'80%" che circola è attribuita a quello studio solo da fonti secondarie.
-- È però coerente con i valori misurati nei punti più illuminati del polo sud. Il massimo noto è il **92,27%** delle ore a 2 m dal suolo, su Connecting Ridge, con notti più lunghe di 3–5 giorni [F25]. Mazarico et al. trovano un punto sul bordo di Shackleton illuminato senza interruzioni per 240 giorni l'anno, con la notte più lunga di ~1,5 giorni [F7]. Con l'80% si evidenziano quindi i punti vicini ai migliori conosciuti.
-- Si calcola per un osservatore a **2 m**, come le nostre maschere e come il valore di riferimento [F25]. L'interfaccia mostra la % esatta e, accanto, il massimo noto del 92,27% come confronto.
-- L'illuminazione annua cambia un po' da un anno all'altro: le condizioni di luce al polo si spostano di circa 2–3 settimane l'anno [F26]. Va calcolata sull'anno della data scelta.
+Il valore annuale richiede copertura valida dell'intero anno. Con copertura parziale restituire percentuale nel periodo osservato, denominatore e copertura, senza attribuire l'evidenziazione annuale. Il **92,27%** di Gläser [F25] riguarda uno specifico sito a 2 m, uno studio di 19 anni e una diversa definizione della presenza di luce: riferimento bibliografico, non massimo universale né confronto diretto con P50.
 
 ### 4.5 Ombre permanenti
 
-Le ombre permanenti (`lpsr`, PGDA [F7], [F19]) sono fondi di crateri senza Sole, dove si cerca il ghiaccio d'acqua: è un obiettivo scientifico di Artemis III [F3].
+**C1 confermata:** le mappe di ombra permanente [F7], [F19] sono informazioni scientifiche e riferimenti di confronto, non filtri aggiuntivi o pesi. Non dedurre permanenza dall'assenza di Sole in una finestra breve. Il confronto con una PSR richiede altezza, periodo, DEM e definizione coerenti: un osservatore a 2 m può avere condizioni diverse dalla superficie. L'accessibilità alle PSR rimane fuori dal perimetro; riferimento futuro [F24].
 
-**Deciso (C1, 15/11/2026): solo un livello sulla mappa.** Si mostrano colorate, perché l'utente veda dove sono, ma **non** entrano nella valutazione delle regioni: niente distanza, raggiungibilità o effetto sulla classifica.
+### 4.6 Dalle celle al confronto regionale (C4 e C5)
 
-Se in futuro servisse un'analisi di accessibilità, il riferimento è Wueller et al. 2026 [F24], che la fa sulle regioni Artemis.
+Il precedente **punto papabile** è sostituito da **cella con visibilità concomitante**, senza giudizi sull'atterraggio. `B(T)` è l'insieme delle celle con geometria valida per cui a T valgono insieme `f_S >= 0,5` e `f_E >= 0,5`. La pendenza non entra in questa condizione.
 
-### 4.6 Punti papabili e confronto tra regioni
+Per ogni regione calcolare:
 
-**Deciso il 15/11/2026 (C4 e C5).**
+- area stimata di B(T);
+- aree cumulative `A_5(T)`, `A_10(T)`, `A_15(T)`: somma delle aree delle celle in B(T) con pendenza valida rispettivamente `<5°`, `<10°`, `<15°`;
+- area della maggiore componente connessa per B(T) e per ciascuna soglia, con **connettività a 4 vicini**: il solo contatto d'angolo non unisce due zone;
+- distribuzione delle quattro fasce e copertura valida di ciascuna metrica.
 
-**Punto papabile.** Ogni cella di 100 m di una regione (e ogni sito) è un punto candidato. È **papabile** se, all'istante T:
+Le aree cumulative si sovrappongono e **non si sommano**. Un'eventuale soglia scelta per un'analisi deve essere dichiarata nel risultato e non diventa esclusione predefinita.
 
-1. il Sole è visibile (criterio 1);
-2. la Terra è visibile (criterio 2);
-3. la pendenza su 100 m è **< 10°**, cioè 🟢 o 🟡 (criterio 8) [F1], [F21].
+Riportare km² e percentuale dell'area totale della regione, con denominatore esplicito. Usare area sulla superficie lunare di riferimento, correggendo proiezione e celle di bordo; non aumentare l'area disponibile con `1/cos(pendenza)`. La visibilità del centro campionato rappresenta una stima areale, non prova condizioni uniformi nell'intera cella. Verificare la qualità spaziale con campionamenti più fini dove necessario.
 
-Gli altri criteri non escludono un punto: dicono quanto è buono. I punti papabili restano **interni**: servono a valutare e ordinare le regioni, **non** si mostrano sulla mappa (resta valida la decisione del 14/11: il programma dice quale regione usare).
+L'assenza di una pendenza valida non impedisce B(T) se la geometria è nota, ma rende sconosciuto il contributo alle A_θ. Un DEM sufficiente per l'orizzonte lontano può essere insufficiente per il fit su 100 m. Interpolare dati grossolani non crea dettaglio: restituire **non valutabile alla scala richiesta**. Pubblicare area valutata, area ignota e contributi noti; l'ignoto non vale zero né terreno favorevole.
 
-**Regione considerata o scartata.** Una regione è considerata solo se ha almeno un punto papabile. Altrimenti è scartata, con il motivo: la condizione che ha escluso più celle, per esempio "nessun punto con la Terra visibile all'atterraggio".
+Tutte le regioni restano nel confronto. Con copertura completa e B(T) vuoto, riportare **nessuna cella soddisfa simultaneamente le due condizioni a T**, non “regione inadatta all'atterraggio”. Con copertura incompleta distinguere risultato parziale e non valutabile. Esporre conteggi Sole, Terra e intersezione, senza attribuire falsamente ogni assenza a un solo criterio.
 
-**Confronto tra regioni**, senza pesi. Ogni passo decide solo a parità del precedente:
+**Confronto per metrica, nessun vincitore assoluto.** Eliminati pesi, punteggio globale e cascata tenuta > area > luce > Terra. Ogni ordinamento indica la metrica; pareggi, qualità e dati mancanti restano espliciti. Si possono evidenziare separatamente area poco inclinata, finestre lunghe o persistenza alle date.
 
-1. **tenuta** (criterio 10): per quanti giorni di slittamento, fino a ± 3, la regione ha ancora punti papabili;
-2. **area papabile**: km² di punti papabili all'istante T, cioè il margine se il lander non tocca il punto previsto (IM-2 è atterrato a ~250 m dal bersaglio [F14]);
-3. **ore di luce continua** (criterio 5) del punto papabile migliore;
-4. **ore di contatto con la Terra** (criterio 6) del punto papabile migliore.
+Un sito rappresentativo conserva ID, coordinate e regola di selezione: tutte le prestazioni congiunte appartengono alla **stessa cella**. Massimi regionali in celle diverse devono avere i rispettivi identificativi. Le vecchie stime ottenute con classi <8°/8–10° e fit quadrati sono ritirate dai risultati operativi: occorre ricalcolarle secondo la nuova specifica.
 
-Tutti i valori restano visibili in tabella, e l'utente può riordinare per qualsiasi colonna.
+### 4.7 Robustezza alle date (C7)
 
-**Area papabile e topografia.** La topografia entra nei punti papabili attraverso la pendenza (criterio 8) e la maschera d'orizzonte (criteri 1 e 2: ombre e Terra coperta). L'area si misura sulla mappa, cioè numero di celle × 0,01 km². Le correzioni sono trascurabili ma si applicano: il fattore di scala della stereografica polare vale 1,0005–1,0055 tra 89° e 84°S, e la superficie inclinata è più grande di 1/cos(pendenza), cioè meno dell'1,5% sotto i 10°.
+Valutare T e T ± 1, 2, 3 giorni alla stessa ora UTC. L'intervallo ±3 giorni è una **Scelta del team**, non una prescrizione NASA.
 
-**Prima stima (15/11/2026), solo pendenza**, dal DEM ADJ della PGDA a 20 m [F19], piano ai minimi quadrati su ogni cella di 100 m:
+- **Alternative regionali:** riportare B(T+j), A_5, A_10, A_15 e componenti connesse a ogni data. Le alternative possono trovarsi in luoghi diversi.
+- **Persistenza della stessa zona:** intersecare le celle di B nelle date considerate; fare lo stesso per ogni soglia descrittiva. Riportare area e maggiore componente dell'intersezione.
+- **Anticipi e ritardi separati:** indicare gli insiemi di date, per esempio `{T, T+1g, T+2g}`. Un esito sfavorevole a +1 non cancella +2 e +3: i buchi restano visibili.
+- **Nessuna continuità implicita:** campioni giornalieri favorevoli non garantiscono le ore intermedie. Una finestra continua richiede serie temporale e ricerca degli eventi, con errore numerico dichiarato.
+- **Qualità:** dati mancanti a una data rendono non determinata la persistenza completa; distinguere contributi dimostrati e area ignota.
 
-| Regione | 🟢 < 8° | 🟡 8–10° | 🟠 10–15° | 🔴 > 15° | Area con pendenza < 10° |
-|---|---|---|---|---|---|
-| de Gerlache Rim 2 | 22,8% | 10,7% | 33,3% | 33,2% | 133,8 km² su 400 |
-| Malapert Massif | 10,8% | 5,9% | 20,0% | 63,3% | 73,6 km² su 441 |
-
-È un **limite superiore**: i punti papabili saranno di meno, perché all'istante T servono anche Sole e Terra visibili.
-
-### 4.7 Ancora da definire
-
-| # | Cosa | Note |
-|---|---|---|
-| C1 | Ruolo delle ombre permanenti | **Deciso (15/11):** solo livello sulla mappa (4.5) |
-| C2 | Durata della permanenza | **Eliminata (15/11):** le misure vanno da T fino all'evento (4.3) |
-| C3 | Frazione di disco che conta come "visibile" | **Deciso (15/11):** almeno metà del disco, per Sole e Terra (4.2) |
-| C4 | Come si passa dalle celle alla regione | **Deciso (15/11):** punti papabili (4.6) |
-| C5 | Come si confrontano le regioni | **Deciso (15/11):** tenuta, area papabile, ore di luce, ore di contatto (4.6) |
-| C6 | Soglia dell'illuminazione annua | **Deciso (15/11):** ≥ 80%, Scelta del team, confrontata con il massimo noto del 92,27% [F25] (4.4) |
-| C7 | Quando si "regge" uno slittamento (criterio 10) | **Deciso (15/11):** vedi sotto |
-
-**Decisione C7 (15/11/2026): quando si regge uno slittamento.**
-
-- Un **punto** regge uno slittamento di j giorni se a T + j (alla stessa ora) è ancora **papabile**: Sole e Terra visibili e pendenza < 10° (4.6). Si usa la stessa regola dei punti papabili, così il criterio resta coerente.
-- Una **regione** regge se a T + j ha ancora almeno un punto papabile.
-- La tenuta si riporta **separata per ritardi e anticipi**, perché in pratica gli slittamenti sono soprattutto ritardi: "regge fino a +2 giorni di ritardo e −1 di anticipo". Conta solo una serie **senza buchi**: se a +1 non regge, +2 e +3 non contano.
-- Nel confronto tra regioni (4.6, passo 1) vale il minimo dei due versi; a parità, il ritardo.
-- La prima notte (criterio 7) non entra nella regola: si mostra per ogni data vicina con il suo avviso, ma non decide la tenuta.
-- I giorni (fino a ± 3) restano una **Scelta del team**. La NASA conferma che la robustezza alle date conta [F26], ma non indica un numero di giorni.
+Buio e intervalli sotto soglia si riportano a ogni data, ma nessun limite VIPER decide la robustezza. Una durata troncata non viene trattata come durata finale nell'ordinamento.
 
 ### 4.8 Limiti da dichiarare
 
-- I DEM non vedono massi e piccoli crateri sotto la loro risoluzione (5–20 m al polo) [F6].
-- Nessun modello termico: si misura la durata del buio, non la temperatura.
-- Nessuna valutazione di traiettoria o di relay.
+- I dati orbitali non certificano sicurezza né risolvono tutti i massi e crateri minori.
+- La base di 100 m e l'altezza di 2 m sono riferimenti geometrici; un mezzo richiede analisi specifica.
+- Sole visibile non equivale a potenza elettrica; Terra visibile non equivale a collegamento radio disponibile.
+- Esclusi modelli termici, traiettorie, relay e dispersione del touchdown.
+- Coordinate approssimate e centri di formazioni descrivono punti illustrativi, non necessariamente i siti missione reali.
+- Risoluzione nominale ed effettiva sono diverse; errori dichiarati a una scala non si trasferiscono automaticamente a un'altra.
+- Dati provenienti da NASA o da archivi statunitensi non implicano approvazione o validazione NASA dei risultati dell'engine.
 
 ---
 
-## 5. Fase 5: algoritmo di valutazione
+## 5. Fase 5: algoritmo di valutazione da implementare
 
-### 5.1 Calcolo preliminare (una volta, offline)
+### 5.1 Calcolo preliminare (offline)
 
-Per ogni regione:
+1. Costruire celle da 100 m e area sulla superficie di riferimento, inclusi bordi dei poligoni.
+2. Selezionare DEM, terreno vicino e lontano in base alla qualità; conservare NoData, risoluzione effettiva, errori e provenienza.
+3. Calcolare fit circolare su 100 m, pendenza, fascia e qualità; segnalare i casi non valutabili.
+4. Calcolare maschere d'orizzonte a 2 m. I 360 campioni sono iniziali; numero finale, raggio del terreno e precisione derivano dalle prove di convergenza.
+5. Conservare prodotti e metadati in `data/regions/<id>/`; formato e quantizzazione non devono superare le tolleranze d'errore dichiarate.
+6. Acquisire la tabella globale Horizons con distanze solare e terrestre e header originali. Per la Luna vista dal geocentro usare quantità 14, 15, 19 e 20, verificando epoche, correzioni e unità rispetto alle query topocentriche [F5], [F32].
 
-1. celle da 100 m dentro il poligono;
-2. pendenza su 100 m per ogni cella, dal DEM più fine disponibile [F6];
-3. appartenenza a un'ombra permanente, da `lpsr_*` [F7];
-4. horizon mask di 360 valori per ogni cella, con il metodo del README: DEM lontano a 240 m, DEM vicino a 5–20 m, curvatura, osservatore a 2 m [F13];
-5. salvataggio in file NumPy in `data/regions/<id>/` (per esempio `cells.npz` e `horizon.npy`, leggibile a pezzi senza caricarlo tutto). A 360 valori interi per cella sono circa 0,7 KB per cella, ~350 MB per tutte le regioni a 100 m.
+Le quantità globali sono apparenti, con tempi di luce riferiti all'osservatore geocentrico. Il passaggio alla geometria locale è un percorso da validare, non un semplice cambio di frame automaticamente equivalente. Se non rispetta le tolleranze, usare query topocentriche Horizons o vettori Horizons con frame e correzioni verificati; la fonte delle effemeridi rimane JPL Horizons.
 
-Effemeridi: tabella Horizons globale a passo orario per gli anni che vogliamo coprire, salvata in `data/cache/`. Due anni sono ~17.500 righe, circa 1 MB [F13]. La stessa tabella serve ai criteri dopo l'atterraggio, al calendario annuale e alla tenuta ± 1–3 giorni.
+### 5.2 Per ogni richiesta T
 
-### 5.2 Per ogni richiesta (istante di atterraggio T)
-
-1. Righe di effemeridi da T − 3 giorni fino a quando si chiudono gli eventi dei criteri 5–7 (al più un mese lunare dopo T + 3 giorni), e su 365 giorni per il calendario.
-2. Per ogni cella e ogni ora: azimut ed elevazione di Sole e Terra nel sistema locale, a partire dai punti sub-solare e sub-terrestre, con la parallasse della Terra calcolata da `delta` [F5] (metodo del README [F13]).
-3. Confronto con la maschera d'orizzonte, interpolata sull'azimut: frazione visibile dei dischi di Sole e Terra (4.2).
-4. Criteri 1–9 per ogni cella (4.3), poi il criterio 10 ripetendo i criteri 1–7 a T ± 1, 2, 3 giorni.
-5. Punti papabili di ogni regione, regioni scartate con il motivo, confronto tra le regioni considerate (4.6).
+1. Verificare i dati a T, alle date vicine e nell'anno UTC pertinente; distinguere copertura completa, parziale e assente per metrica.
+2. Calcolare geometria, elevazioni orizzontali, margini e frazioni; includere le eclissi nella frazione solare effettiva.
+3. Cercare eventi e finestre adattivamente fino al termine dei dati validi; raffinare attraversamenti, conservare intervalli troncati e cause.
+4. Calcolare criteri 1–9 e date vicine, riusando solo i prodotti realmente indipendenti da data o anno.
+5. Aggregare B(T), A_5/A_10/A_15, componenti, copertura e persistenza delle stesse celle.
+6. Restituire misure e metadati; applicare solo un eventuale ordinamento esplicitamente richiesto su una metrica.
 
 ### 5.3 Risultato per regione
 
-Per ogni regione:
-
 ```text
-atterraggio (1–4): Sole e Terra visibili, elevazioni sopra l'orizzonte locale
-dopo l'atterraggio (5–7): ore di luce, ore di contatto con la Terra, prima notte (avviso > 50 h)
-terreno (8): celle per classe di pendenza (verde, giallo, arancione, rosso)
-anno (9): % di illuminazione annua, calendario dei giorni buoni
-tenuta (10): criteri 1–7 a T−3 … T+3 giorni
-stato: considerata | scartata (motivo)
-punti papabili: area in km², valori del punto migliore (interni, non mostrati sulla mappa)
-posizione nel confronto
+istante: T UTC
+geometria: frazioni Sole/Terra, elevazioni orizzontali, margini, cause
+finestre: luce sopra soglia, visibilità geometrica Terra, buio completo, sotto soglia
+          inizio/fine osservati, durata residua, censura e copertura temporale
+terreno: pendenza su supporto circolare 100 m, fasce [0,5), [5,10), [10,15), >=15
+anno: P50, anno UTC, durata valutata/totale; evidenziazione >=80% solo se completo
+aree: B(T), A_5(T), A_10(T), A_15(T), km²/%regione, area ignota per metrica
+continuità spaziale: maggiore componente a 4 vicini per ogni insieme
+robustezza: alternative per data e intersezioni delle stesse celle; anticipi/ritardi
+sito rappresentativo eventuale: ID, coordinate, selezione e metriche congiunte
+confronto: metrica esplicita; nessun punteggio o vincitore universale
+qualità: valutabile/parziale/non valutabile, fonti, errori e approssimazioni
 ```
 
 ### 5.4 Fatto quando
 
-- Su de Gerlache Rim 2 e Malapert Massif, per una data, il calcolo produce i criteri 1–10 in pochi secondi.
-- I test coprono: conversione delle coordinate, az/el contro Horizons, maschera d'orizzonte su terreno sintetico (già fatta nel prototipo [F13]), classi di pendenza e durata del buio su casi noti.
+- Le due regioni di sviluppo producono tutte le misure, copertura e censura, in tempi misurati. L'obiettivo di risposta interattiva non giustifica omissioni scientifiche silenziose.
+- I controlli numerici coprono geometria, terreno, confini 5°/10°/15°, dischi, eclissi, eventi brevi, intervalli troncati, dati mancanti, componenti e intersezioni fra date.
+- Le verifiche del prototipo esterno sono riprodotte con artefatti disponibili; non sostituiscono la validazione del nuovo engine.
 
 ---
 
-## 6. Fase 6: validazione con dati indipendenti
+## 6. Fase 6: verifica, validazione e incertezza
 
-| Controllo | Riferimento | Cosa deve risultare |
+Prima dei confronti, fissare dominio d'uso, metriche d'errore e tolleranze del team. Conservare casi, parametri, versioni e risultati. La concordanza fra modelli basati sullo stesso DEM è coerenza numerica; le immagini aggiungono un confronto osservativo [F31].
+
+| Controllo | Riferimento | Evidenza richiesta |
 |---|---|---|
-| Effemeridi | Horizons topocentrico (`CENTER='coord@301'`) [F5] | Az/el uguali per 3 celle per regione; il prototipo ha già mostrato uno scarto < 0,001° [F13] |
-| Ombre permanenti | `lpsr_*` [F7] | Nessuna cella in ombra permanente vede mai il Sole |
-| Illuminazione media | `avgvisib_*`, Sole e Terra [F7] | Su ~50 celle, la nostra media oraria su 18,6 anni è vicina alla mappa NASA; si riportano le differenze |
-| Illuminazione osservata | `WAC_POLE_ILL_PCT_SOUTH_100M` [F8] | Sulle celle di de Gerlache Rim 2 a sud di 88°S, nel periodo febbraio 2010 – febbraio 2011, la nostra % di luce è coerente con quella delle immagini |
-| Affermazione NASA | "Tutte le 13 regioni contengono siti con luce continua per 6,5 giorni" [F3] | Nell'arco di un anno, ogni regione ha almeno una cella con 6,5 giorni di luce continua |
-| Orizzonte a vista | QuickMap, "Create Panorama" | Il profilo calcolato somiglia al panorama per 2–3 punti |
+| Provenienza e coordinate | Header Horizons, label PDS/PGDA, geometrie Moon Trek | Hash, versioni, frame, unità, quote, epoche, orientamento, NoData e copertura |
+| Geometria astronomica | Horizons topocentrico `CENTER='coord@301'` [F5] | Errori medi, massimi e distribuzione su siti, stagioni e attraversamenti; nessuna accuratezza ereditata dal solo README |
+| Pendenza | Piani sintetici e `LDRM_80S_50MPP_ADJ_SLP_100M.TIF` [F19] | Stesso supporto circolare e scala; errori e concordanza delle fasce |
+| Orizzonte e dischi | Sfera liscia, ostacoli sintetici e occultatori sovrapposti | Profili e frazioni attesi, ombre ed eclissi separate e combinate |
+| Convergenza | Risoluzioni angolari/temporali e DEM più fitti | Variazioni di eventi, percentuali, aree e ordinamenti; ricerca di eventi brevi fra estremi orari uguali |
+| PSR e AVGVISIB | PGDA/PDS [F7] | Stessa altezza, DEM, periodo e definizione `f > 0`; P50 annuale a 2 m non è equivalente alla media pluriennale superficiale |
+| Casi pubblicati | Gläser/Barker [F19], [F25] | Stesse coordinate, periodo, altezza e definizione; motivare differenze |
+| Illuminazione osservata | Immagini LROC e WAC PCT/TWI [F8], [F30] | Confronti ai tempi di acquisizione; rispettare copertura, pesi e interpolazioni del prodotto; misurare accordi e disaccordi |
+| Incertezza | Errori, risoluzione effettiva e cloni DEM disponibili | Sensibilità di pendenza, frazioni, aree e persistenza; separare errore fisico e numerico |
+| Confronto qualitativo | QuickMap Panorama / Visibility Analysis | Controllo manuale supplementare, non validazione quantitativa sufficiente |
 
-Se un controllo fallisce, si corregge prima di andare avanti: tutto il resto dipende da questi.
+La promessa storica di finestre di 6,5 giorni nelle regioni Artemis non è un test universale per ogni anno, altezza o definizione: vanno ricostruite le condizioni originali. Lo stesso vale per i 240 giorni di Mazarico e il 92,27% di Gläser.
+
+Produrre un rapporto “caso, fonte, metrica, scarto osservato, tolleranza fissata prima, esito”, includendo i casi non validati. Le configurazioni numeriche definitive e i criteri di qualità si determinano con le prove; non sono requisiti NASA inventati. Questo intervento aggiorna soltanto la documentazione, senza implementare o eseguire tali verifiche.
 
 ---
 
-## 7. Fase 7: dati al frontend (da completare con la UI)
+## 7. Fase 7: integrazione successiva all'algoritmo
+
+**Rinviata per decisione dell'utente:** questo aggiornamento documentale non richiede lavoro sul frontend. Le note seguenti conservano l'architettura già predisposta; nomi e schemi dei risultati scientifici saranno allineati dopo la realizzazione e verifica dell'algoritmo.
 
 **Il contratto esiste già:** il team ha scritto `docs/api-contract.md` e, in dettaglio, `backend/API_CONTRACT.md` (14/11/2026). Il frontend usa già i tipi in `frontend/src/api/types.ts`. Le regole principali sono:
 - tutte le API sotto `/api`;
@@ -401,7 +386,7 @@ Se un controllo fallisce, si corregge prima di andare avanti: tutto il resto dip
 - lavori asincroni (`JobState`) per le analisi;
 - cinque endpoint di livello C già letti dal client: `GET /api/coverage`, `POST`/`GET /api/terrain-analyses`, `POST`/`GET /api/scenario-evaluations`.
 
-Il backend va costruito su quel contratto. FastAPI pubblica comunque la propria descrizione su `/api/openapi.json`.
+Il contratto va allineato alle definizioni scientifiche approvate prima di collegare l'engine: eventuali campi legacy di punteggio o idoneità non prevalgono sui criteri della Fase 4. FastAPI pubblica la propria descrizione su `/api/openapi.json`.
 
 Già fatto:
 - tutte le rotte del backend sono sotto `/api`;
@@ -410,8 +395,8 @@ Già fatto:
 
 Da chiarire nel team:
 - **framework: risolto (15/11/2026).** `backend/API_CONTRACT.md` ora prevede FastAPI. Il backend di Kevin (branch `backend`) è integrato nella stessa applicazione: rotte `/api/data/...` per acquisizione, preparazione (JSON, Parquet) e job persistenti, con i dati in `backend/data/`;
-- **`GET /api/sites`:** nel contratto restituisce un `SiteCatalog` in camelCase, con `coordinateStatus` e siti anche equatoriali (Apollo). Il nostro restituisce GeoJSON dei siti di `sites.toml`, limitati al settore polare. Il frontend oggi non lo legge, ma i due formati vanno unificati;
-- **regioni:** `/api/regions` e la classifica delle regioni non sono nel contratto. Vanno aggiunte come estensione concordata.
+- **`GET /api/sites`:** nel contratto restituisce un `SiteCatalog` in camelCase, con `coordinateStatus` e siti anche equatoriali (Apollo). Il catalogo locale restituisce GeoJSON dei siti di `sites.toml`, anche fuori dal settore polare. I formati andranno unificati;
+- **regioni:** il confronto delle metriche e delle aree regionali richiede un'estensione concordata del contratto, senza classifica universale.
 
 Bozza degli endpoint per le regioni (estensione del contratto):
 
@@ -419,54 +404,59 @@ Bozza degli endpoint per le regioni (estensione del contratto):
 |---|---|
 | `GET /api/health` | Stato del servizio |
 | `GET /api/regions` | **Già fatto.** GeoJSON delle regioni in latitudine e longitudine, con nome, liste di appartenenza (2022, 2024), area, DEM; `?active=true` per le sole attive |
-| `GET /api/ranking?t=…&duration_h=…` | Confronto tra le regioni (forma da definire con C5) |
-| `GET /api/regions/{id}/evaluation?t=…` | Dettaglio: criteri 1–10 (atterraggio, dopo l'atterraggio, terreno, anno, tenuta) |
+| Confronto regionale, endpoint da definire | Metriche ordinabili esplicite, aree B/Aθ, componenti e qualità; nessuna durata obbligatoria o punteggio globale |
+| `GET /api/regions/{id}/evaluation?t=…` | Bozza: criteri 1–10, eventi e copertura, aree concomitanti e robustezza |
 | `GET /api/regions/{id}/cells?t=…` | Stato delle celle per colorare la regione. Formato da decidere con la UI (D12) |
 | `GET /api/sites` | **Già fatto.** Siti di atterraggio in GeoJSON con la loro cella di 100 m; in seguito anche la loro valutazione |
 
 Da decidere insieme alla UI:
 
 - **formato delle celle**: GeoJSON (semplice ma pesante con migliaia di celle), griglia compatta più georeferenziazione, oppure immagine PNG da sovrapporre in Cesium;
-- **cache dei risultati** in memoria (ed eventualmente in file JSON), per data arrotondata e parametri;
+- **cache dei risultati** in memoria e file, indicizzata da epoca, parametri e versioni dei dati; eventuali arrotondamenti devono rispettare le tolleranze degli eventi;
 - **schemi Pydantic** per le risposte: oggi `/regions` e `/sites` restituiscono GeoJSON generico, quindi lo schema OpenAPI non descrive ancora i campi;
 - **strumenti dell'agente AI** del README [F13] (`list_sites`, `compare_sites`, …): l'agente sta nel backend Python e chiama direttamente le stesse funzioni delle API. Gli strumenti sono pensati per siti e vanno adattati alle regioni;
 - ⚠️ ellissoide lunare in CesiumJS (`Cesium.Ellipsoid.MOON`), da verificare nella versione installata.
 
 ---
 
-## 8. Decisioni da prendere
+## 8. Decisioni approvate e dettagli da verificare
 
-Le decisioni sui criteri del 14/11 (D3–D7, D9–D11) sono **superate** dalla nuova Fase 4. Restano:
+Le decisioni sui criteri del 14/11 (D3–D7, D9–D11) e le precedenti soglie operative sono **superate** dalla Fase 4:
 
 | # | Decisione | Stato |
 |---|---|---|
 | D1 | Confine del settore | **Deciso:** 84°S, solo per le regioni (`lat_limit` in `regions.toml`) [F1] |
 | D2 | Regioni attive | Per lo sviluppo de Gerlache Rim 2 e Malapert Massif; a regime tutte le 13 |
-| — | Profili di missione | **Deciso (15/11):** nessun profilo, misure con soglie NASA di riferimento (4.1) |
-| — | Criteri | **Decisi (15/11):** criteri 1–10 (4.3): atterraggio, dopo l'atterraggio fino all'evento, terreno, anno, tenuta ± 1–3 giorni. Nessuna durata di permanenza |
-| — | Scala di pendenza | **Decisa (15/11):** < 8°, 8–10°, 10–15°, > 15° su 100 m (4.4) |
-| — | Buio continuo | **Deciso (15/11):** avviso oltre 50 ore, riferimento VIPER (4.4) |
-| C1 | Ombre permanenti | **Deciso (15/11):** solo livello sulla mappa (4.5) |
-| C3 | Sole e Terra visibili | **Deciso (15/11):** almeno metà del disco (4.2) |
-| C4, C5 | Punti papabili e confronto | **Deciso (15/11):** 4.6 |
-| C6, C7 | Illuminazione annua e tenuta | **Deciso (15/11):** 4.4 e 4.7 |
-| D8 | Griglia delle maschere d'orizzonte | Da decidere dopo aver misurato i tempi |
+| — | Profili di missione | **Deciso:** nessun profilo; condizioni misurate e scelte del team distinte dai requisiti storici delle singole missioni |
+| — | Criteri | **Decisi:** dieci metriche (4.3), con copertura e qualità; nessuna durata di permanenza richiesta |
+| — | Scala di pendenza | **Decisa:** [0,5), [5,10), [10,15), ≥15°; nessun filtro a 10°; supporto circolare diametro 100 m distinto dalla griglia |
+| — | Buio e luce ridotta | **Deciso:** `f_S = 0` distinto da `f_S < 0,5`; eclissi incluse; 50 ore solo nota VIPER, senza avviso generale |
+| — | Modello termico | **Escluso:** la geometria da sola non determina temperatura, inerzia e proprietà termiche (4.4) |
+| C1 | Ombre permanenti | **Deciso:** informazione e validazione, nessun filtro automatico (4.5) |
+| C3 | Sole e Terra visibili | **Deciso:** almeno metà del disco; Sole effettivo dopo terreno ed eclissi (4.2) |
+| C4, C5 | Concomitanza e confronto | **Deciso:** B, aree cumulative A5/A10/A15, componenti a 4 vicini; metriche ordinabili senza punteggio globale (4.6) |
+| C6 | Illuminazione annua | **Deciso:** P50 dell'anno UTC, evidenziazione del team all'80%; benchmark 92,27% distinto |
+| C7 | Robustezza | **Deciso:** T ± 1, 2, 3 giorni; alternative e intersezione delle stesse celle, anticipi/ritardi separati, buchi espliciti (4.7) |
+| D8 | Risoluzioni numeriche | 360 direzioni e un'ora iniziali; tolleranze, convergenza, eventi brevi e tempi di elaborazione da misurare |
 | — | DEM del polo sud | PDS `ldem_*` o PGDA ADJ [F19]: da confrontare sulle 2 regioni |
-| D12 | Formato delle celle per il frontend | Con la UI |
+| — | Qualità e cache | Definire tolleranze prima delle prove, risoluzione minima, intervalli disponibili e gestione della censura |
+| D12 | Formato delle celle per il frontend | Rinviato a dopo l'algoritmo |
 
 ---
 
 ## 9. Ordine di lavoro
 
-1. Fase 1: Docker funzionante con `/health`.
-2. Criteri della Fase 4: decisi i criteri 1–10 il 15/11, tutti i criteri sono decisi.
+**Intervento corrente: solo documentazione.** Le attività successive sono il piano per la futura implementazione.
+
+1. Fase 1: ambiente Docker e `/api/health` già predisposti.
+2. Criteri della Fase 4: revisione approvata il 15/11, senza implementazione dell'engine in questo intervento.
 3. Fase 2: poligoni delle regioni convertiti e salvati, siti scelti e scritti in `sites.toml`. **Fatto.**
 4. Fase 3: download con manifest, prima per le 2 regioni di sviluppo.
-5. Portare il prototipo del README in `backend/app/services/` (effemeridi e horizon mask), con i suoi test.
-6. Fase 5 sulle 2 regioni, misurando i tempi, poi decisione D8.
-7. Fase 6: validazione.
-8. Estensione a tutte le 13 regioni e ai siti.
-9. Fase 7 insieme alla UI.
+5. Acquisire il prototipo esterno e i relativi artefatti; verificare quali parti siano riutilizzabili e riprodurre i confronti dichiarati.
+6. Definire tolleranze e casi della Fase 6, poi implementare la Fase 5 sulle 2 regioni con la relativa verifica numerica.
+7. Completare convergenza, validazione osservativa e rapporto delle incertezze; determinare la configurazione D8.
+8. Estensione a tutte le 13 regioni e ai siti con copertura e qualità sufficienti, mantenendo espliciti i risultati non valutabili.
+9. Fase 7 e frontend dopo l'algoritmo.
 
 ---
 
@@ -475,8 +465,8 @@ Le decisioni sui criteri del 14/11 (D3–D7, D9–D11) sono **superate** dalla n
 - **[F1]** L. Ortiz, NASA, *Artemis Human Landing System Overview*, presentazione per la NASA 2025 International Space Apps Challenge, 4 ottobre 2025. NTRS 20250009323. Slide 19 (caratteristiche del polo sud), 21 ("Key Artemis III Landing Requirements"), 23–28. https://ntrs.nasa.gov/api/citations/20250009323/downloads/ArtemisOverview2025IntSPAPPSChallenge.pdf
 - **[F2]** Z. Scoville, NASA, *Artemis III EVA Mission Capability for de Gerlache-Shackleton Ridge*. NTRS 20210026296. Slide 4: tolleranza di pendenza dell'HLS "almeno 8 gradi", da HLS-S-R-0071 (documento HLS-RQMT-006, 2021). https://ntrs.nasa.gov/api/citations/20210026296/downloads/Scoville%20Final%20presentation%20-%20compressed.pptx.pdf
 - **[F3]** NASA Moon Trek, layer *Artemis III Candidate Landing Regions, S Pole* (`A3_Named_regions_SP`) e relativo abstract (regioni annunciate il 19 agosto 2022, criteri e luce continua per 6,5 giorni). Poligoni: https://trek.nasa.gov/moon/trekarcgis2/rest/services/A3_Named_regions_SP/MapServer/0/query?where=1%3D1&outFields=label&returnGeometry=true&f=json. Abstract: https://trek.nasa.gov/moon/TrekWS/rest/cat/abstract?label=A3_Named_regions_SP. Annuncio: https://www.collectspace.com/news/news-081922a-artemis-iii-moon-landing-regions.html
-- **[F4]** Aggiornamento NASA a 9 regioni, 28 ottobre 2024: https://www.upi.com/Science_News/2024/10/28/nasa-artemis-moon-landing-regions/5971730152372/ e https://www.space.com/space-exploration/artemis/nasa-announces-9-possible-moon-landing-sites-for-artemis-3-lunar-mission
-- **[F5]** JPL Horizons API: https://ssd-api.jpl.nasa.gov/doc/horizons.html. Chiamata di verifica del 14/11/2026 con `COMMAND='301'`, `CENTER='500@399'`, `QUANTITIES='13,14,15,20'`.
+- **[F4]** NASA, *NASA Provides Update on Artemis III Moon Landing Regions*, 28 ottobre 2024. Lista storica a nove regioni. https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/. Prodotti cartografici USGS da verificare prima dell'integrazione: https://www.usgs.gov/data/down-selected-artemis-iii-candidate-landing-site-navigational-grids
+- **[F5]** JPL Horizons API: https://ssd-api.jpl.nasa.gov/doc/horizons.html. Configurazione globale prevista: `COMMAND='301'`, `CENTER='500@399'`, `QUANTITIES='14,15,19,20'`; validazione topocentrica secondo [F32].
 - **[F6]** LOLA GDR polari, PDS Geosciences Node: https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/polar/img/
 - **[F7]** E. Mazarico, NASA GSFC PGDA, *Lunar Polar Illumination*: https://pgda.gsfc.nasa.gov/products/69. File: https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/extras/illumination/img/. Da citare: Mazarico, E., et al. (2011), *Illumination conditions of the lunar polar regions using LOLA topography*, Icarus 211, 1066–1081, doi:10.1016/j.icarus.2010.10.030.
 - **[F8]** LROC, *WAC Percentage-Based Illumination 100mpp, S Pole* (`WAC_POLE_ILL_PCT_SOUTH_100M`), su Moon Trek. Riferimento: E. J. Speyerer, M. S. Robinson, *Persistently illuminated regions at the lunar poles: Ideal sites for future exploration*, Icarus 222 (2013) 122–136.
@@ -485,16 +475,22 @@ Le decisioni sui criteri del 14/11 (D3–D7, D9–D11) sono **superate** dalla n
 - **[F11]** IAU 2015 Resolution B3, valori nominali per le costanti solari (raggio solare nominale 695 700 km).
 - **[F12]** NASA Space Apps Challenge 2026, *Lunar Landing Site Navigator*: https://www.spaceappschallenge.org/2026/challenges/lunar-landing-site-navigator/
 - **[F13]** `README.md` del repository Meowrizon: criteri, riduzione dei dati, prototipo e verifiche del team.
-- **[F14]** IM-2: LROC, https://www.lroc.asu.edu/images/1401. IM-1: catalogo di Moon Trek.
+- **[F14]** Intuitive Machines, aggiornamento IM-2: fonte dell'operatore per il riferimento ai 250 m, non misura LROC né fonte NASA. https://investors.intuitivemachines.com/node/9481/pdf
 - **[F16]** NASA Moon Trek, layer *Lunar Anthropogenic Impacts and Spacecraft Sites* (`Lunar_Landing_Impact_Sites`, 7/11/2022), dati NSSDCA: https://trek.nasa.gov/moon/trekarcgis2/rest/services/Lunar_Landing_Impact_Sites/MapServer (sottolayer 1: atterraggi morbidi, 2: con equipaggio). Fonte dei dati: https://nssdc.gsfc.nasa.gov/planetary/lunar/lunar_artifact_impacts.html
 - **[F17]** LROC, posizione dei lander misurata nelle immagini di LRO: Chandrayaan-3 https://www.lroc.asu.edu/images/1314, Chang'e 6 https://www.lroc.asu.edu/images/1374, Blue Ghost M1 https://www.lroc.asu.edu/images/1407
 - **[F18]** USGS / IAU, *Gazetteer of Planetary Nomenclature*, centri delle formazioni lunari: https://planetarynames.wr.usgs.gov/shapefiles/MOON_nomenclature_center_pts.zip
-- **[F19]** M. K. Barker, NASA GSFC PGDA, *A New View of the Lunar South Pole from LOLA* (prodotto 90): https://pgda.gsfc.nasa.gov/products/90. File in https://pgda.gsfc.nasa.gov/data/LOLA_20mpp/. Riferimento: https://iopscience.iop.org/article/10.3847/PSJ/acf3e1
-- **[F20]** NASA, *VIPER Lunar Operations*: "può generalmente percorrere una pendenza fino a 15 gradi" e "non può sopportare più di 50 ore di buio continuo". https://science.nasa.gov/mission/viper/lunar-operations/ (letto il 15/11/2026)
+- **[F19]** M. K. Barker, NASA GSFC PGDA, *A New View of the Lunar South Pole from LOLA* (prodotto 90): DEM, qualità e slope con supporto circolare di diametro 100 m. https://pgda.gsfc.nasa.gov/products/90. File in https://pgda.gsfc.nasa.gov/data/LOLA_20mpp/. Riferimento: https://iopscience.iop.org/article/10.3847/PSJ/acf3e1. DEM a 5 m, errori e cloni per specifici siti: https://pgda.gsfc.nasa.gov/products/78
+- **[F20]** NASA, *VIPER Lunar Operations*: riferimento nominale di 15°, con capacità diverse in determinate condizioni; non limite universale di percorribilità. Per distinguere le condizioni delle 50 ore si usa [F28]. https://science.nasa.gov/mission/viper/lunar-operations/
 - **[F21]** *Landing site selected for the Blue Ghost Mission 1*, LPSC 2022, abstract 1390: requisiti CLPS e del lander con pendenze ≤ 10°; pendenze nell'ellisse scelta < ~5°. https://www.hou.usra.edu/meetings/lpsc2022/pdf/1390.pdf
-- **[F22]** *Lunar-VISE Landing Site Selection and Characterization at Mons Gruithuisen Gamma*, Planetary Science Journal (2026): per il task order CLPS CP-21, ellisse di 100 m e pendenze < 10°. https://iopscience.iop.org/article/10.3847/PSJ/ae7d2c ⚠️ letto da sintesi, da verificare nel testo
-- **[F23]** NASA, *Apollo Lunar Module Landing Gear*: stabilità del modulo lunare su pendenze fino a 12°. https://www.nasa.gov/wp-content/uploads/static/history/alsj/LM_Landing%20Gear1973010151.pdf ⚠️ da verificare nel testo
+- **[F22]** Williams et al., *Lunar-VISE Landing Site Selection and Characterization at Mons Gruithuisen Gamma*, Planetary Science Journal (2026): analisi della pendenza su base 4 m e vincoli CLPS specifici del progetto. https://doi.org/10.3847/PSJ/ae7d2c
+- **[F23]** NASA, *Apollo Lunar Module Landing Gear*: riferimento storico sul sistema di atterraggio; non usato per stabilire soglie generali o un limite di decollo. https://www.nasa.gov/wp-content/uploads/static/history/alsj/LM_Landing%20Gear1973010151.pdf
 - **[F24]** Wueller et al. (2026), *Assessing Potential Landing Sites With Favorable Illumination and Accessible, Potentially Volatile-Rich Permanently Shadowed Regions Within Artemis Candidate Landing Regions*, JGR Planets, doi:10.1029/2025JE009434
-- **[F25]** P. Gläser et al. (2014), *Illumination conditions at the lunar south pole using high resolution Digital Terrain Models from LOLA*, Icarus 243, 78–90, doi:10.1016/j.icarus.2014.08.013. Abstract: https://elib.dlr.de/94240 (92,27% delle ore a 2 m, 95,65% a 10 m, notti più lunghe di 3–5 giorni, su Connecting Ridge)
+- **[F25]** P. Gläser et al. (2014), *Illumination conditions at the lunar south pole using high resolution Digital Terrain Models from LOLA*, Icarus 243, 79–90, doi:10.1016/j.icarus.2014.08.013. Il 92,27% riguarda uno specifico punto di Connecting Ridge a 2 m in uno studio di 19 anni, con definizione diversa da P50 annuale. https://elib.dlr.de/94240
 - **[F26]** T. George, M. A. Rubio, S. J. Lawrence, P. Curell (NASA), *Artemis III Site Selection Update: Down-selection from 13 to 9 Candidate Regions*, 57th LPSC (2026), abstract 1901. https://www.hou.usra.edu/meetings/lpsc2026/pdf/1901.pdf
+- **[F27]** NASA Planetary Data System, Geosciences Node, *LRO Diviner*: osservazioni e prodotti delle temperature della superficie lunare. https://pds-geosciences.wustl.edu/missions/lro/diviner.htm
+- **[F28]** M. Shirley et al. (NASA Ames, SETI, Stanford), *VIPER Traverse Planning*, LPSC 2022, abstract 2874: 50 ore in ibernazione e 9 ore di normali operazioni all'ombra. https://www.hou.usra.edu/meetings/lpsc2022/pdf/2874.pdf
+- **[F29]** H. J. Fincannon, NASA Glenn, *Lunar Environment and Lunar Power Needs*: ombre topografiche ed eclissi terrestri nel contesto dell'alimentazione. https://ntrs.nasa.gov/api/citations/20205002224/downloads/Lunar%20Environment%20and%20Lunar%20Power%20Needs_2.pdf
+- **[F30]** LROC, *WAC Time-Weighted South Pole Illumination Map*: osservazioni 2010–2011, copertura e pesatura temporale documentate. https://data.lroc.im-ldi.com/lroc/view_rdr/WAC_POLE_ILL_TWI_SOUTH
+- **[F31]** NASA-STD-7009B, *Standard for Models and Simulations*: riferimento metodologico per verifica, validazione e incertezza; non dichiarazione di conformità del progetto. https://standards.nasa.gov/standard/NASA/NASA-STD-7009
+- **[F32]** JPL, *Horizons System Manual*: frame, quantità 14/15/19/20, tempi e geometria apparente. https://ssd.jpl.nasa.gov/horizons/manual.html
 - **[F15]** Immagine Docker `mambaorg/micromamba`: https://hub.docker.com/r/mambaorg/micromamba (tag verificati il 14/11/2026).

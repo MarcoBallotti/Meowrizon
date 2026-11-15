@@ -27,7 +27,9 @@ Altri comandi: `npm run build` (type-check + build), `npm run lint`, `npm run pr
 | `demo` (predefinito) | `DemoProvider`: orizzonte procedurale ed effemeridi analitiche approssimate. Il badge «Dati dimostrativi» resta sempre visibile. |
 | `api` | `HttpProvider` verso `VITE_API_BASE_URL` (predefinito `/api`). In sviluppo Vite inoltra `/api` a `MEOWRIZON_API_ORIGIN`, predefinito `http://localhost:8000` (in Docker `http://backend:8000`). In produzione lo stesso inoltro lo fa nginx (`nginx.conf`). |
 
-Vedere [`.env.example`](.env.example) e il contratto in [`docs/api-contract.md`](../docs/api-contract.md).
+Vedere [`.env.example`](.env.example) e il [contratto corrente](../docs/api-contract.md), con [mappa delle interazioni e righe di codice](../docs/api-integration-map.md), [dizionario JSON e visualizzazioni](../docs/api-data-dictionary.md) e [piano TanStack Query](../docs/api-query-plan.md). TanStack non è ancora installato. Verifica delle ancore: `python3 scripts/verify_api_integration.py` dalla radice.
+
+La modalità `api` cambia solo i cinque metodi del provider: ranking, esempi, eclissi, luce del globo e orbite hanno ancora percorsi mock/locali censiti. Gli endpoint scientifici server non sono implementati; regioni, siti, acquisizione dati e coverage (catalogo vuoto, nessun DEM pronto) sono già presenti. I nuovi DTO scientifici richiedono ancora le decisioni U01–U09 del contratto.
 
 ## Struttura
 
@@ -36,7 +38,9 @@ src/
   api/          types.ts (contratto), httpProvider, demoProvider, jobs (polling)
   domain/       siti di esempio, formattazione, lettura di campioni e intervalli
   state/        store esterno (useSyncExternalStore) e runner dei lavori
-  components/   ControlPanel, GlobeView (lazy), HorizonView, TimelineView, …
+  screens/      Home/Explore (MoonScreen), SiteScreen, Brand kit
+  features/     globo, panorama, timeline, report, eclissi, orbite e grafici
+  ui/           componenti condivisi, controlli e DateDial
 ```
 
 ## Scelte implementative
@@ -49,6 +53,6 @@ src/
 
 ## Limiti noti
 
-- Nessun backend: con `demo` i numeri non hanno valore scientifico.
+- Backend presente per cataloghi/acquisizione, engine scientifico non ancora implementato o collegato; con `demo` i numeri non hanno valore scientifico.
 - Le immagini equirettangolari si deformano vicino ai poli. Un mosaico polare stereografico richiederebbe tessere preparate apposta.
 - Le coperture DEM mostrate sul globo sono fasce di latitudine dichiarate, non la disponibilità effettiva dei dati.

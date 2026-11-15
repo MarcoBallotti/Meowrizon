@@ -2,7 +2,19 @@
 
 > Historical planning record, moved inside the backend at the user's request. Current runnable service instructions and backend-local data paths are in [../README.md](../README.md). References to frontend/repository files below are planning context, not runtime dependencies.
 
-Last updated: 2026-11-14.
+**Superseded scientific scope — decision of 2026-11-15.** The approved surface engine is
+defined in [criteria](../../docs/criteri-algoritmo.md) and [implementation plan](../../docs/piano-logica.md).
+They take precedence over this historical discussion, including earlier full-flight
+requirements, vehicle profiles, hard slope filters, weighted rankings and body-centre
+visibility. Those proposals are not active requirements or prerequisites for the engine.
+The approved model takes a surface epoch T, uses JPL Horizons and numerical LOLA products
+from Moon Trek/PDS/PGDA, and uses QuickMap only for manual comparison. Slope bands are
+[0°,5°), [5°,10°), [10°,15°), ≥15°, with no automatic 10° rejection. Regional outputs
+are geometric areas, cumulative slope areas, connected areas, time windows and quality,
+without a global score. The engine and subsequent client integration remain unimplemented;
+existing frontend descriptions below are an inventory of the older client, not its redesign.
+
+Historical record dated 2026-11-14; precedence note added 2026-11-15.
 
 This is the project's running record of ideas, requirements, recommendations and unresolved choices. Update it as the discussion develops; label proposals and verified results separately. A recommendation here is not automatically a team decision or an implemented feature.
 
@@ -12,11 +24,11 @@ Related documents: [README.md](README.md) describes the repository baseline; [da
 
 The user requires all implementation, configuration, saved data and working documents to stay inside `backend/`. Root README changes were reverted; generated planning documents moved into `backend/docs/`; raw and prepared files moved into `backend/data/`. The service runs from `backend/` with `python -m uvicorn app:app --port 8000` and needs no parent repository or frontend files.
 
-FastAPI exposes `/api/data/sources`, collection/preparation jobs and job polling, dataset listing, time-series filtering, product filtering and native region data. Work is serialized by a local worker with persistent JSON jobs and file locks. No database is used. Scientific terrain/visibility/flight/ranking endpoints remain separate pending work. The optional CLI is `python -m app` from this directory. Startup does not automatically download data.
+FastAPI exposes `/api/data/sources`, collection/preparation jobs and job polling, dataset listing, time-series filtering, product filtering and native region data. Work is serialized by a local worker with persistent JSON jobs and file locks. No database is used. Scientific terrain, visibility and regional-comparison endpoints remain to be implemented; flight and global-ranking endpoints belong to the superseded proposal. The optional CLI is `python -m app` from this directory. Startup does not automatically download data.
 
 Validation: 25 tests passed, live HTTP collection reused all 12 default source responses, filtering returned the requested seven hourly samples, and an isolated copy containing only `app/` and `config/` ran successfully without repository-root files. The following sections retain the prior brainstorming history.
 
-## 1. Objective and confirmed user requirements
+## 1. Historical objective and requirements discussed on 2026-11-14
 
 - Project: NASA Space Apps [Lunar Landing Site Navigator](https://www.spaceappschallenge.org/2026/challenges/lunar-landing-site-navigator/?tab=resources).
 - Build an interactive React web app that compares lunar landing locations and mission times, using the challenge's NASA/JPL/LROC resources.
@@ -31,7 +43,7 @@ Validation: 25 tests passed, live HTTP collection reused all 12 default source r
 
 ## 2. Current repository and missing prerequisites
 
-Latest implementation decision (2026-11-14): the team explicitly chose **FastAPI and file storage, no database**, superseding the earlier Flask choice and the SQLite storage proposal. The standalone `python -m backend.app fetch` command saves original JSON/TIFF/XML/images with provenance under `data/raw/`. `prepare` builds JSON manifests and compressed Parquet tables under `data/prepared/`; `data-info` lists snapshots. The FastAPI shell exposes `/health` and documentation; scientific/frontend routes and final ranking contracts remain pending. Identical successful downloads are reused; refresh preserves previous versions. There is a separate historical Blue Ghost configuration. See [backend/README.md](../README.md).
+Latest implementation decision (2026-11-14): the team explicitly chose **FastAPI and file storage, no database**, superseding the earlier Flask choice and the SQLite storage proposal. The standalone `python -m backend.app fetch` command saves original JSON/TIFF/XML/images with provenance under `data/raw/`. `prepare` builds JSON manifests and compressed Parquet tables under `data/prepared/`; `data-info` lists snapshots. The FastAPI shell exposes `/health` and documentation; scientific metrics and their subsequent client integration remain to be implemented. Ranking contracts were part of the superseded proposal. Identical successful downloads are reused; refresh preserves previous versions. There is a separate historical Blue Ghost configuration. See [backend/README.md](../README.md).
 
 Acquisition run completed on 2026-11-14: 12 default responses plus one Blue Ghost response saved locally (4,144,471 response-body bytes total). The catalogs contain 396 south-pole and 1,256 global products; the dated region layer contains 13 polygons. Each Horizons example has 25 samples; the Blue Ghost example has three. Seven offline acquisition tests passed for raw-byte preservation, cache reuse/corruption, version preservation, provider-error handling, truncation and continued collection after a source failure. Checksums of all saved responses matched their metadata. This verifies ingestion, not numerical/scientific correctness or complete site coverage.
 
@@ -49,11 +61,11 @@ The current data-management layer uses:
 
 Preparation runs offline. The 13 existing responses were imported successfully; repeating preparation reused all 13. Prepared files total approximately 450 KiB for these examples, additional to the original downloads. This is storage/parsing verification, not a scientific validation or complete regional dataset. The implementation is tested for time/unit handling, raw/prepared corruption, failed imports, writer locking, parameter separation, masked raster reads and FastAPI startup.
 
-**Proposed request pipeline:** React parameters → FastAPI input/coverage validation → resolve exact source versions → reuse/calculate terrain and visibility products → apply mission requirements → rank qualifying candidates → return compact results, explanations and provenance. This processing/ranking API is not implemented by the storage work.
+**Historical request pipeline, superseded for the general engine:** React parameters → FastAPI input/coverage validation → resolve exact source versions → reuse/calculate terrain and visibility products → apply mission requirements → rank qualifying candidates → return compact results, explanations and provenance. This earlier processing/ranking API was not implemented by the storage work; current surface metrics follow the canonical criteria.
 
 Cache terrain by source hashes, precise site/height, search radius, sampling, reference frame/datum and algorithm version. Cache scenarios separately by terrain result ID, time bounds, ephemeris versions and calculation settings. Persist derived products in files with manifests, not a database. Keep outputs separate from original measurements so algorithms can be changed and rerun.
 
-For ranking, first reject known violations and distinguish unknown/missing data. Then combine documented, normalized desirability metrics with configurable weights. The team still needs mission-specific limits and scoring choices; none are hardcoded into this storage layer. No AI training or Kalman filter is required for source preparation. Raster smoothing could remove hazards and must not be an automatic cleaning step.
+That historical ranking proposal first rejected known violations and then combined normalized desirability metrics with configurable weights. Its mission-specific limits and scoring choices are not requirements of the approved general engine, and none are hardcoded into this storage layer. No AI training or Kalman filter is required for source preparation. Raster smoothing could remove hazards and must not be an automatic cleaning step.
 
 ### Current frontend context — source review, 2026-11-14
 
@@ -111,7 +123,7 @@ Missing prerequisites for a new full-flight calculation:
 
 A launch timestamp alone cannot determine a unique spacecraft trajectory. Presets can make these engineering choices simple for the user, but the choices must exist in the backend.
 
-## 3. What does “best landing site” mean?
+## 3. Historical proposal for “best landing site” — superseded for the general engine
 
 Evaluate **site + touchdown time + vehicle + mission requirements**, rather than assigning each location one permanent score.
 
@@ -156,7 +168,7 @@ The [JPL planetary-orbits page](https://ssd.jpl.nasa.gov/planets/orbits.html) po
 
 ### Reading the API data in `docs/guida-dati.md`
 
-The guide's queries primarily support surface conditions. They provide inputs to site selection; our backend derives the terrain horizon, visibility windows and ranking.
+The guide's queries primarily support surface conditions. They provide inputs for the planned terrain horizons, visibility windows and regional comparisons by explicit metrics; those scientific calculations remain to be implemented.
 
 | Input | Actual format/type | Interpretation |
 |---|---|---|
@@ -171,7 +183,7 @@ Follow-up checks on 2026-11-14 confirmed the catalog reported 396 south-pole pro
 
 Example from the guide: at longitude 0°, latitude -89.45°, reference-sphere altitude 0 km, the Sun on 2026-12-01 00:00 UT has azimuth 280.049441° and elevation 1.566177°. This tells us its direction above the smooth local horizon. If a **hypothetical** ridge reaches 3° at that azimuth, the Sun is hidden behind terrain. The API's geometric daylight flag is not a terrain-shadow result. A real surface observer's query height must account for the site's elevation plus panel/antenna height.
 
-Derived outputs include slope/horizon profiles, sunlit fractions, darkness duration, Earth-visibility intervals, joint operational windows and mission-specific rankings. Actual electrical power additionally requires panel/load assumptions; a working radio link additionally requires station/relay geometry and communications constraints. Preserve coverage/NoData information even though the guide puts some quality products in its optional list. Matching a broad frame name does not by itself establish precise alignment of every DEM and ephemeris realization.
+Planned outputs include slope/horizon profiles, visible-disc fractions, complete-darkness and sub-threshold intervals, Earth-visibility intervals, joint geometric windows and regional area comparisons. Mission-specific rankings belong to the superseded proposal. Actual electrical power additionally requires panel/load assumptions; a working radio link additionally requires station/relay geometry and communications constraints. Preserve coverage/NoData and available quality information. Matching a broad frame name does not by itself establish precise alignment of every DEM and ephemeris realization.
 
 QuickMap is used in the guide for visual exploration/comparison, not as an already integrated numerical API. The guide's observer queries do not return spacecraft flight paths; use the separate trajectory requests in section 5 when that is the desired data.
 
@@ -403,9 +415,9 @@ This is a prioritization proposal, not an agreed reduction of the full-flight re
 
 Replaying a real flight plus computing surface conditions can produce a useful demonstrator quickly. It must not be presented as an arbitrary launch-date optimizer. A complete new-flight feature remains unfinished until the required phases and selected-time states work together.
 
-## 12. Open decisions and verification record
+## 12. Historical open decisions and verification record
 
-Open decisions: actual vehicle/pad/mission architecture; flight solver; region and DEM coverage; observer/panel/antenna height; slope and other vehicle limits; landing-footprint size; surface duration and power/communications requirements; score weights/normalization; uncertainty ranges; sampling/error budgets; and which optional AI/sensor demonstrations fit the remaining time.
+Open decisions in the earlier full-flight proposal: actual vehicle/pad/mission architecture; flight solver; region and DEM coverage; observer/panel/antenna height; slope and other vehicle limits; landing-footprint size; surface duration and power/communications requirements; score weights/normalization; uncertainty ranges; sampling/error budgets; and which optional AI/sensor demonstrations fit the remaining time. Vehicle choices and score weights are not unresolved requirements of the general surface engine approved on 2026-11-15; its remaining numerical validation work is recorded in the canonical plan.
 
 Verification in this update:
 

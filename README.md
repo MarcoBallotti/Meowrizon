@@ -3,9 +3,10 @@
 Strumento per valutare rapidamente siti e date di allunaggio, sviluppato per il NASA Space Apps
 Challenge 2026, challenge
 [Lunar Landing Site Navigator](https://www.spaceappschallenge.org/2026/challenges/lunar-landing-site-navigator/).
-Mostra la posizione di Sole e Terra rispetto all'orizzonte reale del sito, per stimare la
-disponibilità di energia solare e le finestre di comunicazione diretta con la Terra,
-soprattutto al Polo Sud lunare.
+L'engine in progetto confronta luce disponibile, visibilità geometrica della Terra e
+pendenza del terreno rispetto a una data di allunaggio, soprattutto al Polo Sud lunare.
+Non richiede un tipo di veicolo e non certifica energia sufficiente, collegamenti radio
+o sicurezza di atterraggio.
 
 Stato attuale:
 
@@ -18,7 +19,9 @@ Stato attuale:
 - **backend** FastAPI: regioni Artemis III scaricate da Moon Trek e servite da `GET /api/regions`;
   gli endpoint del contratto e la valutazione non sono ancora implementati (piano in
   [docs/piano-logica.md](docs/piano-logica.md)). Nessun database: i dati stanno in file in `data/`.
-  Il contratto prevede Flask, il backend attuale usa FastAPI: scelta da confermare nel team.
+  FastAPI è la scelta confermata. La specifica scientifica approvata è
+  [docs/criteri-algoritmo.md](docs/criteri-algoritmo.md); i contratti del client saranno
+  allineati dopo la realizzazione dell'algoritmo.
 
 ## Avvio con Docker (consigliato)
 
@@ -36,8 +39,9 @@ npm start        # avvia backend e frontend
 | `backend` | http://localhost:8000/api, documentazione su http://localhost:8000/api/docs | API FastAPI, si riavvia a ogni modifica in `backend/` |
 | `web` (solo `npm run prod`) | http://localhost:8080 | Frontend compilato servito da nginx, come in produzione |
 
-Il frontend inoltra le chiamate `/api` al backend dentro la rete Docker. Per usare il motore al
-posto dei dati dimostrativi: `VITE_DATA_SOURCE=api` in `.env` (vedere `.env.example`).
+Il frontend inoltra le chiamate `/api` al backend dentro la rete Docker.
+`VITE_DATA_SOURCE=api` in `.env` seleziona il client HTTP, ma non implementa gli endpoint
+scientifici mancanti né sostituisce la classifica dimostrativa (vedere `.env.example`).
 
 Comandi disponibili (`npm run <nome>`):
 
@@ -90,12 +94,16 @@ Tutta la logica è in **Python**; **TypeScript** serve solo all'interfaccia.
 
 | Parte | Linguaggio | Cosa fa |
 |---|---|---|
-| Backend (`backend/`) | Python, FastAPI | Download dei dati (Horizons, Moon Trek, PDS), horizon mask, valutazione e classifica delle regioni, API, agente AI |
+| Backend (`backend/`) | Python, FastAPI | Download dei dati (Horizons, Moon Trek, PDS), horizon mask, misure e confronto delle regioni, API, agente AI |
 | Frontend (`frontend/`) | TypeScript, React, CesiumJS | Globo 3D, mappe, grafici, linea del tempo e animazione di Sole e Terra a partire dai dati del backend |
 
-Il contratto tra i due è descritto in [docs/api-contract.md](docs/api-contract.md) e, in
-dettaglio, in [backend/API_CONTRACT.md](backend/API_CONTRACT.md): tutte le API stanno sotto
-`/api`, con JSON in camelCase. FastAPI pubblica anche lo schema OpenAPI su `/api/openapi.json`.
+Il contratto corrente è [docs/api-contract.md](docs/api-contract.md), con
+[mappa delle interazioni e riferimenti al codice](docs/api-integration-map.md),
+[dizionario dei dati](docs/api-data-dictionary.md) e [piano TanStack Query](docs/api-query-plan.md).
+[backend/API_CONTRACT.md](backend/API_CONTRACT.md) è il punto di ingresso per il backend.
+Le API stanno sotto `/api`: il client scientifico usa camelCase, i cataloghi GeoJSON
+server mantengono i campi snake_case. FastAPI pubblica lo schema delle rotte già
+implementate su `/api/openapi.json`; i DTO scientifici finali hanno ancora decisioni aperte.
 Il frontend chiama `/api` sul proprio indirizzo e Vite (o nginx in produzione) inoltra al backend;
 per chiamate dirette dal browser il backend accetta anche il server di Vite (`localhost:5173`),
 altri indirizzi si aggiungono con `CORS_ORIGINS` in `.env`.
@@ -136,9 +144,23 @@ Le dipendenze Python si installano nell'immagine Docker del backend. Vedere
 
 ## Fonti
 
-Ogni dato, soglia o coordinata usata dal programma ha una fonte. L'elenco completo, con i
-riferimenti [F1]…[F24] usati nei documenti, è in [docs/piano-logica.md](docs/piano-logica.md#fonti).
+Ogni dato, metodo e coordinata ha una fonte; soglie descrittive e convenzioni del team
+sono dichiarate come tali. L'elenco completo dei riferimenti è in
+[docs/piano-logica.md](docs/piano-logica.md#fonti).
 I dataset non sono inclusi nel repository (`data/**` è escluso da Git).
+
+**Ruoli confermati (15/11/2026):** l'engine usa **JPL Horizons** per le effemeridi di Sole
+e Terra e **NASA Moon Trek** per regioni, layer cartografici e prodotti accessibili via API.
+I DEM numerici LOLA possono arrivare anche direttamente dagli archivi NASA PDS/PGDA.
+**QuickMap** serve alla consultazione e al confronto manuale, non all'acquisizione dei
+risultati dell'engine. Il nome del servizio NASA è Moon Trek.
+
+**Stato effettivo:** i connettori Horizons e Moon Trek sono presenti e il globo usa layer
+Moon Trek, ma il frontend parte in modalità `demo`. La classifica regionale legge ancora
+`frontend/public/mock/regions.json`; impostare `VITE_DATA_SOURCE=api` da solo non completa
+l'integrazione. Le metriche dimostrative non sono risultati del motore scientifico.
+L'adapter WebGeoCalc presente nel modulo di acquisizione serve a un profilo separato di
+traiettoria storica, non sostituisce Horizons come fonte scelta per Sole e Terra.
 
 ### Dati da elaborare
 
@@ -156,21 +178,50 @@ I dataset non sono inclusi nel repository (`data/**` è escluso da Git).
 | Fonte | Cosa fornisce |
 |---|---|
 | [Moon Trek, `A3_Named_regions_SP`](https://trek.nasa.gov/moon/trekarcgis2/rest/services/A3_Named_regions_SP/MapServer/0/query?where=1%3D1&outFields=label&returnGeometry=true&f=json) | Contorni delle 13 regioni candidate di Artemis III (lista 2022) |
-| [Aggiornamento NASA a 9 regioni (2024)](https://www.space.com/space-exploration/artemis/nasa-announces-9-possible-moon-landing-sites-for-artemis-3-lunar-mission) | Regioni ancora in lista nel 2024 |
+| [Aggiornamento NASA a 9 regioni (2024)](https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/) | Evoluzione del catalogo storico; non definisce un filtro universale |
 | [Moon Trek, `Lunar_Landing_Impact_Sites`](https://trek.nasa.gov/moon/trekarcgis2/rest/services/Lunar_Landing_Impact_Sites/MapServer) (dati [NSSDCA](https://nssdc.gsfc.nasa.gov/planetary/lunar/lunar_artifact_impacts.html)) | Coordinate di Apollo 11–17, Luna 9, Luna 17, Chang'e 4 |
 | LROC: [Chandrayaan-3](https://www.lroc.asu.edu/images/1314), [Chang'e 6](https://www.lroc.asu.edu/images/1374), [Blue Ghost M1](https://www.lroc.asu.edu/images/1407) | Posizione dei lander misurata nelle immagini di LRO |
 | [USGS / IAU, Gazetteer of Planetary Nomenclature](https://planetarynames.wr.usgs.gov/) | Centri delle formazioni bersaglio delle missioni CLPS future |
 
 ### Criteri e soglie
 
+**Decisioni approvate il 15/11/2026.** La misura continua della pendenza su una base
+circolare di diametro 100 m è accompagnata da fasce descrittive **[0°, 5°), [5°, 10°),
+[10°, 15°), ≥15°**. La griglia di aggregazione ha celle di 100 m, ma è distinta dal
+supporto del piano adattato. I confini delle fasce sono scelte del team, non limiti
+universali dei veicoli. **Nessun filtro automatico a 10° esclude celle o regioni.**
+
+Per ogni data si misura l'area di concomitanza fra Sole e Terra geometricamente visibili
+(almeno il 50% dei rispettivi dischi), insieme alle aree cumulative con pendenza <5°,
+<10° e <15°. Si riportano km², percentuali della regione, copertura dei dati e maggiore
+componente connessa con adiacenza sui quattro lati. I valori campionati non dimostrano
+uniformità di tutta la cella né sicurezza di un'impronta di atterraggio.
+
+Le regioni si confrontano per singole metriche, con ordinamento esplicito, senza punteggio
+globale né classifica lessicografica. Le prestazioni associate a un punto rappresentativo
+appartengono tutte allo stesso punto identificato. La robustezza a T ±1, 2, 3 giorni
+separa disponibilità di alternative regionali e intersezione delle stesse celle favorevoli;
+i campioni giornalieri non provano continuità fra le date e i buchi restano visibili.
+
+Si distinguono buio completo (frazione solare zero), luce sotto soglia (frazione <0,5),
+elevazione rispetto all'orizzontale e margine sopra il terreno. Il Sole visibile tiene
+conto anche dell'occultazione da parte della Terra. Le 50 ore VIPER restano una nota
+operativa specifica dell'ibernazione, senza avviso universale. Non si calcolano temperatura,
+energia elettrica o autonomia. La frazione annuale di tempo con almeno metà Sole visibile
+si riferisce all'anno civile UTC (365 o 366 giorni); l'80% è un'evidenziazione del team.
+
+Le fonti seguenti danno contesto storico e metodologico: non sostituiscono le decisioni
+generali appena approvate. La specifica completa è in
+[docs/criteri-algoritmo.md](docs/criteri-algoritmo.md).
+
 | Fonte | Cosa fornisce |
 |---|---|
-| [NASA, *Artemis Human Landing System Overview*, Space Apps 2025](https://ntrs.nasa.gov/api/citations/20250009323/downloads/ArtemisOverview2025IntSPAPPSChallenge.pdf) | Requisiti di Artemis III: entro 6° dal polo, pendenza < 10° su 100 m, precisione di 100 m, pendenza < 20° su 2 km per gli astronauti, Sole e Terra a 2–7° sull'orizzonte |
-| [NASA, Scoville, *Artemis III EVA Mission Capability*](https://ntrs.nasa.gov/api/citations/20210026296/downloads/Scoville%20Final%20presentation%20-%20compressed.pptx.pdf) | Tolleranza di pendenza del lander umano: 8° |
-| [LPSC 2022, sito di Blue Ghost M1](https://www.hou.usra.edu/meetings/lpsc2022/pdf/1390.pdf) | Requisiti di pendenza CLPS e del lander: ≤ 10° |
-| [NASA, *VIPER Lunar Operations*](https://science.nasa.gov/mission/viper/lunar-operations/) | Rover: pendenze fino a 15°, al massimo 50 ore di buio continuo |
+| [NASA, *Artemis Human Landing System Overview*, Space Apps 2025](https://ntrs.nasa.gov/api/citations/20250009323/downloads/ArtemisOverview2025IntSPAPPSChallenge.pdf) | Requisiti della configurazione studiata nel 2025: pendenza <10° su 100 m e precisione di atterraggio di 100 m sono grandezze distinte, non soglie universali |
+| [NASA, Scoville, *Artemis III EVA Mission Capability*](https://ntrs.nasa.gov/api/citations/20210026296/downloads/Scoville%20Final%20presentation%20-%20compressed.pptx.pdf) | Riferimento HLS di tolleranza almeno 8°, non limite massimo universale |
+| [LPSC 2022, sito di Blue Ghost M1](https://www.hou.usra.edu/meetings/lpsc2022/pdf/1390.pdf) | Vincoli specifici della selezione Blue Ghost; non equivalenti automaticamente alla pendenza media su 100 m |
+| [NASA, *VIPER Lunar Operations*](https://science.nasa.gov/mission/viper/lunar-operations/) e [VIPER Traverse Planning](https://www.hou.usra.edu/meetings/lpsc2022/pdf/2874.pdf) | Riferimenti specifici: pendenza nominale 15° con casi fino a 25–30°; 50 ore di sopravvivenza in ibernazione, circa 9 ore di attività all'ombra |
 | [Wueller et al. 2026, JGR Planets](https://agupubs.onlinelibrary.wiley.com/doi/10.1029/2025JE009434) | Siti illuminati con ombre permanenti raggiungibili nelle regioni Artemis |
-| [Gläser et al. 2014, Icarus](https://elib.dlr.de/94240) | Punti più illuminati del polo sud: 92,27% delle ore a 2 m, su Connecting Ridge |
+| [Gläser et al. 2014, Icarus](https://elib.dlr.de/94240) | Benchmark a Connecting Ridge: 92,27% di tempo con qualche luce a 2 m su un periodo di 19 anni; non un massimo universale né la nostra percentuale annuale con almeno metà disco visibile |
 | [Mazarico et al. 2011, Icarus](https://ntrs.nasa.gov/citations/20120010094) | Illuminazione dei poli dai dati LOLA: punto sul bordo di Shackleton illuminato 240 giorni di fila |
 | [NASA, Artemis III Site Selection Update, LPSC 2026](https://www.hou.usra.edu/meetings/lpsc2026/pdf/1901.pdf) | Regioni favorite se robuste rispetto alle date; la luce al polo si sposta di 2–3 settimane l'anno |
 | [NASA Space Apps 2026, *Lunar Landing Site Navigator*](https://www.spaceappschallenge.org/2026/challenges/lunar-landing-site-navigator/) | Obiettivi della challenge |
@@ -189,19 +240,28 @@ L'obiettivo è dare all'agente AI e al frontend pochi KB per sito invece di GB d
 
 ### Effemeridi: una tabella per tutta la Luna
 
-Non serve una query a Horizons per ogni sito. Basta chiedere la Luna vista dal geocentro:
+Il percorso progettato cerca di condividere una tabella Horizons fra i siti. La query
+da verificare usa la Luna vista dal geocentro:
 
 ```text
-COMMAND='301'  CENTER='500@399'  QUANTITIES='14,15,20'
+COMMAND='301'  CENTER='500@399'  QUANTITIES='14,15,19,20'
 ```
 
 - `14`: punto sub-terrestre sulla Luna. Contiene già la libration.
 - `15`: punto sub-solare sulla Luna.
-- `20`: distanza Terra-Luna, per la parallasse della Terra (fino a ~0,26°).
+- `19`: distanza apparente Sole-Luna, per il raggio solare apparente variabile.
+- `20`: distanza apparente Terra-Luna, per la parallasse della Terra (fino a ~0,26°).
 
-Azimut ed elevazione per un sito qualsiasi si ricavano poi con un cambio di frame locale.
-Lo scarto rispetto alla query topocentrica di Horizons è inferiore a 0,001°. Due anni a
-passo orario sono circa 17.500 righe, ~1 MB, scaricati in una richiesta da pochi secondi.
+Queste quantità sono legate all'osservazione dal geocentro: i subpoint includono tempi
+luce e le distanze sono apparenti, non geometriche istantanee. La ricostruzione di
+azimut ed elevazione locali a T deve riconciliare epoche, frame, parallasse e correzioni;
+un semplice cambio di frame non ne dimostra la correttezza. Se questo percorso non
+soddisfa il confronto con Horizons topocentrico, si useranno effemeridi topocentriche
+Horizons oppure vettori Horizons con trasformazioni validate, mantenendo la stessa fonte.
+Il prototipo esterno riporta uno scarto inferiore a 0,001° rispetto a Horizons topocentrico;
+questo risultato deve essere riprodotto con coordinate, epoche, correzioni e artefatti
+versionati prima di dichiarare validato il nuovo engine. Due anni a passo orario sono
+circa 17.500 righe; dimensione e tempi della cache dipendono dal formato scelto.
 Si usa solo l'API di Horizons: SpiceyPy e i kernel SPICE non fanno parte del progetto.
 
 ### Terreno: dal DEM alla horizon mask
@@ -223,24 +283,34 @@ Strategia a due risoluzioni:
   HTTP Range si scaricano solo le righe attorno al sito (10–30 MB) e si salvano solo le
   colonne utili (0,2–1,5 MB).
 
-Per ogni sito si tracciano 360 raggi, con correzione per la curvatura lunare e un osservatore
-alto 2 m. Per ogni azimut si tiene l'elevazione massima del terreno. Il risultato è una
-horizon mask di 360 valori, circa 1 KB. Dopo la pre-elaborazione il DEM non serve più.
+La configurazione iniziale usa 360 direzioni, curvatura lunare e osservatore a 2 m.
+Per ogni azimut si conserva l'elevazione massima del terreno. Numero di direzioni,
+passo radiale e ampiezza dell'area analizzata si verificano con prove di convergenza;
+360 direzioni non sono una garanzia di accuratezza. I DEM restano disponibili per
+rigenerazione, raffinamento e validazione. Una maschera di 360 float32 occupa 1.440 byte
+prima di metadati e informazioni di validità.
 
-I file `ldec_*` (conteggi), `ldrm_*`, `ldac_*` e le immagini non servono al calcolo.
+Conteggi LOLA, risoluzione effettiva ed errori disponibili servono a qualificare le misure;
+i prodotti di pendenza su base 100 m e le immagini LROC aiutano a verificarle.
+L'interpolazione non crea informazione a una scala più fine di quella supportata dai dati.
 
 ### Prodotti per sito
 
 | Livello | Contenuto | Dimensione |
 |---|---|---|
-| Effemeridi globali | punti sub-solari e sub-terrestri, distanza | ~1 MB per 2 anni |
-| Horizon mask | 360 elevazioni | ~1 KB/sito |
-| Eventi | intervalli di Sole visibile e Terra visibile | qualche KB/sito/anno |
-| Riassunto mensile | % di sole, % di Terra, notte più lunga, elevazione solare, indice di potenza | < 1 KB/sito/mese |
+| Effemeridi globali | punti sub-solari e sub-terrestri, distanze | Dipende da periodo e formato |
+| Horizon mask | elevazioni e validità, risoluzione verificata | 1.440 byte per 360 float32, più metadati |
+| Eventi | luce, buio completo, sotto soglia e visibilità terrestre; causa e stato dei limiti | Dipende dal numero di eventi |
+| Riassunto | frazioni temporali, durate, elevazioni e margini sul terreno, pendenza e copertura | Da misurare sull'implementazione |
 
 Il Sole e la Terra contano come visibili quando se ne vede almeno metà del disco (decisione C3
 del 15/11/2026, in [docs/stato-decisioni.md](docs/stato-decisioni.md)). La frazione di disco
 visibile si salva sempre, così la soglia si può cambiare.
+
+Il passo orario è iniziale: gli eventi si raffinano e si controllano anche interruzioni
+brevi fra campioni. La ricerca prosegue oltre un mese lunare finché trova l'evento o
+raggiunge il limite dei dati disponibili; gli intervalli troncati e i dati mancanti sono
+espliciti. Una percentuale annuale completa richiede copertura dell'intero anno UTC.
 
 ## Agente AI
 
@@ -257,25 +327,23 @@ pensano ancora ai siti e vanno adattati alle regioni.
 - `find_windows(site_id, start, end, min_hours, need)`: finestre continue con Sole, Terra o
   entrambi visibili
 
-## Stato della pipeline
+## Stato della pipeline e validazione da completare
 
-Esiste un prototipo Python della pipeline, fuori da questo repository e ancora da portare in
-`backend/app/services/`. L'ho provato su 9 siti per il periodo 2027–2028 e i prodotti
-risultanti pesano circa 70 KB.
+È documentato un prototipo Python esterno al repository, provato su 9 siti per il
+2027–2028. I risultati riportati (circa 70 KB, confronto con Horizons topocentrico,
+orizzonti sintetici e controlli su Shackleton/Malapert) non sono una validazione
+riproducibile dell'engine da sviluppare finché codice, input e rapporti non sono disponibili.
+Una PSR riguarda la luce solare e non dimostra da sola l'assenza di visibilità terrestre.
 
-Verifiche fatte:
+La verifica prevista comprende geometria contro Horizons topocentrico, pendenza contro
+prodotti PGDA con lo stesso supporto spaziale, benchmark di illuminazione con identiche
+definizioni e condizioni, immagini LROC, convergenza numerica e propagazione
+dell'incertezza. Per ogni caso si registrano metrica, errore, tolleranza motivata in anticipo
+ed esito. I dati mancanti restano sconosciuti: non si sostituisce un orizzonte reale
+assente con una sfera liscia presentandola come analisi del terreno.
 
-- l'az/el calcolato dalla tabella globale coincide con Horizons topocentrico;
-- su terreno sintetico la horizon mask dà il valore atteso;
-- l'orientamento della mappa LOLA è confermato dal fondo di Shackleton (−2,8 km) e dal
-  Malapert (+5,1 km);
-- il fondo di Shackleton risulta senza Sole né Terra per tutto il periodo, come atteso per una
-  zona in ombra permanente.
-
-Limiti noti:
-
-- i siti a nord di 75°S non hanno terreno e usano l'orizzonte della sfera;
-- le regioni Artemis III arrivano da Moon Trek (`init-regions`), e i 16 siti sono in
-  `backend/catalog/sites.toml`, ognuno con la sua fonte;
-- le coordinate personalizzate richiedono il calcolo al volo della horizon mask, non ancora
-  implementato.
+Le regioni del catalogo NASA 2022 arrivano da Moon Trek (`init-regions`); i 16 siti sono
+in `backend/catalog/sites.toml`. Precisione delle coordinate e copertura DEM vanno
+qualificate prima di valutarli alla scala di 100 m. I servizi scientifici, il calcolo
+per coordinate personalizzate e l'integrazione successiva con il frontend restano da
+implementare. Questa revisione aggiorna solo la specifica.

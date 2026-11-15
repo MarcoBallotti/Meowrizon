@@ -1,174 +1,133 @@
 # Regioni di atterraggio in Meowrizon
 
-Questo documento spiega come Meowrizon sceglie **la regione dove atterrare** al polo sud lunare per una data e un'ora, e propone l'elenco di regioni da usare nel programma.
+Questo documento descrive come confrontare **le condizioni geometriche e topografiche delle regioni lunari** a una data e un'ora. È allineato alle decisioni approvate il **15/11/2026** in `docs/criteri-algoritmo.md`; il piano operativo è in `docs/piano-logica.md` e la guida alle fonti in `docs/guida-dati.md`.
 
-Le parti marcate ⚠️ vanno verificate prima di scriverci codice. La guida tecnica ai dati e alle API è in `docs/guida-dati.md`; criteri, soglie e fonti sono in `docs/piano-logica.md`.
+L'elenco usato dal progetto resta nel catalogo `backend/catalog/` (`regions.toml` e `sites.toml`). Il comando esistente `python -m app.cli init-regions` acquisisce i contorni e crea i GeoJSON. Questa revisione aggiorna solo la specifica: non modifica cataloghi, engine o frontend.
 
-**Aggiornamento del 14/11/2026.** L'elenco usato davvero dal programma è nel catalogo `backend/catalog/` (`regions.toml` e `sites.toml`); il comando `python -m app.cli init-regions` scarica i contorni e crea `data/regions/regions.geojson` e `sites.geojson`. I valori delle sezioni 2, 4.1 e 8 sono allineati a quei file.
+## 1. La domanda e la risposta
 
----
+L'input scientifico è l'istante **T in UTC**. Non si richiedono tipo di veicolo o durata di permanenza. I risultati comprendono:
 
-## 1. In breve
+1. condizioni di Sole e Terra a T, finestre successive e durata del buio;
+2. distribuzione della pendenza e aree con visibilità congiunta, complessive e sotto più soglie descrittive;
+3. continuità spaziale, sensibilità alle date vicine e qualità dei dati.
 
-L'utente inserisce **data e ora di atterraggio** (e la durata della missione, di base 6,5 giorni, quella prevista per Artemis III). Il programma risponde con:
+Il confronto non produce un vincitore assoluto: le regioni possono offrire vantaggi diversi. L'ordinamento deve specificare la metrica scelta. Nessuna regione viene dichiarata sicura o inadatta per qualsiasi mezzo.
 
-1. **le regioni del polo sud ordinate** dalla migliore alla peggiore per quella data;
-2. per ogni regione, **quanto spazio buono c'è e per quanto tempo resta buono**;
-3. **i motivi**, visibili a schermo, per cui una regione è peggiore o scartata.
-
-Il programma dice **in quale regione conviene atterrare**, non in quale punto preciso dentro la regione: la scelta del punto esatto resta alla missione.
-
-Oltre alle regioni, il programma valuta anche dei **siti di atterraggio**: punti con coordinate precise e una fonte, ognuno valutato come una cella di 100 × 100 m (la precisione di atterraggio richiesta da Artemis III) con gli stessi criteri delle regioni. I siti compaiono in una tabella separata dalla classifica delle regioni, perché un punto e un'area di 400 km² non si confrontano. Sono 16, elencati nella sezione 8.4: 12 atterraggi famosi del passato e 4 missioni CLPS future, anche fuori dal polo sud.
-
----
+I siti sono punti nominali analizzati separatamente dalle regioni, con fonte e incertezza. La precisione delle loro coordinate può essere molto diversa dalla dimensione della griglia.
 
 ## 2. Settore, regioni e siti
 
-| Livello | Cos'è | Da dove viene | Esempio |
-|---|---|---|---|
-| **Settore** | La grande area della Luna su cui lavoriamo | Definito da noi sulla base del requisito Artemis III "entro 6° dal polo sud" | Polo sud: a sud di 84°S (`lat_limit` in `regions.toml`) |
-| **Regione** | Zona di atterraggio di 16–30 km di lato: è l'oggetto che il programma valuta e ordina | Solo regioni candidate di Artemis III, con il contorno scaricato da Moon Trek | Malapert Massif, de Gerlache Rim 2… |
-| **Sito** | Punto preciso, valutato come una cella di 100 × 100 m | Coordinate scritte da noi in `sites.toml`, sempre con una fonte; anche fuori dal settore | Apollo 11, Chang'e 4, Griffin-1… |
-
-Per ora c'è **un solo settore**: il polo sud, dove la challenge si concentra e dove scelta del luogo e della data contano davvero. Il programma va però pensato con un elenco di settori, per poterne aggiungere altri in futuro.
-
----
-
-## 3. Perché una regione non si valuta "in blocco"
-
-Una regione è larga 16–30 km. Al polo sud, in quello spazio convivono:
-
-- creste illuminate per giorni;
-- pendii in ombra;
-- fondi di piccoli crateri che non vedono mai il Sole.
-
-Frasi come "la regione è illuminata" o "da qui si vede la Terra" sono quindi vere solo per una parte della regione. Per lo stesso motivo **non si usa il centro della regione**: è un punto qualsiasi, che può cadere in un piccolo cratere in ombra e far sembrare pessima una regione con ottime zone a 2 km di distanza.
-
-Per questo, **dietro le quinte**, la regione si divide in celle. Le celle servono solo a misurare: non vengono mostrate come punti e non diventano siti.
-
----
-
-## 4. Come si valuta una regione
-
-> ⚠️ **Superato il 15/11/2026.** I criteri sono stati ridefiniti da zero: niente punteggio con pesi né profili, ma misure con soglie NASA di riferimento su tre livelli di tempo (atterraggio, permanenza, anno). Vedi `docs/piano-logica.md`, Fase 4, e `docs/stato-decisioni.md`. Questa sezione resta solo come storia della prima proposta.
-
-### 4.1 La griglia interna (nascosta)
-
-1. La regione si copre con **celle di 100 m**, la base su cui la NASA misura la pendenza di atterraggio e la precisione di atterraggio richiesta. Le regioni sono quadrati con gli angoli su multipli di 100 m, quindi la griglia combacia con i bordi: 160 × 160 celle per una regione di 16 km, 298 × 298 per Haworth, **circa 515.000 per tutte e 13**.
-2. Per ogni cella si calcola **una volta sola** la maschera d'orizzonte: per ogni direzione, quanto è alto il terreno visto da lì. Il terreno non cambia, quindi la maschera vale per qualsiasi data, passata o futura.
-3. Per la data scelta si prendono le posizioni di Sole e Terra durante la missione e si confrontano con le maschere: per ogni cella si sa quando vede il Sole e quando vede la Terra.
-4. Ogni cella riceve un punteggio interno (vedi sezione 5). L'utente non lo vede cella per cella: lo vede come **colore sulla regione**.
-
-### 4.2 Cosa si mostra della regione
-
-| Valore | Come si calcola | Cosa dice |
+| Livello | Definizione | Provenienza |
 |---|---|---|
-| **Area buona** (km²) | Somma delle celle che rispettano i vincoli e hanno un punteggio alto (ad esempio sopra 70) | Quanto spazio adatto c'è in tutta la regione |
-| **Zona continua più grande** (km²) | La più grande macchia di celle buone attaccate tra loro | **Il valore più importante.** 3 km² sparsi in tanti pezzetti non sono un posto dove atterrare; 1 km² tutto in un pezzo sì |
-| **Qualità della zona** | Valori tipici delle celle della zona più grande: giorni di luce, % di tempo con la Terra visibile, pendenza | Quanto si sta bene, non solo quanto spazio c'è |
-| **Durata** | Per quanto tempo, da quella data, la zona più grande resta sopra una soglia (ad esempio 1 km²) | Quanto vale la finestra: ore o giorni |
-| **Tolleranza ai ritardi** | Quanta area buona resta spostando la data di ±1, 2, 3 giorni | Se la regione regge uno slittamento del lancio |
+| Settore | Polo sud, a sud di 84°S; si tengono interi i poligoni che intersecano il settore | Scelta del team basata sugli studi storici Artemis |
+| Regione | Poligono entro cui aggregare le misure | Catalogo NASA 2022 distribuito da Moon Trek |
+| Cella | Elemento quadrato di 100 × 100 m per il campionamento e la stima delle aree | Griglia del progetto |
+| Sito | Coordinata documentata, precisa oppure nominale/illustrativa a seconda della fonte | Catalogo locale con fonte obbligatoria |
 
-Un lander non atterra mai esattamente nel punto previsto: c'è sempre un margine d'errore di decine o centinaia di metri. IM-2, ad esempio, ha toccato il suolo a circa 250 m dal punto previsto ed è finito inclinato. Per questo conta la zona continua, non la somma.
+La **cella di 100 m**, la **finestra di misura della pendenza** e la **dispersione di un atterraggio** sono concetti distinti. La griglia non rappresenta un requisito universale dei lander.
 
-### 4.3 La classifica
+## 3. Perché si campiona la regione
 
-Le regioni si ordinano combinando, in quest'ordine di importanza:
+Una regione può contenere creste illuminate, pendii temporaneamente in ombra e fondi di crateri senza luce solare diretta. Il centro geografico non rappresenta necessariamente queste condizioni.
 
-1. **zona continua più grande**;
-2. **qualità della zona**;
-3. **tolleranza ai ritardi**.
+Si misura quindi ogni cella, mantenendo il punto di campionamento e la qualità dei dati. Le misure puntuali campionate sostengono una stima regionale alla scala dichiarata: non provano che tutti i metri quadrati della cella siano uniformi.
 
-Una regione è **scartata** se la zona continua più grande è sotto una soglia minima (ad esempio 0,5 km²). I pesi esatti si regolano provando il programma.
+Una cella non valutabile per mancanza di terreno o effemeridi resta **sconosciuta**, non viene classificata come sfavorevole. La copertura va riportata per ogni metrica.
 
-### 4.4 Cosa si calcola prima e cosa al momento
+## 4. Come si misura il terreno
 
-| Quando | Cosa | Perché |
-|---|---|---|
-| **Una volta, prima della demo** (script offline) | Terreno scaricato e **maschera d'orizzonte di ogni cella** | È il calcolo più pesante. ⚠️ Il tempo va misurato: se è troppo, si parte con poche regioni |
-| **A ogni richiesta** (pochi secondi) | Posizioni di Sole e Terra nella finestra di missione, confronto con tutte le maschere, valori della sezione 4.2, classifica | Sono confronti numerici semplici su dati già pronti |
+### 4.1 Pendenza
 
-Sole e Terra sono così lontani che, a un dato istante, la loro **direzione** è quasi la stessa in tutta la regione: basta una riga della tabella di Horizons per regione e per istante. Va però corretta l'**elevazione** cella per cella: 20 km sulla Luna valgono circa 0,7° di curvatura, e al polo il Sole sta spesso a 1–2° sopra l'orizzonte.
+La pendenza è l'inclinazione di un piano adattato al DEM su una finestra **circolare di diametro 100 m** centrata nel punto. Il supporto circolare consente un confronto metodologicamente coerente con il prodotto NASA PGDA su base 100 m; un fit quadrato richiederebbe un confronto separato.
 
----
+| Fascia descrittiva | Intervallo |
+|---|---|
+| 1 | 0 ≤ s < 5° |
+| 2 | 5 ≤ s < 10° |
+| 3 | 10 ≤ s < 15° |
+| 4 | s ≥ 15° |
 
-## 5. I criteri, in sintesi
+Le fasce sono **scelte del team**, uguali per tutte le regioni. Si conserva il valore continuo, il supporto, il DEM e l'incertezza. Non rappresentano capacità dei mezzi; **il filtro automatico a 10° è eliminato**.
 
-> ⚠️ **Superato il 15/11/2026.** I criteri sono stati ridefiniti da zero: niente punteggio con pesi né profili, ma misure con soglie NASA di riferimento su tre livelli di tempo (atterraggio, permanenza, anno). Vedi `docs/piano-logica.md`, Fase 4, e `docs/stato-decisioni.md`. Questa sezione resta solo come storia della prima proposta.
+Un DEM troppo grossolano o con qualità insufficiente non diventa adeguato interpolandolo. In quel caso la pendenza a questa scala è non valutabile; altre misure con dati sufficienti possono restare disponibili.
 
-Missione generica: lander solare che comunica direttamente con la Terra, per una durata di default di 6,5 giorni dopo l'atterraggio (durata prevista di Artemis III, modificabile). Soglie e fonti sono in `docs/piano-logica.md`, sezione 4; questa sezione è un riassunto della prima proposta.
+### 4.2 Orizzonte e frazioni visibili
 
-**Vincoli per ogni cella** (una cella che non li rispetta non è "buona"):
+La maschera d'orizzonte usa il terreno reale, la curvatura lunare e un osservatore di riferimento a **2 m sopra il suolo**. Il campionamento iniziale di 360 direzioni è da verificare con risoluzioni più fitte e propagazione dell'incertezza.
 
-- Sole visibile sopra l'orizzonte reale al momento dell'atterraggio;
-- Terra visibile sopra l'orizzonte reale, con un margine di circa 2°;
-- fuori dalle zone sempre in ombra (layer `PSR_SP` di Moon Trek);
-- pendenza sotto una soglia, ad esempio 10°.
+Le effemeridi provengono da **JPL Horizons**. Si calcolano per ogni punto azimut ed elevazione rispetto all'orizzontale; il margine sopra il terreno è una misura separata. La frazione del disco usa il profilo sulla sua intera estensione, con approssimazioni dichiarate e verificate.
 
-**Punteggio interno della cella** (0–100, pesi di partenza da regolare):
+La frazione solare disponibile considera anche le eclissi causate dalla Terra, distinguendole dalle occultazioni del terreno. La convenzione di visibilità del progetto è **frazione ≥0,5** per entrambi i corpi. La visibilità terrestre è geometrica, non una garanzia di comunicazione.
 
-| Gruppo | Peso | Criteri |
-|---|---|---|
-| Energia | 45 | Tempo al tramonto del Sole, % di luce, notte più lunga |
-| Comunicazione | 35 | Tempo al tramonto della Terra, % di tempo con la Terra visibile |
-| Terreno | 20 | Pendenza, margine del Sole sopra le creste |
+## 5. Dalle celle alle misure regionali
 
-La tolleranza ai ritardi non è più nel punteggio della cella: si misura a livello di regione (sezione 4.2).
+### 5.1 Visibilità congiunta e aree cumulative
 
-**Esempi di motivi di scarto da mostrare per una regione:**
+**B(T)** è l'insieme delle celle con Sole e Terra visibili a T. Non contiene un vincolo di pendenza.
 
-- "Terra sotto l'orizzonte in tutta la regione all'atterraggio";
-- "Sole e Terra insieme solo su 0,3 km²";
-- "Area buona per sole 6 ore";
-- "Con 2 giorni di ritardo l'area buona scende da 8 a 1 km²";
-- "Zona buona frammentata: il pezzo più grande è 0,2 km²".
+Per ogni regione si restituiscono:
 
-**Limite da dichiarare:** il terreno a 5 m non vede massi e piccoli crateri. "Migliore" vuol dire migliore per luce, comunicazione e pendenza, non sicura al 100%.
+| Misura | Definizione |
+|---|---|
+| Area congiunta | Area delle celle di B(T) |
+| A5 | Area di B(T) con pendenza <5° |
+| A10 | Area di B(T) con pendenza <10° |
+| A15 | Area di B(T) con pendenza <15° |
+| Distribuzione della pendenza | Area nelle quattro fasce descrittive, con copertura valida |
+| Maggiore area continua | Area della maggiore componente connessa di B(T) e, separatamente, di A5, A10 e A15 |
 
----
+A5, A10 e A15 sono **cumulative**, non fasce da sommare. La connettività considera le **quattro celle che condividono un lato**; il contatto in un solo vertice non forma una zona continua.
 
-## 6. Il ruolo dei crateri
+Le aree sono espresse in km² e in percentuale dell'area regionale, con correzione della proiezione e clipping dei bordi. Sono aree sulla superficie di riferimento, non superfici aumentate dalla pendenza mediante un fattore `1/cos(s)`. La copertura geometrica e quella della pendenza sono riportate separatamente.
 
-Con questo modello **non serve definire la forma dei crateri**. Le regioni Artemis sono già bordi e creste di crateri (Shackleton, de Gerlache, Faustini, Haworth, Nobile, Amundsen). I crateri servono a due cose:
+Se la copertura è incompleta, la somma delle celle note favorevoli è un **limite inferiore dell'area campionata** e viene marcata parziale. Uno zero con dati mancanti non dimostra l'assenza di zone congiuntamente visibili.
 
-- **nomi sulla mappa**, per orientarsi e riconoscere le regioni;
-- **esclusione dei fondi in ombra permanente**, già coperta dal layer `PSR_SP` di Moon Trek.
+### 5.2 Finestre e anno
 
-Servirebbe definire i crateri solo se si volessero regioni diverse da quelle Artemis, per esempio un anello attorno al bordo di un cratere preso dall'elenco ufficiale dei nomi lunari della IAU (centro e diametro). Per ora non serve: le regioni Artemis sono ufficiali e i poligoni si scaricano già pronti.
+- **Luce continua:** durata da T fino alla prima discesa della frazione solare sotto 0,5.
+- **Visibilità geometrica continua della Terra:** stessa regola per il disco terrestre.
+- **Buio completo:** intervalli con frazione solare pari a zero, distinti dagli intervalli sotto 0,5.
+- **Anno:** percentuale di durata con frazione solare ≥0,5 nell'anno UTC della data, di 365 o 366 giorni. L'80% evidenzia alta disponibilità secondo la scelta del team; non certifica energia sufficiente.
+- **Eventi non chiusi:** la ricerca si estende oltre un mese lunare fino alla copertura disponibile. Si espongono limiti temporali e stati di censura; non si inventano albe o tramonti.
+- **Riferimento VIPER:** 50 ore in ibernazione solo come nota storica specifica, senza allarme generale o effetto sul confronto.
 
----
+La frazione media del disco visibile, il tempo con qualsiasi luce e il tempo sopra il 50% sono metriche differenti. Il 92,27% dello studio Gläser non è un massimo universale direttamente confrontabile con la percentuale annuale del progetto.
 
-## 7. Come lo usa una persona: uno scenario
+### 5.3 Robustezza rispetto alle date
 
-> ⚠️ **Superato il 15/11/2026.** I criteri sono stati ridefiniti da zero: niente punteggio con pesi né profili, ma misure con soglie NASA di riferimento su tre livelli di tempo (atterraggio, permanenza, anno). Vedi `docs/piano-logica.md`, Fase 4, e `docs/stato-decisioni.md`. Questa sezione resta solo come storia della prima proposta.
+Si ripetono le misure a T e a T±1, ±2, ±3 giorni. Si distinguono:
 
-**Chi:** un'ingegnera che prepara un lander robotico per il polo sud.
+1. **alternative nella regione:** area di B a ciascuna data;
+2. **tenuta della stessa zona:** area dell'intersezione delle celle di B alle date considerate.
 
-**Situazione:** l'atterraggio era previsto per il 12 marzo, ma un ritardo lo sposta al 26 marzo. Deve capire in fretta in quale regione conviene atterrare nella nuova data.
+Le stesse misure si calcolano per le aree sotto 5°, 10° e 15°. Le intersezioni includono sempre T e sono distinte per anticipi e ritardi: {T,T−1,…,T−k} e {T,T+1,…,T+k}, con k da 1 a 3. Un risultato sfavorevole a +1 giorno non cancella quello a +2. Le date sono campioni discreti: per affermare continuità durante l'intero intervallo occorrono serie temporali e ricerca degli eventi.
 
-1. **Vista della Luna.** Globo 3D con il settore del polo sud evidenziato. Data e ora sono in alto, sempre visibili: inserisce 26 marzo, 14:00 UTC, missione di 6,5 giorni.
-2. **Vista del settore.** Clicca sul polo sud e la vista si avvicina. Le regioni sono colorate per punteggio (verde buona, giallo accettabile, grigio scartata); a fianco c'è la classifica (numeri inventati, solo per mostrare il formato):
-   - 1° **Malapert Massif**: zona continua di 6 km², 9 giorni di luce, Terra visibile per il 90% del tempo, regge ±3 giorni;
-   - 2° **Connecting Ridge**: zona continua di 4 km², 11 giorni di luce, Terra visibile per il 70%, con 3 giorni di ritardo scende a 0,5 km²;
-   - scartata **Haworth**: il 26 marzo la Terra è sotto l'orizzonte in tutta la regione al momento dell'atterraggio.
-3. **Vista della regione.** Clicca su Malapert Massif e vede:
-   - la regione colorata, con le zone buone in verde e quelle scartate in grigio, ognuna con il motivo (ombra, Terra nascosta, pendenza);
-   - un grafico dell'area buona ora per ora durante la missione;
-   - Sole e Terra in cielo nel tempo;
-   - contatori "l'area buona si dimezza tra…" e "la Terra tramonta su metà regione tra…".
-4. **Prova di un altro ritardo.** Sposta la data di 3 giorni: Connecting Ridge crolla (il Sole va dietro una cresta), Malapert regge. Sceglie Malapert Massif.
+### 5.4 Confronto senza idoneità universale
 
-Facoltativo, per la demo: una vista a 360° dell'orizzonte presa al centro della zona più grande, segnata come "illustrativa". Mostra bene Sole e Terra rispetto al terreno, che è il cuore della challenge, senza trasformare quel punto in un sito consigliato.
+Si confrontano le colonne esplicitamente; non esistono punteggio complessivo, pesi o ordine lessicografico automatico. La regione con più area poco inclinata può non essere quella con la finestra solare più lunga.
 
-Senza il programma avrebbe dovuto interrogare Horizons punto per punto e incrociare a mano i dati di QuickMap e Moon Trek: giorni di lavoro invece di minuti.
+Quando si riportano più prestazioni di un **punto rappresentativo**, si conserva lo stesso identificatore e tutte le misure appartengono a quel punto. I massimi ottenuti in celle diverse restano risultati distinti.
 
----
+Se nessuna cella soddisfa la concomitanza e la copertura della regione è completa, il risultato è “nessuna cella con Sole e Terra visibili contemporaneamente a T”. Con copertura parziale questa affermazione vale soltanto per il sottoinsieme noto. Non si attribuisce falsamente l'assenza a un singolo astro se in realtà le aree dei due non si sovrappongono.
+
+## 6. Crateri e ombre permanenti
+
+La topografia dei crateri è già nel DEM e influisce su pendenza e orizzonte. I nomi delle formazioni aiutano a identificare i luoghi; non definiscono automaticamente una zona favorevole.
+
+Le ombre permanenti sono un livello informativo e un riferimento di validazione, **senza filtro o peso aggiuntivo**. Per la validazione occorrono condizioni coerenti: una mappa della superficie non prova che anche un punto a 2 m sia sempre in ombra. Il modello non stima temperatura o presenza certa di ghiaccio.
+
+## 7. Output scientifico e attività successive
+
+L'engine dovrà fornire misure, identificatori, unità, copertura, incertezza, cause delle occultazioni e provenienza. Non usa una durata di missione predefinita e non simula un veicolo.
+
+La realizzazione e l'integrazione del frontend saranno affrontate **dopo l'algoritmo**, come richiesto dall'utente. Le vecchie proposte di punteggi, colori di sicurezza e classifica unica sono sostituite dalle regole di questo documento.
 
 ## 8. Le regioni
 
 ### 8.1 Da dove vengono
 
-Le regioni **non si calcolano**: sono le **regioni candidate di Artemis III** che la NASA ha indicato per il primo atterraggio con equipaggio. Moon Trek le fornisce come poligoni:
+Le geometrie delle regioni provengono dal **catalogo storico NASA 2022 delle candidate Artemis III**, distribuito da Moon Trek. Non sono un elenco aggiornato o una certificazione dei siti delle missioni attuali. I poligoni si acquisiscono dal servizio:
 
 ```text
 https://trek.nasa.gov/moon/trekarcgis2/rest/services/A3_Named_regions_SP/MapServer/0/query?where=1%3D1&outFields=label&returnGeometry=true&f=json
@@ -179,7 +138,7 @@ https://trek.nasa.gov/moon/trekarcgis2/rest/services/A3_Named_regions_SP/MapServ
 - Si convertono in latitudine e longitudine con `pyproj`: verificato contro la formula della stereografica scritta a mano.
 - Con `f=geojson` il servizio rifiuta il sistema di riferimento lunare: va usato `f=json` e convertito noi.
 - Su Moon Trek una regione si chiama "Peak Near Shakleton" (senza la "c"): il catalogo tiene separati il nome corretto e l'etichetta esatta.
-- Il layer contiene **13 regioni, la lista NASA del 2022**. Nel 2024 la NASA ha ridotto la lista a **9 regioni**: Peak near Cabeus B, Haworth, Malapert Massif, Mons Mouton Plateau, Mons Mouton, Nobile Rim 1, Nobile Rim 2, de Gerlache Rim 2 e Slater Plain. Cinque sono anche nella lista 2022; per le altre quattro la NASA non ha pubblicato i contorni, quindi **non sono nel catalogo**: non si possono rappresentare né valutare (decisione del team, 14/11/2026).
+- Il layer contiene **13 regioni, la lista NASA del 2022**. Nel 2024 la NASA ha ridotto la lista a **9 regioni**: Peak near Cabeus B, Haworth, Malapert Massif, Mons Mouton Plateau, Mons Mouton, Nobile Rim 1, Nobile Rim 2, de Gerlache Rim 2 e Slater Plain. Il catalogo locale conserva i 13 poligoni del 2022: non si aggiungono confini privi di una geometria verificata. La corrispondenza dei nomi richiede attenzione agli alias: Mons Mouton è associato al precedente nome Leibnitz Beta Plateau, ma il nome non dimostra l'identità dei contorni. I campi di appartenenza alle liste nella tabella seguente riproducono il catalogo del 14/11 e vanno verificati con questa distinzione prima di aggiornarli.
 
 ### 8.2 Le 13 regioni candidate di Artemis III (dal layer di Moon Trek)
 
@@ -205,7 +164,7 @@ Valori prodotti da `init-regions` il 14/11/2026.
 | Amundsen Rim | 2022 | −84,23°, 69,44° | 20 km | 398,0 km² | 200 × 200 | `ldem_80s_20m` |
 | **Nobile Rim 2** | 2022, 2024 | −83,95°, 58,82° | 20 km | 397,8 km² | 200 × 200 | `ldem_80s_20m` |
 
-In grassetto le regioni presenti anche nella lista 2024. Nobile Rim 2 ha il centro poco a nord di 84°S, ma una parte sta nel settore: si tiene intera.
+In grassetto le corrispondenze letterali con la lista 2024 registrate nel catalogo locale; l'alias Leibnitz Beta Plateau / Mons Mouton resta da riconciliare geometricamente. Nobile Rim 2 ha il centro poco a nord di 84°S, ma una parte sta nel settore: si tiene intera.
 
 ### 8.3 Regioni consigliate per partire
 
@@ -214,11 +173,11 @@ Nel catalogo sono attive (`active = true`) due regioni presenti in entrambe le l
 - **de Gerlache Rim 2** (88,2°S): coperta per intero dal DEM a 5 m del polo; la sua parte a sud di 88°S è dentro la mappa di illuminazione LROC, quindi validabile con immagini reali;
 - **Malapert Massif** (86,0°S): rilievo esteso, condizioni di luce e di Terra diverse dalla prima.
 
-Connecting Ridge, proposta in una prima versione, non è più nella lista 2024. Due regioni con comportamenti diversi bastano a far vedere che la classifica cambia con la data. Le altre si attivano nel catalogo quando la pipeline funziona.
+Connecting Ridge, proposta in una prima versione, non è più nella lista 2024. Due regioni con comportamenti diversi consentono di verificare come cambiano le misure e i confronti con la data. Le altre si attivano nel catalogo quando la pipeline funziona.
 
 ### 8.4 Siti
 
-**Decisione del team (14/11/2026).** All'apertura dell'app la mappa mostra le regioni Artemis III e **16 siti**, tutti valutabili:
+**Catalogo del team (14/11/2026), interpretazione aggiornata il 15/11.** Il catalogo contiene **16 siti**. Le misure valutabili dipendono dalla qualità delle coordinate e del terreno; la presenza nel catalogo non garantisce una valutazione locale a 100 m:
 
 - **12 atterraggi riusciti tra i più conosciuti dal pubblico**: tutti quelli con equipaggio, più le missioni robotiche con un primato storico. Niente atterraggi falliti né riusciti solo in parte: IM-1, IM-2 e SLIM si sono rovesciati;
 - **4 missioni CLPS future**. Non hanno ancora un punto di atterraggio pubblicato, quindi il punto è il **centro della formazione bersaglio**: indica la zona, non il punto in cui atterreranno.
@@ -253,6 +212,9 @@ Note:
 
 - "Moon Trek / NSSDCA" è il layer *Lunar Anthropogenic Impacts and Spacecraft Sites* (`Lunar_Landing_Impact_Sites`), del novembre 2022. Le missioni successive vengono dalle pagine LROC, con la posizione del lander misurata nelle immagini di LRO.
 - Per Blue Ghost M1 si usa il punto del lander dopo l'atterraggio (LROC 1407), non il centro della zona prevista (LROC 1400).
+- **Luna 9:** NASA NSSDCA segnala l'incertezza delle coordinate storiche e una possibile distanza di almeno 10 km dal punto reale. La coordinata può essere analizzata come punto nominale, ma non usata per validare pendenza o orizzonte del lander alla scala di 100 m.
+- **Centri di formazioni bersaglio:** i risultati descrivono il centro nominale analizzato, non il futuro atterraggio. Fonte, tipo di coordinata e incertezza devono accompagnare le misure.
+- **Siti sulla faccia nascosta:** assenza di visibilità geometrica della Terra non implica impossibilità di una missione con relay. Restano nel confronto con questa proprietà esplicita.
 - Chandrayaan-3: le coordinate 70,8°S 23,5°E che si trovano spesso sono il bersaglio di Chandrayaan-2, che è fallito.
 - Per Griffin-1 il punto è Mons Mouton e non il cratere Nobile, perché il centro di Nobile cade sul fondo del cratere, probabilmente in ombra permanente.
 - ⚠️ Lo stato delle missioni CLPS va ricontrollato: al 14/11/2026 Griffin-1 è previsto non prima di novembre 2026, le altre nel 2027.
@@ -260,13 +222,14 @@ Note:
 
 ---
 
-## 9. Cosa resta da decidere
+## 9. Cosa resta da definire e verificare
+
+Il confine a 84°S è confermato nel catalogo sulla base degli studi storici Artemis. Vale solo per le regioni: i siti possono stare ovunque.
 
 - **Regioni attive.** Quali delle 13 con contorno attivare oltre alle due di sviluppo.
-- **Confine del settore.** Nel catalogo è 84°S (requisito Artemis III). Vale solo per le regioni: i siti possono stare ovunque.
 - **DEM globale** per valutare i siti fuori dal settore.
-- **Griglia delle maschere d'orizzonte.** Le celle sono da 100 m; se il calcolo delle maschere è troppo lento, le maschere si calcolano su una griglia più larga. Si decide dopo aver misurato i tempi.
-- **Criteri.** Ridefiniti il 15/11/2026: le voci ancora aperte (C1–C6) sono in `docs/stato-decisioni.md`.
+- **Prestazioni e campionamento.** Le celle sono da 100 m. Eventuali approssimazioni per accelerare le maschere richiedono una prova di convergenza e una misura degli effetti su finestre e aree.
+- **Validazione.** I criteri sono approvati nella revisione del 15/11/2026; restano prodotti, tolleranze numeriche e risultati di verifica da documentare in `docs/stato-decisioni.md`.
 
 ---
 
@@ -274,8 +237,11 @@ Note:
 
 - NASA Space Apps Challenge 2026, Lunar Landing Site Navigator: https://www.spaceappschallenge.org/2026/challenges/lunar-landing-site-navigator/
 - Moon Trek, layer "Artemis III Candidate Landing Regions" (`A3_Named_regions_SP`) e catalogo dei prodotti: https://trek.nasa.gov/moon/
-- LROC, IM-2 Landing Region: https://www.lroc.asu.edu/images/1401
-- Annuncio delle 13 regioni (2022): https://www.collectspace.com/news/news-081922a-artemis-iii-moon-landing-regions.html
-- Aggiornamento a 9 regioni (28 ottobre 2024): https://www.upi.com/Science_News/2024/10/28/nasa-artemis-moon-landing-regions/5971730152372/ e https://www.scientificamerican.com/article/nasa-unveils-candidate-landing-sites-for-artemis-astronauts/
+- NASA, annuncio delle 13 regioni (2022): https://www.nasa.gov/news-release/nasa-identifies-candidate-regions-for-landing-next-americans-on-moon/
+- NASA, aggiornamento a 9 regioni (28 ottobre 2024): https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/
 - Requisiti di atterraggio Artemis III (6° dal polo, pendenza su 100 m, precisione 100 m): L. Ortiz, NASA, *Artemis Human Landing System Overview*, Space Apps Challenge 2025, NTRS 20250009323
 - DEM LOLA polari ed etichette PDS: https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/polar/img/
+
+- NASA NSSDCA, coordinate e avvertenze dei siti storici (nota su Luna 9): https://nssdc.gsfc.nasa.gov/planetary/lunar/lunar_artifact_impacts.html
+- NASA PGDA, terreno e pendenze a supporto dichiarato: https://pgda.gsfc.nasa.gov/products/90
+- Wueller et al. (2026), contesto dei nomi e dei siti nelle regioni Artemis: https://agupubs.onlinelibrary.wiley.com/doi/10.1029/2025JE009434
