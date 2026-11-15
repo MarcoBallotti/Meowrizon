@@ -4,7 +4,7 @@
  */
 import './ui.css'
 
-export { Logo, MoonriseMark } from './Logo'
+export { Logo, DomeCatMark } from './Logo'
 export {
   ArrowIcon,
   BackIcon,

@@ -21,7 +21,7 @@ import {
   Input,
   Logo,
   Metric,
-  MoonriseMark,
+  DomeCatMark,
   Notice,
   PauseIcon,
   PlayIcon,
@@ -185,17 +185,17 @@ export function KitScreen() {
             <Logo size={56} />
           </div>
           <div className="kit-logo-stage is-white">
-            <MoonriseMark size={96} />
+            <DomeCatMark size={96} />
           </div>
           <div className="kit-logo-stage is-dark">
             <Logo size={56} tone="dark" />
           </div>
           <div className="kit-logo-stage is-white">
             <div className="kit-row">
-              <MoonriseMark size={24} />
-              <MoonriseMark size={32} />
-              <MoonriseMark size={44} />
-              <MoonriseMark size={64} />
+              <DomeCatMark size={24} />
+              <DomeCatMark size={32} />
+              <DomeCatMark size={44} />
+              <DomeCatMark size={64} />
             </div>
           </div>
         </div>
