@@ -7,10 +7,12 @@
  * - Sun and Earth are drawn at their true apparent size on the same angular
  *   scale as the terrain. The 360° panorama stretches heights and says so.
  */
+import { ArrowLeft, ArrowRight, ArrowUp, Info } from 'lucide-react'
 import { useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
 import type { HorizonProfile, ScenarioEvaluation } from '../api/types'
 import { compass, compassWord, formatAngle, formatSignedAngle } from '../domain/format'
 import { bodyAt, type BodyAtTime } from '../domain/sampling'
+import { coverage } from '../domain/eclipses'
 import { angularSeparation, azDelta, EARTH_DIAMETER_DEG, earthLitFraction, SUN_DIAMETER_DEG } from '../domain/sky'
 import { useElementSize } from '../hooks'
 import type { Audience } from '../state/store'
@@ -19,6 +21,7 @@ import { phasePath, Segmented, Toggle } from '../ui'
 type Look = 'sun' | 'earth' | 'both' | 'free'
 type Lens = 'eye' | 'wide' | 'panorama'
 
+const EDGE_ICON = { size: 16, strokeWidth: 1.75, 'aria-hidden': true } as const
 const LENS_FOV: Record<Lens, number> = { eye: 46, wide: 110, panorama: 360 }
 const PANORAMA_STRETCH = 4
 const DEG = Math.PI / 180
@@ -223,10 +226,7 @@ export function HorizonScene({ profile, evaluation, cursorMs, audience }: Props)
   const elongation = angularSeparation(sun.azimuthDeg, sun.elevationDeg, earth.azimuthDeg, earth.elevationDeg)
   const lit = earthLitFraction(elongation)
   const litAngle = (Math.atan2(sy - ey, sx - ex) * 180) / Math.PI
-  const sunGlow = sun.visible ? 1 : Math.max(0, 1 + (sun.elevationDeg - sun.horizonDeg) / 2) * 0.6
-  const rimWarm = sun.elevationDeg > -3 && Math.abs(sx - w / 2) < w * 0.9
-  const spread = Math.max(80, 18 * pxX)
-  const clamp01 = (v: number) => Math.max(0, Math.min(1, v))
+  const eclipse = coverage(elongation)
 
   const grid = audience !== 'student'
   const yStep = niceStep(spanEl)
@@ -237,11 +237,33 @@ export function HorizonScene({ profile, evaluation, cursorMs, audience }: Props)
   const azTicks: number[] = []
   for (let a = Math.ceil((centerAz - fov / 2) / azStep) * azStep; a <= centerAz + fov / 2; a += azStep) azTicks.push(a)
 
-  const scaleNote = panorama
-    ? `360° panorama · heights ×${PANORAMA_STRETCH}`
-    : audience === 'student'
-      ? 'Sun and Earth are drawn at their real size in the sky'
-      : `True scale · 1° = ${pxX.toFixed(0)} px`
+  const scaleNote = panorama ? `360° · heights ×${PANORAMA_STRETCH}` : `1° = ${pxX.toFixed(0)} px`
+
+  // Bodies outside the view: an edge button turns the view towards them.
+  const edges: { body: 'sun' | 'earth'; side: 'left' | 'right' | 'up'; x: number; y: number; el: number }[] = []
+  for (const [body, bx, by, br, at] of [
+    ['sun', sx, sy, sunR, sun],
+    ['earth', ex, ey, earthR, earth],
+  ] as const) {
+    if (bx < -br) edges.push({ body, side: 'left', x: 0, y: Math.max(64, Math.min(h - 120, by)), el: at.elevationDeg })
+    else if (bx > w + br) edges.push({ body, side: 'right', x: 0, y: Math.max(64, Math.min(h - 120, by)), el: at.elevationDeg })
+    else if (by < -br) edges.push({ body, side: 'up', x: Math.max(16, Math.min(w - 160, bx - 48)), y: 0, el: at.elevationDeg })
+  }
+
+  // Labels for the bodies in view, placed so they never cover each other.
+  const onScreen = (x: number, y: number, r: number) => x >= -r && x <= w + r && y >= -r && y <= h + r
+  const labelled = [
+    { spec: labelSpec('sun', sun, audience, undefined, 0), cx: sx, cy: sy, r: sunR, hidden: !sun.visible },
+    { spec: labelSpec('earth', earth, audience, lit, eclipse), cx: ex, cy: ey, r: earthR, hidden: !earth.visible },
+  ].filter((m) => onScreen(m.cx, m.cy, m.r))
+  // Furniture: controls row, full-screen button, orbit thumbnail, compass.
+  const furniture: Rect[] = [
+    { x: 0, y: 0, w: Math.min(w, 560), h: 64 },
+    { x: w - 64, y: 0, w: 64, h: 64 },
+    { x: w - 224, y: h - 160, w: 224, h: 160 },
+  ]
+  const boxes = placeLabels(labelled, w, h, furniture)
+  const marks = labelled.map((m, i) => ({ ...m, box: boxes[i] }))
 
   const summary = `${profile.observer.site.latDeg.toFixed(2)}°, ${profile.observer.site.lonEastDeg.toFixed(2)}°. Sun ${sun.visible ? 'visible' : 'hidden by terrain'}, Earth ${earth.visible ? 'visible' : 'hidden by terrain'}.`
 
@@ -261,39 +283,7 @@ export function HorizonScene({ profile, evaluation, cursorMs, audience }: Props)
           onKeyDown={onKeyDown}
         >
           <defs>
-            <radialGradient id="scene-sun-glow">
-              <stop offset="0" stopColor="#FFE7A8" stopOpacity="0.55" />
-              <stop offset="0.35" stopColor="#F5A300" stopOpacity="0.18" />
-              <stop offset="1" stopColor="#F5A300" stopOpacity="0" />
-            </radialGradient>
-            <linearGradient id="scene-far" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stopColor="var(--rock-far-top)" />
-              <stop offset="1" stopColor="var(--rock-far-bottom)" />
-            </linearGradient>
-            <linearGradient id="scene-mid" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stopColor="var(--rock-mid-top)" />
-              <stop offset="1" stopColor="var(--rock-mid-bottom)" />
-            </linearGradient>
-            <linearGradient id="scene-near" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stopColor="var(--rock-near-top)" />
-              <stop offset="1" stopColor="var(--rock-near-bottom)" />
-            </linearGradient>
-            <linearGradient id="scene-rim" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2={w} y2="0">
-              {rimWarm ? (
-                <>
-                  <stop offset={clamp01((sx - spread * 3) / w)} stopColor="#7b7a96" />
-                  <stop offset={clamp01((sx - spread) / w)} stopColor="#d9c7a0" />
-                  <stop offset={clamp01(sx / w)} stopColor="#FFE3A3" />
-                  <stop offset={clamp01((sx + spread) / w)} stopColor="#d9c7a0" />
-                  <stop offset={clamp01((sx + spread * 3) / w)} stopColor="#7b7a96" />
-                </>
-              ) : (
-                <stop offset="0" stopColor="#6f6e8a" />
-              )}
-            </linearGradient>
-            <clipPath id="scene-earth-clip">
-              <circle cx={ex} cy={ey} r={earthR} />
-            </clipPath>
+
           </defs>
 
           <rect width={w} height={h} fill="var(--space)" />
@@ -331,43 +321,35 @@ export function HorizonScene({ profile, evaluation, cursorMs, audience }: Props)
 
           {/* Bodies before terrain, so the terrain hides them for real. */}
           <g aria-hidden="true">
-            <circle cx={sx} cy={sy} r={sunR * 9} fill="url(#scene-sun-glow)" opacity={sunGlow} />
-            <circle cx={sx} cy={sy} r={sunR} fill="#FFF6DC" stroke="#FFC94D" strokeWidth={Math.min(2, sunR * 0.35)} />
+            <circle cx={sx} cy={sy} r={sunR} fill="var(--sun)" opacity={1 - eclipse * 0.85} />
             <g>
               <circle cx={ex} cy={ey} r={earthR} fill="var(--earth-night)" />
               <path d={phasePath(earthR, lit)} fill="var(--earth-sky)" transform={`translate(${ex} ${ey}) rotate(${litAngle})`} />
-              <g clipPath="url(#scene-earth-clip)" opacity={0.45}>
-                <path
-                  d={`M${ex - earthR * 0.7} ${ey - earthR * 0.25} q ${earthR * 0.35} ${-earthR * 0.35} ${earthR * 0.7} ${-earthR * 0.1} t ${earthR * 0.6} ${earthR * 0.25}`}
-                  stroke="#ffffff"
-                  strokeWidth={Math.max(1, earthR * 0.12)}
-                  fill="none"
-                  strokeLinecap="round"
-                />
-              </g>
+              {eclipse > 0 && (
+                <circle cx={ex} cy={ey} r={earthR + 1} fill="none" stroke="var(--red-ring)" strokeWidth={1.5} opacity={0.5 + 0.5 * eclipse} />
+              )}
             </g>
           </g>
 
           <g aria-hidden="true">
-            <path d={terrain.farArea} fill="url(#scene-far)" />
-            <path d={terrain.farLine} fill="none" stroke="url(#scene-rim)" strokeWidth={2.5} strokeLinejoin="round" />
-            <path d={terrain.midArea} fill="url(#scene-mid)" />
-            <path d={terrain.midLine} fill="none" stroke="#8e8ca0" strokeOpacity={0.5} strokeWidth={2} />
-            <path d={terrain.nearArea} fill="url(#scene-near)" />
-            <path d={terrain.nearLine} fill="none" stroke="#b7b5c6" strokeOpacity={0.55} strokeWidth={2} />
+            <path d={terrain.farArea} fill="var(--rock-far-top)" />
+            <path d={terrain.farLine} fill="none" stroke="var(--space-ink-2)" strokeOpacity={0.7} strokeWidth={1} strokeLinejoin="round" />
+            <path d={terrain.midArea} fill="var(--rock-mid-top)" />
+            <path d={terrain.nearArea} fill="var(--rock-near-top)" />
           </g>
 
           {audience === 'planner' && (
             <g aria-hidden="true">
-              <path d={terrain.farLine} fill="none" stroke="#ffffff" strokeWidth={1.25} strokeDasharray="6 4" opacity={0.9} />
+              <path d={terrain.farLine} fill="none" stroke="var(--space-ink)" strokeWidth={1} strokeDasharray="4 4" />
               <text x={w - 14} y={Math.max(18, view.y(horizonAt(profile, centerAz + (w / 2 - 14) / pxX)) - 10)} textAnchor="end" className="scene-mono">
                 Terrain horizon H(az)
               </text>
             </g>
           )}
 
-          <BodyMark body="sun" at={sun} cx={sx} cy={sy} r={sunR} view={view} audience={audience} />
-          <BodyMark body="earth" at={earth} cx={ex} cy={ey} r={earthR} view={view} audience={audience} lit={lit} />
+          {marks.map((m) => (
+            <BodyMark key={m.spec.body} {...m} audience={audience} eclipse={eclipse} />
+          ))}
 
           <g className="scene-compass" aria-hidden="true">
             {azTicks.map((a) => {
@@ -404,126 +386,209 @@ export function HorizonScene({ profile, evaluation, cursorMs, audience }: Props)
             { value: 'both', label: 'Both' },
           ]}
         />
+        <Segmented<Lens>
+          label="Lens"
+          tone="on-dark"
+          size="s"
+          value={lens}
+          onChange={setLens}
+          options={[
+            { value: 'eye', label: 'Eye', title: `${LENS_FOV.eye}° wide, true scale` },
+            { value: 'wide', label: 'Wide', title: `${LENS_FOV.wide}° wide, true scale` },
+            { value: 'panorama', label: '360°', title: 'All around, heights stretched' },
+          ]}
+        />
         {audience !== 'student' && (
-          <Segmented<Lens>
-            label="Lens"
-            tone="on-dark"
-            size="s"
-            value={lens}
-            onChange={setLens}
-            options={[
-              { value: 'eye', label: 'Eye', title: `${LENS_FOV.eye}° wide, true scale` },
-              { value: 'wide', label: 'Wide', title: `${LENS_FOV.wide}° wide, true scale` },
-              { value: 'panorama', label: '360°', title: 'All around, heights stretched' },
-            ]}
-          />
+          <span className="scene-toggle">
+            <Toggle checked={showPaths} onChange={setShowPaths} onDark>
+              Paths
+            </Toggle>
+          </span>
         )}
       </div>
-      {audience !== 'student' && (
-        <div className="scene-toggles">
-          <Toggle checked={showPaths} onChange={setShowPaths} onDark>
-            Paths this period
-          </Toggle>
-        </div>
-      )}
-      <span className="ui-space-caption scene-caption">{scaleNote}</span>
+      {w > 0 &&
+        edges.map((e) => (
+          <button
+            key={e.body}
+            type="button"
+            className={`scene-edge-btn is-${e.side}`}
+            style={e.side === 'left' ? { left: 16, top: e.y } : e.side === 'right' ? { right: 16, top: e.y } : { left: e.x, top: 64 }}
+            onClick={() => setLook(e.body)}
+            aria-label={`Turn to ${e.body === 'sun' ? 'the Sun' : 'Earth'}`}
+          >
+            {e.side === 'left' ? <ArrowLeft {...EDGE_ICON} /> : e.side === 'up' ? <ArrowUp {...EDGE_ICON} /> : null}
+            {e.body === 'sun' ? 'Sun' : 'Earth'}
+            {audience !== 'student' && <span className="mono">{formatAngle(e.el)}</span>}
+            {e.side === 'right' && <ArrowRight {...EDGE_ICON} />}
+          </button>
+        ))}
+      <span className="scene-legend" title={audience === 'student' ? 'Sun and Earth are drawn at their real size in the sky' : undefined}>
+        {audience === 'student' && !panorama ? (
+          <>
+            <Info size={16} strokeWidth={1.75} aria-hidden="true" />
+            Real size
+          </>
+        ) : (
+          scaleNote
+        )}
+      </span>
     </div>
   )
 }
 
 /* ------------------------------------------------------------------ labels */
 
-interface MarkProps {
+interface Rect {
+  x: number
+  y: number
+  w: number
+  h: number
+}
+
+interface LabelSpec {
   body: 'sun' | 'earth'
-  at: BodyAtTime
+  lines: string[]
+  /** Short state shown after the name on planner labels. */
+  state: string
+  w: number
+  h: number
+}
+
+/** Text and size of a body's label for an audience (measured, not guessed per frame). */
+function labelSpec(body: 'sun' | 'earth', at: BodyAtTime, audience: Audience, lit: number | undefined, eclipse: number): LabelSpec {
+  const name = body === 'sun' ? 'Sun' : 'Earth'
+  const margin = at.elevationDeg - at.horizonDeg
+  const hidden = !at.visible
+  if (audience === 'planner') {
+    const lines = [name, `Az ${at.azimuthDeg.toFixed(1)}°  El ${formatAngle(at.elevationDeg, 2)}`, `Margin ${formatSignedAngle(margin)}${body === 'earth' && lit !== undefined ? `  Lit ${Math.round(lit * 100)}%` : ''}`]
+    const state = `${hidden ? '  · hidden' : '  · visible'}${eclipse > 0 ? `  · eclipse ${Math.round(eclipse * 100)}%` : ''}`
+    const chars = Math.max(lines[0].length + state.length, lines[1].length, lines[2].length)
+    return { body, lines, state, w: Math.ceil((chars * 7.4 + 32) / 8) * 8, h: 80 }
+  }
+  const label =
+    eclipse > 0
+      ? audience === 'student'
+        ? 'Eclipse! Earth hides the Sun'
+        : `Eclipse · Earth covers ${eclipse >= 1 ? 'all' : `${Math.round(eclipse * 100)}%`} of the Sun`
+      : audience === 'student'
+        ? hidden
+          ? `${name} · behind the hills`
+          : name
+        : hidden
+          ? `${name} · hidden, ${formatAngle(Math.abs(margin))} below the hills`
+          : `${name} · ${formatAngle(margin)} above the hills`
+  return { body, lines: [label], state: '', w: Math.ceil((label.length * (audience === 'student' ? 12.5 : 10.4) + 32) / 8) * 8, h: 48 }
+}
+
+function overlapArea(a: Rect, b: Rect, pad = 8): number {
+  const w = Math.min(a.x + a.w, b.x + b.w + pad) - Math.max(a.x, b.x - pad)
+  const h = Math.min(a.y + a.h, b.y + b.h + pad) - Math.max(a.y, b.y - pad)
+  return w > 0 && h > 0 ? w * h : 0
+}
+
+/**
+ * Places each label next to its body without covering the other label, the
+ * other body or the window furniture. Tries eight positions around the body
+ * and keeps the one with the least overlap.
+ */
+function placeLabels(
+  items: { spec: LabelSpec; cx: number; cy: number; r: number }[],
+  w: number,
+  h: number,
+  furniture: Rect[],
+): Rect[] {
+  const placed: Rect[] = []
+  const bodies: Rect[] = items.map((i) => ({ x: i.cx - i.r - 8, y: i.cy - i.r - 8, w: 2 * i.r + 16, h: 2 * i.r + 16 }))
+  items.forEach((it, k) => {
+    const { w: lw, h: lh } = it.spec
+    const g = it.r + 16
+    const candidates: [number, number][] = [
+      [it.cx + g, it.cy - g - lh],
+      [it.cx + g, it.cy + g],
+      [it.cx - g - lw, it.cy - g - lh],
+      [it.cx - g - lw, it.cy + g],
+      [it.cx + g, it.cy - lh / 2],
+      [it.cx - g - lw, it.cy - lh / 2],
+      [it.cx - lw / 2, it.cy - g - lh],
+      [it.cx - lw / 2, it.cy + g],
+    ]
+    let best: Rect | null = null
+    let bestScore = Infinity
+    candidates.forEach(([x, y], order) => {
+      const r: Rect = { x: Math.max(16, Math.min(w - 16 - lw, x)), y: Math.max(64, Math.min(h - 64 - lh, y)), w: lw, h: lh }
+      let score = order * 4
+      for (const p of placed) score += overlapArea(r, p) * 10
+      bodies.forEach((b, j) => {
+        score += overlapArea(r, b, 0) * (j === k ? 6 : 10)
+      })
+      for (const f of furniture) score += overlapArea(r, f) * 4
+      if (score < bestScore) {
+        bestScore = score
+        best = r
+      }
+    })
+    placed.push(best ?? { x: 16, y: 64, w: lw, h: lh })
+  })
+  return placed
+}
+
+/** Point on the rectangle's edge closest to (x, y). */
+function nearest(r: Rect, x: number, y: number): [number, number] {
+  return [Math.max(r.x, Math.min(r.x + r.w, x)), Math.max(r.y, Math.min(r.y + r.h, y))]
+}
+
+interface MarkProps {
+  spec: LabelSpec
+  box: Rect
+  hidden: boolean
   cx: number
   cy: number
   r: number
-  view: View
   audience: Audience
-  lit?: number
+  eclipse: number
 }
 
-function BodyMark({ body, at, cx, cy, r, view, audience, lit }: MarkProps) {
-  const name = body === 'sun' ? 'Sun' : 'Earth'
-  const margin = at.elevationDeg - at.horizonDeg
-  const { w, h } = view
-  const off = cx < -r || cx > w + r || cy < -r || cy > h + r
-  const tone = body === 'sun' ? 'is-sun' : 'is-earth'
-
-  if (off) {
-    const ax = Math.max(26, Math.min(w - 26, cx))
-    const ay = Math.max(70, Math.min(h - 70, cy))
-    const left = cx < 0
-    const up = cy < 0 && !left && cx <= w
-    const text = audience === 'student' ? name : `${name} ${formatAngle(at.elevationDeg)}`
-    const tw = text.length * 9 + 34
-    const bx = left ? ax : up ? ax - tw / 2 : ax - tw
-    return (
-      <g className={`scene-edge ${tone}`}>
-        <rect x={bx} y={ay - 18} width={tw} height={36} rx={18} />
-        <text x={left ? bx + 30 : up ? ax : bx + tw - 30} y={ay + 6} textAnchor={left ? 'start' : up ? 'middle' : 'end'}>
-          {text}
-        </text>
-        {!up && (
-          <path d={left ? `M${bx + 12} ${ay} l9 -7 v14 z` : `M${bx + tw - 12} ${ay} l-9 -7 v14 z`} />
-        )}
-      </g>
-    )
-  }
-
-  const hidden = !at.visible
-  const right = cx > w - 260
-  const lx = right ? cx - r - 16 : cx + r + 16
-  const ly = Math.max(34, cy - r - 26)
+function BodyMark({ spec, box, hidden, cx, cy, r, audience, eclipse }: MarkProps) {
+  const tone = spec.body === 'sun' ? 'is-sun' : 'is-earth'
+  const [px, py] = nearest(box, cx, cy)
+  const dist = Math.hypot(px - cx, py - cy) || 1
+  const edge = audience === 'planner' ? Math.max(r + 8, 16) : r + 4
+  const sx = cx + ((px - cx) / dist) * edge
+  const sy = cy + ((py - cy) / dist) * edge
 
   if (audience === 'planner') {
-    const b = Math.max(r + 6, 12)
+    const b = Math.max(r + 8, 16)
     const corners = [
       [-1, -1],
       [1, -1],
       [1, 1],
       [-1, 1],
     ]
-    const lines = [`${name.toUpperCase()}`, `AZ ${at.azimuthDeg.toFixed(1)}°  EL ${formatAngle(at.elevationDeg, 2)}`, `MARGIN ${formatSignedAngle(margin)}${body === 'earth' && lit !== undefined ? `  LIT ${Math.round(lit * 100)}%` : ''}`]
-    const boxW = 236
-    const bx = right ? cx - b - 12 - boxW : cx + b + 12
-    const by = Math.max(8, Math.min(h - 84, cy - 36))
     return (
       <g className={`scene-hud ${tone}${hidden ? ' is-hidden' : ''}`}>
-        {corners.map(([sx, sy]) => (
-          <path key={`${sx}${sy}`} d={`M${cx + sx * b} ${cy + sy * b - sy * 7} V${cy + sy * b} H${cx + sx * b - sx * 7}`} />
+        {corners.map(([kx, ky]) => (
+          <path key={`${kx}${ky}`} d={`M${cx + kx * b} ${cy + ky * b - ky * 8} V${cy + ky * b} H${cx + kx * b - kx * 8}`} />
         ))}
         {hidden && <circle cx={cx} cy={cy} r={r} className="scene-ghost" />}
-        <rect x={bx} y={by} width={boxW} height={72} rx={10} />
-        {lines.map((l, i) => (
-          <text key={i} x={bx + 12} y={by + 22 + i * 20} className={i === 0 ? 'is-head' : undefined}>
+        <line x1={sx} y1={sy} x2={px} y2={py} className="scene-leader" />
+        <rect x={box.x} y={box.y} width={box.w} height={box.h} rx={8} />
+        {spec.lines.map((l, i) => (
+          <text key={i} x={box.x + 16} y={box.y + 24 + i * 20} className={i === 0 ? 'is-head' : undefined}>
             {l}
-            {i === 0 && <tspan className="scene-hud-state">{hidden ? '  · HIDDEN' : '  · VISIBLE'}</tspan>}
+            {i === 0 && <tspan className="scene-hud-state">{spec.state}</tspan>}
           </text>
         ))}
       </g>
     )
   }
 
-  const label =
-    audience === 'student'
-      ? hidden
-        ? `${name} · behind the hills`
-        : name
-      : hidden
-        ? `${name} · hidden, ${formatAngle(Math.abs(margin))} below the hills`
-        : `${name} · ${formatAngle(margin)} above the hills`
-  const tw = label.length * (audience === 'student' ? 12.5 : 10.4) + 36
-  const bx = right ? lx - tw - 26 : lx + 26
-  const by = ly - 50
   return (
-    <g className={`scene-bubble ${tone}${hidden ? ' is-hidden' : ''}`}>
+    <g className={`scene-bubble ${tone}${hidden ? ' is-hidden' : ''}${eclipse > 0 ? ' is-eclipse' : ''}`}>
       {hidden && <circle cx={cx} cy={cy} r={Math.max(r, 6)} className="scene-ghost" />}
-      <path d={`M${right ? cx - r - 4 : cx + r + 4} ${cy - 4} L${right ? bx + tw : bx} ${by + 26}`} className="scene-bubble-line" />
-      <rect x={bx} y={by} width={tw} height={52} rx={18} />
-      <text x={bx + 18} y={by + 34}>
-        {label}
+      <path d={`M${sx} ${sy} L${px} ${py}`} className="scene-bubble-line" />
+      <rect x={box.x} y={box.y} width={box.w} height={box.h} rx={16} />
+      <text x={box.x + 16} y={box.y + 31}>
+        {spec.lines[0]}
       </text>
     </g>
   )

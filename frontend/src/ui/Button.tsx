@@ -1,3 +1,4 @@
+import { ArrowLeft, ArrowRight, ChevronLeft, ChevronsLeft, ChevronsRight, Download, Pause, Play } from 'lucide-react'
 import type { ButtonHTMLAttributes, ReactNode } from 'react'
 
 type Variant = 'primary' | 'secondary' | 'quiet' | 'inverse'
@@ -56,6 +57,18 @@ export function IconButton({ variant = 'primary', size = 'm', className, childre
   )
 }
 
+/** Compact back control: a chevron that reveals its label on hover or focus. */
+export function BackLink({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button type="button" className="ui-back" onClick={onClick} aria-label={label} title={label}>
+      <ChevronLeft size={24} strokeWidth={1.75} aria-hidden="true" />
+      <span className="ui-back-label" aria-hidden="true">
+        {label}
+      </span>
+    </button>
+  )
+}
+
 export function StepBadge({ n, inverse = false }: { n: number; inverse?: boolean }) {
   return (
     <span className={`ui-step${inverse ? ' is-inverse' : ''}`} aria-hidden="true">
@@ -64,60 +77,14 @@ export function StepBadge({ n, inverse = false }: { n: number; inverse?: boolean
   )
 }
 
-/* Icons drawn on a 24-unit grid, 2.5 stroke, round caps. */
+/* Line icons: all from Lucide, one stroke width. */
 
-export function PlayIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M8 4l12 8-12 8z" fill="currentColor" />
-    </svg>
-  )
-}
+const ICON = { size: 20, strokeWidth: 1.75, 'aria-hidden': true } as const
 
-export function PauseIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M8 4v16M16 4v16" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" />
-    </svg>
-  )
-}
-
-export function BackIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M19 12H5M11 6l-6 6 6 6" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
-}
-
-export function ArrowIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
-}
-
-export function StepBackIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M13 6l-6 6 6 6M19 6l-6 6 6 6" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
-}
-
-export function StepForwardIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M11 6l6 6-6 6M5 6l6 6-6 6" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
-}
-
-export function DownloadIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M12 4v11M7 10l5 5 5-5M5 20h14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
-}
+export const PlayIcon = () => <Play {...ICON} />
+export const PauseIcon = () => <Pause {...ICON} />
+export const BackIcon = () => <ArrowLeft {...ICON} />
+export const ArrowIcon = () => <ArrowRight {...ICON} />
+export const StepBackIcon = () => <ChevronsLeft {...ICON} />
+export const StepForwardIcon = () => <ChevronsRight {...ICON} />
+export const DownloadIcon = () => <Download {...ICON} />

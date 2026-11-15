@@ -5,9 +5,10 @@
  */
 import { useMemo, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react'
 import { formatDuration, formatUtc, formatUtcDate, formatUtcLong } from '../domain/format'
+import { eclipseIntervals } from '../domain/eclipses'
 import { usePlayback } from '../hooks'
 import { durationMs, getState, setState, useStore, type Audience, type ScenarioKey } from '../state/store'
-import { BothIcon, EarthIcon, IconButton, PauseIcon, PlayIcon, Select, StepBackIcon, StepForwardIcon, SunIcon, TrackBar } from '../ui'
+import { BothIcon, EarthIcon, EclipseIcon, IconButton, PauseIcon, PlayIcon, Select, StepBackIcon, StepForwardIcon, SunIcon, TrackBar } from '../ui'
 
 const SPEEDS = [1, 6, 12, 24, 72]
 
@@ -64,11 +65,13 @@ export function Timeline({ audience }: { audience: Audience }) {
   const rows = (key: ScenarioKey, sc: typeof A) => {
     const ev = sc.run.evaluation
     const start = sc.input.startMs
-    const items: { id: 'sun' | 'earth' | 'both'; label: string; icon: ReactNode }[] = [
+    const eclipses = ev ? eclipseIntervals(ev) : []
+    const items: { id: 'sun' | 'earth' | 'both' | 'eclipse'; label: string; icon: ReactNode }[] = [
       { id: 'sun', label: 'Sunlight', icon: <SunIcon size={16} /> },
       { id: 'earth', label: 'Earth in view', icon: <EarthIcon size={16} /> },
     ]
     if (audience !== 'student') items.push({ id: 'both', label: 'Sun + Earth', icon: <BothIcon size={16} /> })
+    if (audience !== 'student' || eclipses.length) items.push({ id: 'eclipse', label: 'Eclipse', icon: <EclipseIcon size={16} /> })
     return items.map((r) => (
       <div key={`${key}-${r.id}`} className="timeline-row">
         <span className={`timeline-row-label is-${r.id}`}>
@@ -79,7 +82,7 @@ export function Timeline({ audience }: { audience: Audience }) {
         <TrackBar
           tone={r.id}
           size={audience === 'planner' ? 's' : 'm'}
-          intervals={ev ? ev.intervals[r.id] : []}
+          intervals={r.id === 'eclipse' ? eclipses : ev ? ev.intervals[r.id] : []}
           startMs={start}
           spanMs={span}
           label={`${r.label} over ${Math.round(days)} days`}

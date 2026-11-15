@@ -1,6 +1,9 @@
 import { provider } from '../api'
 import { runJob } from '../api/jobs'
-import { getState, setState, updateScenario, type ScenarioKey } from './store'
+import type { ScenarioEvaluation, SiteCoordinates } from '../api/types'
+import { loadRegions, rank } from '../domain/ranking'
+import { intervalStats } from '../domain/sampling'
+import { getState, setState, updateScenario, type ScenarioKey, type SiteSummary } from './store'
 
 const controllers: Partial<Record<ScenarioKey, AbortController>> = {}
 
@@ -68,11 +71,103 @@ export async function runScenario(key: ScenarioKey): Promise<void> {
       ...sc,
       run: { phase: 'ready', terrain, evaluation, stale: sc.input !== input || getState().durationDays !== s.durationDays },
     }))
+
+    // The period before, for the comparison next to every number. Not blocking.
+    const previous = await runJob(
+      () =>
+        provider.submitScenarioEvaluation(
+          {
+            terrainAnalysisId: terrain.id,
+            startUtc: new Date(input.startMs - s.durationDays * 86_400_000).toISOString(),
+            stopUtc: new Date(input.startMs).toISOString(),
+            stepMinutes: s.stepMinutes,
+          },
+          signal,
+        ),
+      (id) => provider.getScenarioEvaluation(id, signal),
+      () => undefined,
+      signal,
+    ).catch(() => undefined)
+    if (signal.aborted || !previous) return
+    updateScenario(key, (sc) => (sc.run.evaluation === evaluation ? { ...sc, run: { ...sc.run, previous } } : sc))
   } catch (err) {
     if (signal.aborted) return
     updateScenario(key, (sc) => ({ ...sc, run: { ...sc.run, phase: 'error', error: describe(err) } }))
   } finally {
     if (controllers[key] === controller) delete controllers[key]
+  }
+}
+
+export function summarize(ev: ScenarioEvaluation, startMs: number, endMs: number): SiteSummary {
+  return {
+    sun: intervalStats(ev.intervals.sun, startMs, endMs).fraction,
+    earth: intervalStats(ev.intervals.earth, startMs, endMs).fraction,
+    both: intervalStats(ev.intervals.both, startMs, endMs).fraction,
+    nightH: intervalStats(ev.intervals.sun, startMs, endMs).longestOffMs / 3_600_000,
+  }
+}
+
+let comparisonController: AbortController | null = null
+
+/**
+ * Computes the top three regions of the ranking for the same period as
+ * scenario A (and the period before), so the site can be compared fairly.
+ */
+export async function runComparison(): Promise<void> {
+  const s = getState()
+  const catalog = s.regions
+  const A = s.scenarios.A
+  if (!catalog) return
+  const own = catalog.regions.find((r) => r.name === A.input.siteName)
+  const area = own ? own.area : s.area
+  const picks = rank(catalog.regions, s.rankBy, area).filter((r) => r.name !== A.input.siteName).slice(0, 3)
+  const key = JSON.stringify([picks.map((p) => p.id), A.input.startMs, A.input.observerHeightM, s.durationDays, s.stepMinutes])
+  if (s.comparison?.key === key) return
+
+  comparisonController?.abort()
+  const controller = new AbortController()
+  comparisonController = controller
+  const { signal } = controller
+  setState({ comparison: { key, busy: true, items: [] } })
+
+  const span = s.durationDays * 86_400_000
+  const start = A.input.startMs
+  const evaluate = async (terrainAnalysisId: string, from: number) =>
+    runJob(
+      () =>
+        provider.submitScenarioEvaluation(
+          { terrainAnalysisId, startUtc: new Date(from).toISOString(), stopUtc: new Date(from + span).toISOString(), stepMinutes: s.stepMinutes },
+          signal,
+        ),
+      (id) => provider.getScenarioEvaluation(id, signal),
+      () => undefined,
+      signal,
+    )
+  try {
+    const items = await Promise.all(
+      picks.map(async (r) => {
+        const site: SiteCoordinates = r.center
+        const terrain = await runJob(
+          () => provider.submitTerrainAnalysis({ site, observerHeightM: A.input.observerHeightM, config: { azimuthStepDeg: s.azimuthStepDeg, maxDistanceKm: s.maxDistanceKm } }, signal),
+          (id) => provider.getTerrainAnalysis(id, signal),
+          () => undefined,
+          signal,
+        )
+        const [now, before] = await Promise.all([evaluate(terrain.id, start), evaluate(terrain.id, start - span).catch(() => null)])
+        return { name: r.name, now: summarize(now, start, start + span), prev: before ? summarize(before, start - span, start) : null }
+      }),
+    )
+    if (!signal.aborted) setState({ comparison: { key, busy: false, items } })
+  } catch {
+    if (!signal.aborted) setState({ comparison: { key, busy: false, items: [] } })
+  }
+}
+
+export async function loadRegionCatalog(): Promise<void> {
+  try {
+    setState({ regions: await loadRegions() })
+  } catch {
+    setState({ regions: null })
   }
 }
 

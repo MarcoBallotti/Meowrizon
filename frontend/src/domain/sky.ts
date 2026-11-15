@@ -54,3 +54,30 @@ export function spanAt(intervals: TimeInterval[], t: number): Span {
   for (const i of intervals) if (i.endMs <= t) prev = i
   return { on, untilMs: next?.startMs ?? null, sinceMs: prev?.endMs ?? null }
 }
+
+/** Az/el of a body at infinity whose sub-point is (latB, lonB), seen from (lat, lon). */
+export function topocentric(latDeg: number, lonDeg: number, latB: number, lonB: number): [number, number] {
+  const phi = Math.max(-89.9999, Math.min(89.9999, latDeg)) * DEG
+  const lam = lonDeg * DEG
+  const pb = latB * DEG
+  const lb = lonB * DEG
+  const d = [Math.cos(pb) * Math.cos(lb), Math.cos(pb) * Math.sin(lb), Math.sin(pb)]
+  const up = [Math.cos(phi) * Math.cos(lam), Math.cos(phi) * Math.sin(lam), Math.sin(phi)]
+  const east = [-Math.sin(lam), Math.cos(lam), 0]
+  const north = [-Math.sin(phi) * Math.cos(lam), -Math.sin(phi) * Math.sin(lam), Math.cos(phi)]
+  const dot = (a: number[], b: number[]) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+  const el = Math.asin(Math.max(-1, Math.min(1, dot(d, up)))) / DEG
+  const az = ((((Math.atan2(dot(d, east), dot(d, north)) / DEG) % 360) + 360) % 360)
+  return [az, el]
+}
+
+/** Terrain horizon angle at an azimuth, linearly interpolated. */
+export function horizonAt(profile: { azimuthDeg: number[]; elevationDeg: number[] }, az: number): number {
+  const { azimuthDeg: azs, elevationDeg: hs } = profile
+  const step = 360 / azs.length
+  const x = ((((az % 360) + 360) % 360) / step) % azs.length
+  const i = Math.floor(x)
+  const j = (i + 1) % azs.length
+  const f = x - i
+  return hs[i] * (1 - f) + hs[j] * f
+}

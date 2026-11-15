@@ -1,22 +1,22 @@
 /* =====================================================================
-   Meowrizon brand tokens
-   Light classroom ground, white cards, one dark "space window".
-   Two meaning colours only: amber = Sun / light, blue = Earth / link.
-   Indigo is the action colour and never means Sun or Earth.
+   Meowrizon tokens
+   One cool neutral scale. Indigo is the only action colour. Two muted
+   tones mark data only: ochre = Sun / light, blue = Earth / link.
+   No gradients, no glow, no shadows. Spacing in steps of 8 px.
    ===================================================================== */
 
 :root {
-  /* Ground and surfaces */
-  --ground: #eceef6;
+  /* Neutrals */
+  --ground: #eceef4;
   --card: #ffffff;
-  --card-sunk: #f5f6fb;
-  --line: #c9cde0;
-  --line-soft: #e3e5f0;
+  --card-sunk: #f5f6fa;
+  --line: #d9dce6;
+  --line-soft: #e6e8ef;
 
   /* Ink */
-  --ink: #171a2b;
-  --ink-2: #4a4f66;
-  --ink-3: #5f6480;
+  --ink: #171a26;
+  --ink-2: #4d5266;
+  --ink-3: #5f6478;
 
   /* Action */
   --primary: #2b2fa8;
@@ -25,33 +25,36 @@
   --primary-soft: #e5e7fa;
   --on-primary: #ffffff;
 
-  /* Meaning */
-  --sun: #f5a300;
-  --sun-ink: #8a5a00;
-  --sun-soft: #fff1d1;
-  --earth: #2f6fed;
-  --earth-sky: #5b93ff;
-  --earth-night: #1a2e66;
-  --earth-ink: #1f55c4;
-  --earth-soft: #e2ecff;
-  --both: #171a2b;
-  --danger: #c4314b;
-  --danger-soft: #fce6ea;
+  /* Data marks only (never surfaces) */
+  --sun: #c2964a;
+  --sun-ink: #6f5424;
+  --sun-soft: #f5f6fa;
+  --earth: #6f8fc4;
+  --earth-sky: #8aa6d6;
+  --earth-night: #2a2e3d;
+  --earth-ink: #3f5f96;
+  --earth-soft: #f5f6fa;
+  --both: #4d5266;
+  --red-ring: #b8707c;
+  --up: #3e7a5c;
+  --down: #a4505e;
+  --danger: #a4505e;
+  --danger-soft: #f6ecee;
 
   /* Space window */
-  --space: #0b0d1a;
-  --space-2: #15182b;
-  --space-line: #2c3050;
-  --space-ink: #e9eaf5;
-  --space-ink-2: #a7aac4;
-  --rock-far-top: #3a3b55;
-  --rock-far-bottom: #22233a;
-  --rock-mid-top: #55546a;
-  --rock-mid-bottom: #1a1b2c;
-  --rock-near-top: #8e8ca0;
-  --rock-near-bottom: #17182a;
+  --space: #12141e;
+  --space-2: #1b1e2a;
+  --space-line: #2a2e3d;
+  --space-ink: #eceef4;
+  --space-ink-2: #b4b9c8;
+  --rock-far-top: #2a2e3d;
+  --rock-far-bottom: #2a2e3d;
+  --rock-mid-top: #3a3e4e;
+  --rock-mid-bottom: #3a3e4e;
+  --rock-near-top: #4d5266;
+  --rock-near-bottom: #4d5266;
 
-  /* Type */
+  /* Type: Bricolage 700/800, Figtree 400/600, JetBrains Mono 400/600 */
   --font-display: 'Bricolage Grotesque', system-ui, sans-serif;
   --font-text: 'Figtree', system-ui, sans-serif;
   --font-data: 'JetBrains Mono', ui-monospace, monospace;
@@ -60,57 +63,42 @@
   --text-m: 18px;
   --text-l: 20px;
   --title-s: 24px;
-  --title-m: 30px;
-  --display-s: 44px;
+  --title-m: 32px;
+  --display-s: 40px;
   --display-m: 56px;
 
   /* Shape */
-  --r-window: 32px;
-  --r-card: 24px;
-  --r-control: 16px;
-  --r-small: 10px;
+  --r-window: 24px;
+  --r-card: 16px;
+  --r-control: 8px;
+  --r-small: 8px;
   --r-pill: 999px;
 
-  /* Space scale */
-  --s-1: 4px;
+  /* Space scale: multiples of 8 only */
+  --s-1: 8px;
   --s-2: 8px;
-  --s-3: 12px;
+  --s-3: 16px;
   --s-4: 16px;
-  --s-5: 20px;
+  --s-5: 24px;
   --s-6: 24px;
-  --s-7: 28px;
+  --s-7: 32px;
   --s-8: 32px;
   --s-10: 48px;
 
   /* Touch targets: classroom first */
-  --target-s: 44px;
-  --target-m: 60px;
-  --target-l: 72px;
+  --target-s: 48px;
+  --target-m: 56px;
+  --target-l: 64px;
 
-  /* Motion */
+  /* Motion: state changes only */
   --t-fast: 120ms;
-  --t-base: 220ms;
-  --t-slow: 600ms;
-  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --t-base: 200ms;
+  --t-slow: 320ms;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
 
-  --focus-ring: 0 0 0 3px var(--card), 0 0 0 6px var(--primary);
+  --focus-ring: 0 0 0 2px var(--card), 0 0 0 4px var(--primary);
 
   color-scheme: light;
-}
-
-/* Planner density: same brand, tighter scale for desks instead of projectors. */
-[data-audience='planner'] {
-  --text-xs: 13px;
-  --text-s: 14px;
-  --text-m: 16px;
-  --text-l: 17px;
-  --title-s: 20px;
-  --title-m: 26px;
-  --display-s: 32px;
-  --display-m: 40px;
-  --r-card: 20px;
-  --target-m: 52px;
-  --target-l: 60px;
 }
 
 * {
@@ -186,4 +174,9 @@ p {
     animation-duration: 1ms !important;
     transition-duration: 1ms !important;
   }
+}
+
+::selection {
+  background: var(--primary-soft);
+  color: var(--ink);
 }

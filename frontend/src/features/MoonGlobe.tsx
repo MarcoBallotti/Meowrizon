@@ -31,11 +31,10 @@ import {
 } from 'cesium'
 import 'cesium/Build/Cesium/Widgets/widgets.css'
 import { useEffect, useRef, useState } from 'react'
+import type { SiteCoordinates } from '../api/types'
 import { subSolarPoint } from '../domain/approxEphemeris'
 import { formatLat, formatLon } from '../domain/format'
-import { EXAMPLE_SITES, normalizeLon } from '../domain/sites'
-import { getState, setScenarioInput, useStore } from '../state/store'
-import { globeHandle } from './globeHandle'
+import { normalizeLon } from '../domain/sites'
 
 const MOON = Ellipsoid.MOON
 const R = 1_737_400
@@ -55,10 +54,26 @@ const COVERAGE_LINES = [
   { lat: 60, label: 'SLDEM2015 · 60°N' },
 ]
 
-const RING = `data:image/svg+xml;utf8,${encodeURIComponent(
-  '<svg xmlns="http://www.w3.org/2000/svg" width="56" height="56"><circle cx="28" cy="28" r="20" fill="none" stroke="#0b0d1a" stroke-width="8" stroke-opacity="0.5"/><circle cx="28" cy="28" r="20" fill="none" stroke="#ffffff" stroke-width="4"/><circle cx="28" cy="28" r="7" fill="#ffffff"/></svg>',
-)}`
+const svgUri = (svg: string) => `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`
 
+const RING = svgUri(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="56" height="56"><circle cx="28" cy="28" r="20" fill="none" stroke="#0b0d1a" stroke-width="8" stroke-opacity="0.5"/><circle cx="28" cy="28" r="20" fill="none" stroke="#ffffff" stroke-width="4"/><circle cx="28" cy="28" r="7" fill="#ffffff"/></svg>',
+)
+
+/** Numbered badge for ranked regions. The leader is indigo. */
+function rankBadge(n: number): string {
+  const lead = n === 1
+  return svgUri(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"><circle cx="20" cy="20" r="16" fill="${lead ? '#2B2FA8' : '#ffffff'}" stroke="#0b0d1a" stroke-opacity="0.55" stroke-width="3"/><text x="20" y="26" text-anchor="middle" font-family="Figtree, Arial, sans-serif" font-weight="800" font-size="17" fill="${lead ? '#ffffff' : '#171A2B'}">${n}</text></svg>`,
+  )
+}
+
+export interface GlobeMarker extends SiteCoordinates {
+  id: string
+  label: string
+  /** When set, a numbered badge replaces the dot and label. */
+  rank?: number
+}
 
 function trek(layer: string, format: 'jpg' | 'png', credit: string) {
   return new WebMapTileServiceImageryProvider({
@@ -73,10 +88,14 @@ function trek(layer: string, format: 'jpg' | 'png', credit: string) {
   })
 }
 
-/** Camera looking at the Moon's centre from above a latitude tilted towards the site. */
-function overviewPose(lat: number, lon: number) {
-  const viewLat = lat < -55 ? -52 : lat > 55 ? 52 : lat
-  const unit = Cartesian3.normalize(Cartesian3.fromDegrees(lon, viewLat, 0, MOON), new Cartesian3())
+/**
+ * The one resting view: the near side tilted towards the south pole, so the
+ * polar sites and the Apollo sites are all visible without turning the Moon.
+ */
+const HOME_VIEW = { lat: -48, lon: 15 }
+
+function homePose() {
+  const unit = Cartesian3.normalize(Cartesian3.fromDegrees(HOME_VIEW.lon, HOME_VIEW.lat, 0, MOON), new Cartesian3())
   const destination = Cartesian3.multiplyByScalar(unit, R * 2.75, new Cartesian3())
   const direction = Cartesian3.negate(unit, new Cartesian3())
   const z = Cartesian3.UNIT_Z
@@ -85,6 +104,36 @@ function overviewPose(lat: number, lon: number) {
     new Cartesian3(),
   )
   return { destination, orientation: { direction, up } }
+}
+
+const HOME = homePose()
+const DOLLY_MS = 600
+
+export interface GlobeFocus extends SiteCoordinates {
+  /** Distance from the target along the view direction, metres. */
+  distanceM: number
+  /** Where the target should sit on screen, -1..1 from the centre (x right, y up). */
+  screen?: [number, number]
+}
+
+/**
+ * Camera position that shows `focus` at the requested screen point while
+ * keeping the home orientation: the camera only translates, never turns.
+ */
+function framedPosition(viewer: Viewer, focus: GlobeFocus): Cartesian3 {
+  const { direction, up } = HOME.orientation
+  const right = Cartesian3.normalize(Cartesian3.cross(direction, up, new Cartesian3()), new Cartesian3())
+  const f = viewer.camera.frustum as { fov?: number; aspectRatio?: number }
+  const fov = f.fov ?? Math.PI / 3
+  const aspect = f.aspectRatio ?? 1.6
+  const tanX = aspect >= 1 ? Math.tan(fov / 2) : Math.tan(fov / 2) * aspect
+  const tanY = aspect >= 1 ? Math.tan(fov / 2) / aspect : Math.tan(fov / 2)
+  const [sx, sy] = focus.screen ?? [0, 0]
+  const t = Cartesian3.fromDegrees(focus.lonEastDeg, focus.latDeg, 0, MOON)
+  const pos = Cartesian3.subtract(t, Cartesian3.multiplyByScalar(direction, focus.distanceM, new Cartesian3()), new Cartesian3())
+  Cartesian3.subtract(pos, Cartesian3.multiplyByScalar(right, sx * focus.distanceM * tanX, new Cartesian3()), pos)
+  Cartesian3.subtract(pos, Cartesian3.multiplyByScalar(up, sy * focus.distanceM * tanY, new Cartesian3()), pos)
+  return pos
 }
 
 function sunLight(ms: number): DirectionalLight {
@@ -113,28 +162,30 @@ function setShow(entity: Entity, show: boolean) {
 }
 
 interface MoonGlobeProps {
-  /** Light the globe as on the chosen date (approximate Sun direction). */
-  realLight: boolean
+  markers: GlobeMarker[]
+  selected: SiteCoordinates & { label: string; id: string | null }
+  /** What to frame; null = the resting view of the whole Moon. */
+  focus: GlobeFocus | null
+  /** Light the globe as on this date (approximate Sun direction); null = flat light. */
+  lightMs: number | null
   showCoverage: boolean
+  onPickMarker: (id: string) => void
+  onPickPoint: (site: SiteCoordinates) => void
   onHover?: (text: string) => void
 }
 
-export default function MoonGlobe({ realLight, showCoverage, onHover }: MoonGlobeProps) {
+export default function MoonGlobe({ markers, selected, focus, lightMs, showCoverage, onPickMarker, onPickPoint, onHover }: MoonGlobeProps) {
   const container = useRef<HTMLDivElement>(null)
   const viewerRef = useRef<Viewer | null>(null)
-  const selected = useRef<Entity | null>(null)
-  const siteEntities = useRef<Map<string, Entity>>(new Map())
+  const ring = useRef<Entity | null>(null)
+  const markerEntities = useRef<Map<string, Entity>>(new Map())
   const coverage = useRef<Entity[]>([])
-  const hoverRef = useRef(onHover)
+  const handlers = useRef({ onPickMarker, onPickPoint, onHover })
   const [imageryError, setImageryError] = useState(false)
 
-  const site = useStore((s) => s.scenarios.A.input.site)
-  const siteName = useStore((s) => s.scenarios.A.input.siteName)
-  const startMs = useStore((s) => s.scenarios.A.input.startMs)
-
   useEffect(() => {
-    hoverRef.current = onHover
-  }, [onHover])
+    handlers.current = { onPickMarker, onPickPoint, onHover }
+  }, [onPickMarker, onPickPoint, onHover])
 
   useEffect(() => {
     if (!container.current) return
@@ -188,26 +239,6 @@ export default function MoonGlobe({ realLight, showCoverage, onHover }: MoonGlob
     viewer.scene.screenSpaceCameraController.maximumZoomDistance = 9_000_000
     viewerRef.current = viewer
 
-    for (const s of EXAMPLE_SITES) {
-      const e = viewer.entities.add({
-        position: Cartesian3.fromDegrees(s.lonEastDeg, s.latDeg, 0, MOON),
-        point: { pixelSize: 9, color: Color.WHITE, outlineColor: SPACE, outlineWidth: 2 },
-        label: {
-          text: s.short,
-          font: `600 15px ${FONT}`,
-          fillColor: Color.WHITE,
-          outlineColor: SPACE,
-          outlineWidth: 4,
-          style: LabelStyle.FILL_AND_OUTLINE,
-          pixelOffset: new Cartesian2(10, 0),
-          horizontalOrigin: HorizontalOrigin.LEFT,
-          verticalOrigin: VerticalOrigin.CENTER,
-          translucencyByDistance: new NearFarScalar(1.5e6, 1, 5e6, 0.0),
-        },
-      })
-      siteEntities.current.set(s.name, e)
-    }
-
     coverage.current = COVERAGE_LINES.map((c) =>
       viewer.entities.add({
         show: false,
@@ -226,11 +257,11 @@ export default function MoonGlobe({ realLight, showCoverage, onHover }: MoonGlob
       }),
     )
 
-    selected.current = viewer.entities.add({
+    ring.current = viewer.entities.add({
       billboard: { image: RING, width: 44, height: 44, disableDepthTestDistance: Number.POSITIVE_INFINITY },
       label: {
         text: '',
-        font: `700 17px ${FONT}`,
+        font: `600 17px ${FONT}`,
         fillColor: INK,
         showBackground: true,
         backgroundColor: Color.WHITE,
@@ -251,38 +282,26 @@ export default function MoonGlobe({ realLight, showCoverage, onHover }: MoonGlob
     }
     handler.setInputAction((e: ScreenSpaceEventHandler.PositionedEvent) => {
       const picked = viewer.scene.pick(e.position) as { id?: Entity } | undefined
-      const known = picked?.id ? EXAMPLE_SITES.find((s) => siteEntities.current.get(s.name) === picked.id) : undefined
-      if (known) {
-        setScenarioInput('A', { site: { latDeg: known.latDeg, lonEastDeg: known.lonEastDeg }, siteName: known.name })
-        return
+      for (const [id, ent] of markerEntities.current) {
+        if (picked?.id === ent) {
+          handlers.current.onPickMarker(id)
+          return
+        }
       }
       const p = pick(e.position)
       if (!p) return
       const round = (v: number) => Math.round(v * 1e4) / 1e4
-      setScenarioInput('A', { site: { latDeg: round(p.latDeg), lonEastDeg: round(p.lonEastDeg) }, siteName: null })
+      handlers.current.onPickPoint({ latDeg: round(p.latDeg), lonEastDeg: round(p.lonEastDeg) })
     }, ScreenSpaceEventType.LEFT_CLICK)
     handler.setInputAction((e: ScreenSpaceEventHandler.MotionEvent) => {
       const p = pick(e.endPosition)
-      hoverRef.current?.(p ? `${formatLat(p.latDeg, 2)}  ${formatLon(p.lonEastDeg, 2)}` : '')
+      handlers.current.onHover?.(p ? `${formatLat(p.latDeg, 2)}  ${formatLon(p.lonEastDeg, 2)}` : '')
     }, ScreenSpaceEventType.MOUSE_MOVE)
 
-    const { site: s0 } = getState().scenarios.A.input
-    viewer.camera.setView(overviewPose(s0.latDeg, s0.lonEastDeg))
+    viewer.camera.setView(HOME)
 
-    globeHandle.flyDown = (lat, lon) =>
-      new Promise<void>((resolve) => {
-        viewer.camera.flyTo({
-          destination: Cartesian3.fromDegrees(lon, lat, 18_000, MOON),
-          orientation: { heading: 0, pitch: CesiumMath.toRadians(-90), roll: 0 },
-          duration: 2.1,
-          complete: () => resolve(),
-          cancel: () => resolve(),
-        })
-      })
-
-    const entities = siteEntities.current
+    const entities = markerEntities.current
     return () => {
-      globeHandle.flyDown = null
       handler.destroy()
       viewer.destroy()
       viewerRef.current = null
@@ -290,25 +309,92 @@ export default function MoonGlobe({ realLight, showCoverage, onHover }: MoonGlob
     }
   }, [])
 
-  // Selected site: ring, label, and a gentle turn of the globe towards it.
+  // Markers: dots with names, or numbered badges for a ranking.
   useEffect(() => {
     const viewer = viewerRef.current
-    const e = selected.current
-    if (!viewer || !e) return
-    placeEntity(e, site.latDeg, site.lonEastDeg)
-    setLabel(e, siteName ?? 'Custom point')
-    for (const [name, ent] of siteEntities.current) setShow(ent, name !== siteName)
-    viewer.camera.flyTo({ ...overviewPose(site.latDeg, site.lonEastDeg), duration: 1.4 })
+    if (!viewer) return
+    for (const e of markerEntities.current.values()) viewer.entities.remove(e)
+    markerEntities.current.clear()
+    for (const m of markers) {
+      const position = Cartesian3.fromDegrees(m.lonEastDeg, m.latDeg, 0, MOON)
+      const e =
+        m.rank !== undefined
+          ? viewer.entities.add({
+              position,
+              billboard: { image: rankBadge(m.rank), width: 30, height: 30, disableDepthTestDistance: Number.POSITIVE_INFINITY },
+            })
+          : viewer.entities.add({
+              position,
+              point: { pixelSize: 9, color: Color.WHITE, outlineColor: SPACE, outlineWidth: 2 },
+              label: {
+                text: m.label,
+                font: `600 15px ${FONT}`,
+                fillColor: Color.WHITE,
+                outlineColor: SPACE,
+                outlineWidth: 4,
+                style: LabelStyle.FILL_AND_OUTLINE,
+                pixelOffset: new Cartesian2(10, 0),
+                horizontalOrigin: HorizontalOrigin.LEFT,
+                verticalOrigin: VerticalOrigin.CENTER,
+                translucencyByDistance: new NearFarScalar(1.5e6, 1, 5e6, 0.0),
+              },
+            })
+      markerEntities.current.set(m.id, e)
+    }
     viewer.scene.requestRender()
-  }, [site, siteName])
+  }, [markers])
+
+  // Selection ring and label; hide the plain marker underneath it.
+  useEffect(() => {
+    const viewer = viewerRef.current
+    const e = ring.current
+    if (!viewer || !e) return
+    placeEntity(e, selected.latDeg, selected.lonEastDeg)
+    setLabel(e, selected.label)
+    for (const [id, ent] of markerEntities.current) {
+      const m = markers.find((x) => x.id === id)
+      setShow(ent, id !== selected.id || m?.rank !== undefined)
+    }
+    viewer.scene.requestRender()
+  }, [selected.latDeg, selected.lonEastDeg, selected.label, selected.id, markers])
+
+  // Camera: a short straight dolly, never a rotation (motion sickness).
+  const focusKey = focus ? `${focus.latDeg},${focus.lonEastDeg},${focus.distanceM},${focus.screen?.join(',') ?? ''}` : ''
+  const focusRef = useRef(focus)
+  useEffect(() => {
+    focusRef.current = focus
+  })
+  useEffect(() => {
+    const viewer = viewerRef.current
+    if (!viewer) return
+    const f = focusRef.current
+    const to = f ? framedPosition(viewer, f) : HOME.destination
+    const from = Cartesian3.clone(viewer.camera.position)
+    const { direction, up } = HOME.orientation
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches || Cartesian3.distance(from, to) < 1) {
+      viewer.camera.setView({ destination: to, orientation: { direction, up } })
+      return
+    }
+    let raf = 0
+    const t0 = performance.now()
+    const step = (now: number) => {
+      const k = Math.min(1, (now - t0) / DOLLY_MS)
+      const e = 1 - Math.pow(1 - k, 4)
+      viewer.camera.setView({ destination: Cartesian3.lerp(from, to, e, new Cartesian3()), orientation: { direction, up } })
+      viewer.scene.requestRender()
+      if (k < 1) raf = requestAnimationFrame(step)
+    }
+    raf = requestAnimationFrame(step)
+    return () => cancelAnimationFrame(raf)
+  }, [focusKey])
 
   useEffect(() => {
     const viewer = viewerRef.current
     if (!viewer) return
-    viewer.scene.globe.enableLighting = realLight
-    viewer.scene.light = sunLight(startMs)
+    viewer.scene.globe.enableLighting = lightMs !== null
+    if (lightMs !== null) viewer.scene.light = sunLight(lightMs)
     viewer.scene.requestRender()
-  }, [realLight, startMs])
+  }, [lightMs])
 
   useEffect(() => {
     for (const e of coverage.current) setShow(e, showCoverage)

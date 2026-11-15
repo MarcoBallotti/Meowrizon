@@ -14,6 +14,8 @@ import {
   Chip,
   DownloadIcon,
   EarthIcon,
+  EarthPhase,
+  EclipseIcon,
   Field,
   IconButton,
   Input,
@@ -460,13 +462,15 @@ export function KitScreen() {
         </div>
       </Section>
 
-      <Section id="bodies" title="Sun and Earth" lead="From the Moon, Earth looks 3.6 times wider than the Sun (1.9° against 0.53°). Earth shows phases opposite to the Moon's: it is “new” when it sits next to the Sun.">
+      <Section id="bodies" title="Sun and Earth" lead="From the Moon, Earth looks 3.6 times wider than the Sun (1.9° against 0.53°). Earth shows phases opposite to the Moon's: it is “new” when it sits next to the Sun. When it passes in front of the Sun, its rim glows red: that is an eclipse.">
         <Card>
           <div className="kit-row">
             <SunIcon size={48} />
+            <EarthIcon size={48} />
             {[0.08, 0.3, 0.5, 0.75, 1].map((k) => (
-              <EarthIcon key={k} size={48} lit={k} />
+              <EarthPhase key={k} size={48} lit={k} />
             ))}
+            <EclipseIcon size={48} />
           </div>
         </Card>
       </Section>

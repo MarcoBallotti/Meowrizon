@@ -23,6 +23,7 @@ import type {
 } from './types'
 import { bestProductFor } from '../domain/coverage'
 import { subEarthPoint, subSolarPoint } from '../domain/approxEphemeris'
+import { topocentric } from '../domain/sky'
 
 const DEG = Math.PI / 180
 const MOON_RADIUS_KM = 1737.4
@@ -162,22 +163,6 @@ function syntheticHorizon(req: TerrainAnalysisRequest): HorizonProfile {
 }
 
 // ---------------------------------------------------------------- ephemeris
-
-/** Az/el of a body at infinity whose sub-point is (latB, lonB). */
-function topocentric(latDeg: number, lonDeg: number, latB: number, lonB: number): [number, number] {
-  const phi = Math.max(-89.9999, Math.min(89.9999, latDeg)) * DEG
-  const lam = lonDeg * DEG
-  const pb = latB * DEG
-  const lb = lonB * DEG
-  const d = [Math.cos(pb) * Math.cos(lb), Math.cos(pb) * Math.sin(lb), Math.sin(pb)]
-  const up = [Math.cos(phi) * Math.cos(lam), Math.cos(phi) * Math.sin(lam), Math.sin(phi)]
-  const east = [-Math.sin(lam), Math.cos(lam), 0]
-  const north = [-Math.sin(phi) * Math.cos(lam), -Math.sin(phi) * Math.sin(lam), Math.cos(phi)]
-  const dot = (a: number[], b: number[]) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
-  const el = Math.asin(Math.max(-1, Math.min(1, dot(d, up)))) / DEG
-  const az = wrap360(Math.atan2(dot(d, east), dot(d, north)) / DEG)
-  return [az, el]
-}
 
 function horizonAt(profile: HorizonProfile, az: number): number {
   const { azimuthDeg: azs, elevationDeg: hs } = profile

@@ -73,6 +73,12 @@ export function formatFriendlyDuration(ms: number): string {
   return `${d} ${d === 1 ? 'day' : 'days'}`
 }
 
+/** Month before the one containing `ms`: "Oct". */
+export function previousMonthName(ms: number): string {
+  const d = new Date(ms)
+  return MONTHS[(d.getUTCMonth() + 11) % 12]
+}
+
 export function formatAngle(deg: number, digits = 1): string {
   const s = deg.toFixed(digits)
   return `${s.startsWith('-') ? '−' + s.slice(1) : s}°`
