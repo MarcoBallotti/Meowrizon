@@ -1,5 +1,9 @@
 # Regioni di atterraggio in Moonrizon
 
+**Perimetro V1 approvato il 15/11/2026:** confronto puntuale di 2–3 punti nelle due regioni di sviluppo, con date esplicite, finestra finita, Horizons topocentrico, terreno/dischi/eclissi, slope e validazione. Griglia e aree regionali, P50 annuale, robustezza aggregata e siti globali sono V2. Le sezioni che li descrivono restano specifiche future. Libreria/CLI/JSON prima; HTTP e frontend dopo. Prevalgono [criteri-algoritmo.md](criteri-algoritmo.md) e [piano-logica.md](piano-logica.md).
+
+**Revisione fonti del 15/11/2026:** fonti scientifiche NASA o istituzionali USA, con responsabilità del prodotto dichiarata. Registro delle sostituzioni, lacune e perimetro minimo approvato in [fonti-e-perimetro-challenge.md](fonti-e-perimetro-challenge.md). La riduzione è approvata; le definizioni V2 restano documentate per gli sviluppi successivi.
+
 Questo documento descrive come confrontare **le condizioni geometriche e topografiche delle regioni lunari** a una data e un'ora. È allineato alle decisioni approvate il **15/11/2026** in `docs/criteri-algoritmo.md`; il piano operativo è in `docs/piano-logica.md` e la guida alle fonti in `docs/guida-dati.md`.
 
 L'elenco usato dal progetto resta nel catalogo `backend/catalog/` (`regions.toml` e `sites.toml`). Il comando esistente `python -m app.cli init-regions` acquisisce i contorni e crea i GeoJSON. Questa revisione aggiorna solo la specifica: non modifica cataloghi, engine o frontend.
@@ -60,9 +64,9 @@ Le effemeridi provengono da **JPL Horizons**. Si calcolano per ogni punto azimut
 
 La frazione solare disponibile considera anche le eclissi causate dalla Terra, distinguendole dalle occultazioni del terreno. La convenzione di visibilità del progetto è **frazione ≥0,5** per entrambi i corpi. La visibilità terrestre è geometrica, non una garanzia di comunicazione.
 
-## 5. Dalle celle alle misure regionali
+## 5. Specifica estesa: aggregazioni V2 e finestre puntuali V1
 
-### 5.1 Visibilità congiunta e aree cumulative
+### 5.1 Visibilità congiunta e aree cumulative — V2
 
 **B(T)** è l'insieme delle celle con Sole e Terra visibili a T. Non contiene un vincolo di pendenza.
 
@@ -88,13 +92,13 @@ Se la copertura è incompleta, la somma delle celle note favorevoli è un **limi
 - **Luce continua:** durata da T fino alla prima discesa della frazione solare sotto 0,5.
 - **Visibilità geometrica continua della Terra:** stessa regola per il disco terrestre.
 - **Buio completo:** intervalli con frazione solare pari a zero, distinti dagli intervalli sotto 0,5.
-- **Anno:** percentuale di durata con frazione solare ≥0,5 nell'anno UTC della data, di 365 o 366 giorni. L'80% evidenzia alta disponibilità secondo la scelta del team; non certifica energia sufficiente.
-- **Eventi non chiusi:** la ricerca si estende oltre un mese lunare fino alla copertura disponibile. Si espongono limiti temporali e stati di censura; non si inventano albe o tramonti.
+- **Anno (solo V2):** percentuale di durata con frazione solare ≥0,5 nell'anno UTC della data, di 365 o 366 giorni. L'80% evidenzia alta disponibilità secondo la scelta del team; non certifica energia sufficiente.
+- **Eventi non chiusi:** in V1 la ricerca si arresta al limite della finestra richiesta o dei dati disponibili; l’estensione automatica è V2. Si espongono limiti temporali e stati di censura; non si inventano albe o tramonti.
 - **Riferimento VIPER:** 50 ore in ibernazione solo come nota storica specifica, senza allarme generale o effetto sul confronto.
 
 La frazione media del disco visibile, il tempo con qualsiasi luce e il tempo sopra il 50% sono metriche differenti. Il 92,27% dello studio Gläser non è un massimo universale direttamente confrontabile con la percentuale annuale del progetto.
 
-### 5.3 Robustezza rispetto alle date
+### 5.3 Robustezza regionale rispetto alle date — V2
 
 Si ripetono le misure a T e a T±1, ±2, ±3 giorni. Si distinguono:
 
@@ -203,9 +207,9 @@ Ogni sito sta in `backend/catalog/sites.toml` con nome, coordinate planetocentri
 | Chang'e 6 | 2024-06-01 | −41,6385 | 206,0148 | LROC 1374 (±30 m) | Primi campioni dalla faccia nascosta |
 | Chandrayaan-3 | 2023-08-23 | −69,3741 | 32,32 | LROC 1314 | Primo atterraggio vicino al polo sud |
 | Blue Ghost M1 | 2025-03-02 | 18,5623 | 61,8103 | LROC 1407 | Primo atterraggio commerciale riuscito del tutto |
-| Griffin-1 *(previsto)* | — | −84,6 | 31,0 | IAU, centro di Mons Mouton | CLPS, polo sud. **Nel settore** |
+| Griffin-1 *(previsto)* | — | −84,6 | 31,0 | USGS Gazetteer (nomi IAU), centro di Mons Mouton | CLPS, polo sud. **Nel settore** |
 | Blue Moon MK1 Pathfinder *(previsto)* | — | −89,4632 | −137,4896 | Centro della regione Artemis Connecting Ridge | CLPS, polo sud. **Nel settore**, dentro Connecting Ridge |
-| IM-3 *(previsto)* | — | 7,3853 | 301,0417 | IAU, centro di Reiner Gamma | CLPS, vortice lunare |
+| IM-3 *(previsto)* | — | 7,3853 | 301,0417 | USGS Gazetteer (nomi IAU), centro di Reiner Gamma | CLPS, vortice lunare |
 | Blue Ghost M2 *(previsto)* | — | −24,9137 | 177,337 | IAU, centro del cratere Nassau | CLPS, faccia nascosta |
 
 Note:
@@ -222,7 +226,7 @@ Note:
 
 ---
 
-## 9. Cosa resta da definire e verificare
+## 9. Estensioni regionali/globali V2 da definire e verificare
 
 Il confine a 84°S è confermato nel catalogo sulla base degli studi storici Artemis. Vale solo per le regioni: i siti possono stare ovunque.
 
@@ -244,4 +248,3 @@ Il confine a 84°S è confermato nel catalogo sulla base degli studi storici Art
 
 - NASA NSSDCA, coordinate e avvertenze dei siti storici (nota su Luna 9): https://nssdc.gsfc.nasa.gov/planetary/lunar/lunar_artifact_impacts.html
 - NASA PGDA, terreno e pendenze a supporto dichiarato: https://pgda.gsfc.nasa.gov/products/90
-- Wueller et al. (2026), contesto dei nomi e dei siti nelle regioni Artemis: https://agupubs.onlinelibrary.wiley.com/doi/10.1029/2025JE009434

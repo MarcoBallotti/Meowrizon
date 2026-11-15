@@ -1,0 +1,259 @@
+{
+ "$defs": {
+  "NumericConfig": {
+   "additionalProperties": false,
+   "description": "Scelte numeriche del progetto: configurazione iniziale, non precisioni garantite.",
+   "properties": {
+    "azimuth_step_deg": {
+     "default": 0.125,
+     "exclusiveMinimum": 0,
+     "maximum": 5,
+     "title": "Azimuth Step Deg",
+     "type": "number"
+    },
+    "min_distance_m": {
+     "default": 2.5,
+     "minimum": 0,
+     "title": "Min Distance M",
+     "type": "number"
+    },
+    "radial_relative_step": {
+     "default": 0.0005,
+     "maximum": 0.05,
+     "minimum": 0,
+     "title": "Radial Relative Step",
+     "type": "number"
+    },
+    "slope_diameter_m": {
+     "default": 100.0,
+     "exclusiveMinimum": 0,
+     "title": "Slope Diameter M",
+     "type": "number"
+    },
+    "slope_min_pixels": {
+     "default": 16,
+     "minimum": 3,
+     "title": "Slope Min Pixels",
+     "type": "integer"
+    },
+    "disc_strips": {
+     "default": 64,
+     "minimum": 8,
+     "title": "Disc Strips",
+     "type": "integer"
+    },
+    "ephemeris_step_s": {
+     "default": 3600,
+     "minimum": 60,
+     "title": "Ephemeris Step S",
+     "type": "integer"
+    },
+    "scan_step_s": {
+     "default": 60.0,
+     "exclusiveMinimum": 0,
+     "title": "Scan Step S",
+     "type": "number"
+    },
+    "event_tolerance_s": {
+     "default": 1.0,
+     "exclusiveMinimum": 0,
+     "title": "Event Tolerance S",
+     "type": "number"
+    },
+    "c3_threshold": {
+     "default": 0.5,
+     "exclusiveMaximum": 1,
+     "exclusiveMinimum": 0,
+     "title": "C3 Threshold",
+     "type": "number"
+    },
+    "zero_fraction_epsilon": {
+     "default": 1e-09,
+     "exclusiveMaximum": 0.001,
+     "minimum": 0,
+     "title": "Zero Fraction Epsilon",
+     "type": "number"
+    },
+    "probe_margin": {
+     "default": 0.05,
+     "exclusiveMaximum": 0.5,
+     "minimum": 0,
+     "title": "Probe Margin",
+     "type": "number"
+    },
+    "probe_subdivisions": {
+     "default": 12,
+     "minimum": 1,
+     "title": "Probe Subdivisions",
+     "type": "integer"
+    },
+    "max_gap_factor": {
+     "default": 1.5,
+     "minimum": 1,
+     "title": "Max Gap Factor",
+     "type": "number"
+    }
+   },
+   "title": "NumericConfig",
+   "type": "object"
+  },
+  "PointRequest": {
+   "additionalProperties": false,
+   "properties": {
+    "id": {
+     "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+     "title": "Id",
+     "type": "string"
+    },
+    "region": {
+     "title": "Region",
+     "type": "string"
+    },
+    "lat_deg": {
+     "maximum": 90.0,
+     "minimum": -90.0,
+     "title": "Lat Deg",
+     "type": "number"
+    },
+    "lon_east_deg": {
+     "maximum": 360.0,
+     "minimum": -180.0,
+     "title": "Lon East Deg",
+     "type": "number"
+    },
+    "selection": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Selection"
+    }
+   },
+   "required": [
+    "id",
+    "region",
+    "lat_deg",
+    "lon_east_deg"
+   ],
+   "title": "PointRequest",
+   "type": "object"
+  },
+  "TierRequest": {
+   "additionalProperties": false,
+   "properties": {
+    "product": {
+     "title": "Product",
+     "type": "string"
+    },
+    "outer_radius_m": {
+     "exclusiveMinimum": 0,
+     "title": "Outer Radius M",
+     "type": "number"
+    },
+    "radial_step_m": {
+     "exclusiveMinimum": 0,
+     "title": "Radial Step M",
+     "type": "number"
+    }
+   },
+   "required": [
+    "product",
+    "outer_radius_m",
+    "radial_step_m"
+   ],
+   "title": "TierRequest",
+   "type": "object"
+  }
+ },
+ "additionalProperties": false,
+ "properties": {
+  "schema": {
+   "const": "meowrizon.analysis.request/1",
+   "default": "meowrizon.analysis.request/1",
+   "title": "Schema",
+   "type": "string"
+  },
+  "description": {
+   "anyOf": [
+    {
+     "type": "string"
+    },
+    {
+     "type": "null"
+    }
+   ],
+   "default": null,
+   "title": "Description"
+  },
+  "points": {
+   "items": {
+    "$ref": "#/$defs/PointRequest"
+   },
+   "maxItems": 3,
+   "minItems": 1,
+   "title": "Points",
+   "type": "array"
+  },
+  "epochs_utc": {
+   "items": {
+    "format": "date-time",
+    "type": "string"
+   },
+   "minItems": 1,
+   "title": "Epochs Utc",
+   "type": "array"
+  },
+  "duration_s": {
+   "exclusiveMinimum": 0,
+   "title": "Duration S",
+   "type": "number"
+  },
+  "observer_height_m": {
+   "default": 2.0,
+   "title": "Observer Height M",
+   "type": "number"
+  },
+  "terrain": {
+   "additionalProperties": {
+    "items": {
+     "$ref": "#/$defs/TierRequest"
+    },
+    "type": "array"
+   },
+   "title": "Terrain",
+   "type": "object"
+  },
+  "numeric": {
+   "$ref": "#/$defs/NumericConfig",
+   "default": {
+    "azimuth_step_deg": 0.125,
+    "min_distance_m": 2.5,
+    "radial_relative_step": 0.0005,
+    "slope_diameter_m": 100.0,
+    "slope_min_pixels": 16,
+    "disc_strips": 64,
+    "ephemeris_step_s": 3600,
+    "scan_step_s": 60.0,
+    "event_tolerance_s": 1.0,
+    "c3_threshold": 0.5,
+    "zero_fraction_epsilon": 1e-09,
+    "probe_margin": 0.05,
+    "probe_subdivisions": 12,
+    "max_gap_factor": 1.5
+   }
+  }
+ },
+ "required": [
+  "points",
+  "epochs_utc",
+  "duration_s",
+  "terrain"
+ ],
+ "title": "AnalysisRequest",
+ "type": "object"
+}

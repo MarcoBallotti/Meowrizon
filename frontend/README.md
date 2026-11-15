@@ -31,7 +31,7 @@ Vedere [`.env.example`](.env.example) e il [contratto corrente](../docs/api-cont
 
 In modalità `api`, picker, ricerca, marker e selettore B usano i siti reali di `/api/sites`. Le regioni di `/api/regions` appaiono in ordine di catalogo, senza punteggi, percentuali, trofei o confronti inventati. I centri sono punti di navigazione, non siti ottimali. Gli ID dei siti e delle regioni sono distinti; i metadati e le geometrie originali sono conservati dagli adapter. Errori di caricamento hanno messaggi e retry senza fallback demo.
 
-La copertura DEM usa solo prodotti dichiarati disponibili da `/api/coverage`: con catalogo vuoto non disegna fasce. Le analisi partono solo sulla pagina sito. Il server accetta terreno/scenario e restituisce errori espliciti finché l'engine non è disponibile. Eclissi, luce del globo e orbite sono ancora anteprime locali approssimate; il badge lo dichiara. I nuovi DTO scientifici richiedono ancora le decisioni U01–U09 del contratto.
+La copertura DEM usa solo prodotti dichiarati disponibili da `/api/coverage`: con catalogo vuoto non disegna fasce. Le analisi partono sulla pagina sito: `POST /api/terrain-analyses` e polling `GET /api/terrain-analyses/{jobId}` restituiscono un profilo PGDA reale. `TerrainPanorama` disegna i suoi angoli in SVG, con rotazione e zoom, senza terreno procedurale. Il profilo diventa visibile prima del job scenario: un errore di quest'ultimo non nasconde il terreno. Timeline e statistiche attendono una valutazione disponibile. Eclissi, luce del globo e orbite restano anteprime locali approssimate. I nuovi DTO scientifici richiedono ancora le decisioni U01–U09 del contratto.
 
 Per l'avvio locale: da `backend/`, `.venv/bin/python -m uvicorn app:app --port 8000`, e inizializzare i cataloghi con `.venv/bin/python -m app.cli init-regions`. Da `frontend/`, `npm run dev` usa API per default; `VITE_DATA_SOURCE=demo npm run dev` abilita la demo. Eventuali `.env` locali con `VITE_DATA_SOURCE=demo` vanno cambiati o sovrascritti con `VITE_DATA_SOURCE=api`. Dopo cambi di ambiente riavviare Vite; per produzione ricompilare il bundle.
 
@@ -54,11 +54,11 @@ src/
 - **Cesium** viene caricato in modo differito, in un chunk separato da circa 1,1 MB gzip. Il plugin in `vite.config.ts` serve `Workers`, `Assets`, `Widgets` e `ThirdParty` dal pacchetto installato in sviluppo e li copia in `dist/cesium` durante la build. Non serve un token Cesium ion.
 - **Globo**: ellissoide `Ellipsoid.MOON` (sfera da 1737,4 km), senza atmosfera né nebbia. Immagini LRO WAC (NASA/GSFC/ASU) via WMTS Moon Trek, schema geografico 2×1. Il globo serve solo alla visualizzazione: non c’è terreno 3D e nessuna classificazione deriva dal rendering.
 - **Cursore temporale**: aggiorna le viste interpolando i campioni già caricati e leggendo la visibilità dagli intervalli forniti dal motore. Non genera richieste.
-- **Richieste**: partono 350 ms dopo l’ultima modifica di uno scenario. Una richiesta superata viene annullata e i risultati precedenti restano visibili, attenuati, finché arrivano quelli nuovi.
+- **Richieste**: partono 350 ms dopo l'ultima modifica di uno scenario. Una richiesta superata viene annullata nel client; il nuovo run cancella i risultati precedenti per non associare il terreno vecchio al nuovo punto. Il job backend può terminare e conservare il risultato in cache.
 - **Confronto A/B**: durata e passo sono condivisi. L’asse della timeline è il tempo trascorso dall’inizio di ciascuno scenario e la scala verticale dell’orizzonte è comune.
 
 ## Limiti noti
 
-- Backend presente per cataloghi/acquisizione, engine scientifico non ancora implementato o collegato; con `demo` i numeri non hanno valore scientifico.
+- Orizzonte PGDA disponibile per siti polari a sud di 80°S (polo esatto escluso), con DEM a 20 m entro 5 km e 240 m oltre. È un profilo campionato, non terreno 3D né una certificazione scientifica. Sole/Terra, statistiche di illuminazione e valutazione delle regioni restano da implementare; con `demo` i numeri sono sintetici.
 - Le immagini equirettangolari si deformano vicino ai poli. Un mosaico polare stereografico richiederebbe tessere preparate apposta.
 - Le coperture DEM mostrate sul globo sono le fasce dei prodotti disponibili dichiarate dal backend: non certificano il cerchio di una singola analisi.

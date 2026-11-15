@@ -1,0 +1,79 @@
+{
+  "schema": "meowrizon.analysis.request/1",
+  "description": "Demo V1: due punti (uno per regione di sviluppo), tre date esplicite, finestra comune di 30 giorni. I 30 giorni sono una finestra di analisi, non la durata di una missione. I punti sono i centri geometrici dei poligoni Moon Trek: non rappresentano la regione e non sono siti favorevoli per definizione.",
+  "points": [
+    {
+      "id": "dgr2-center",
+      "region": "de-gerlache-rim-2",
+      "lat_deg": -88.229978,
+      "lon_east_deg": 295.371562,
+      "selection": "centro geometrico del poligono Moon Trek 'de Gerlache Rim 2' in metri stereografici (x=-48500, y=23000), convertito in latitudine e longitudine"
+    },
+    {
+      "id": "malapert-center",
+      "region": "malapert-massif",
+      "lat_deg": -85.994785,
+      "lon_east_deg": 359.764216,
+      "selection": "centro geometrico del poligono Moon Trek 'Malapert Massif' in metri stereografici (x=-500, y=121500), convertito in latitudine e longitudine"
+    }
+  ],
+  "epochs_utc": [
+    "2026-12-01T00:00:00Z",
+    "2026-12-04T00:00:00Z",
+    "2027-02-01T00:00:00Z"
+  ],
+  "duration_s": 2592000,
+  "observer_height_m": 2.0,
+  "terrain": {
+    "de-gerlache-rim-2": [
+      {
+        "product": "LRO_LOLA_DEM_SPole875_5mp_v04",
+        "outer_radius_m": 4000,
+        "radial_step_m": 5
+      },
+      {
+        "product": "LRO_LOLA_DEM_SPole75_30mp_v04",
+        "outer_radius_m": 40000,
+        "radial_step_m": 30
+      },
+      {
+        "product": "LRO_LOLA_DEM_SPole45_100mp_v04",
+        "outer_radius_m": 300000,
+        "radial_step_m": 100
+      }
+    ],
+    "malapert-massif": [
+      {
+        "product": "Site23_final_adj_5mpp_surf",
+        "outer_radius_m": 4000,
+        "radial_step_m": 5
+      },
+      {
+        "product": "LRO_LOLA_DEM_SPole75_30mp_v04",
+        "outer_radius_m": 40000,
+        "radial_step_m": 30
+      },
+      {
+        "product": "LRO_LOLA_DEM_SPole45_100mp_v04",
+        "outer_radius_m": 300000,
+        "radial_step_m": 100
+      }
+    ]
+  },
+  "numeric": {
+    "azimuth_step_deg": 0.03125,
+    "min_distance_m": 2.5,
+    "radial_relative_step": 0.0005,
+    "slope_diameter_m": 100.0,
+    "slope_min_pixels": 16,
+    "disc_strips": 64,
+    "ephemeris_step_s": 3600,
+    "scan_step_s": 60.0,
+    "event_tolerance_s": 1.0,
+    "c3_threshold": 0.5,
+    "zero_fraction_epsilon": 1e-09,
+    "probe_margin": 0.05,
+    "probe_subdivisions": 12,
+    "max_gap_factor": 1.5
+  }
+}

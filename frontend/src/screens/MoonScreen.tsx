@@ -4,21 +4,46 @@
  *  - results ('explore'): the best sites for that date, in the same card.
  * Keeping both in one component keeps the Cesium viewer alive between them.
  */
-import { Minimize2, RotateCcw } from 'lucide-react'
-import { lazy, Suspense, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { Info, Minimize2, RotateCcw } from 'lucide-react'
+import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { provider } from '../api'
-import type { DemProduct } from '../api/types'
 import { formatLat, formatLon, formatUtcDate, formatUtcLong } from '../domain/format'
-import { rank, type AreaFilter, type Ranked, type RankBy } from '../domain/ranking'
+import { areaOfLatitude, comparisonCandidates } from '../domain/catalogs'
+import { rank, rankColor, type AreaFilter, type Ranked, type RankBy } from '../domain/ranking'
 import { CUSTOM_SITE_NAME, normalizeLon, validateSite } from '../domain/sites'
-import type { GlobeFocus, GlobeMarker, RegionBands } from '../features/MoonGlobe'
+import type { GlobeFocus, GlobeMarker, MarkerSymbol, RegionBands, RegionShape } from '../features/MoonGlobe'
 import { TopBar } from '../features/TopBar'
-import { loadRegionCatalog, loadSiteCatalog } from '../state/runner'
+import { loadRegionCatalog, loadSiteCatalog, runRegionRanking } from '../state/runner'
 import { goTo, setScenarioInput, setState, useStore, type Audience, type ScenarioInput } from '../state/store'
 import { ArrowIcon, Button, Card, DateDial, Field, Input, MonthCalendar, Segmented, Select, SpaceWindow, Toggle } from '../ui'
 
 const MoonGlobe = lazy(() => import('../features/MoonGlobe'))
-const EMPTY_PRODUCTS: DemProduct[] = []
+
+/** Above this width the results float over a full-screen sky (screens.css, .is-results). */
+const WIDE = '(min-width: 1101px)'
+/** Where the Moon sits on the results screen, -1..1 from the centre: left of the panel. */
+const RESULTS_SCREEN_X = -0.32
+
+function useWide(): boolean {
+  const [wide, setWide] = useState(() => matchMedia(WIDE).matches)
+  useEffect(() => {
+    const mq = matchMedia(WIDE)
+    const on = () => setWide(mq.matches)
+    mq.addEventListener('change', on)
+    return () => mq.removeEventListener('change', on)
+  }, [])
+  return wide
+}
+const NO_SHAPES: RegionShape[] = []
+
+/** Rings of [east longitude, latitude] from a GeoJSON Polygon or MultiPolygon. */
+function ringsOf(geometry: unknown): [number, number][][] {
+  const g = geometry as { type?: string; coordinates?: unknown }
+  const polygons = g?.type === 'Polygon' ? [g.coordinates] : g?.type === 'MultiPolygon' ? (g.coordinates as unknown[]) : []
+  return (polygons as number[][][][]).flatMap((polygon) =>
+    polygon.map((ring) => ring.map((p) => [p[0], p[1]] as [number, number])).filter((ring) => ring.length >= 3),
+  )
+}
 /** With the backend, catalog entries are told apart by id; the practice data uses names. */
 const API = provider.kind === 'api'
 
@@ -39,6 +64,7 @@ const AREA_OPTIONS: { value: AreaFilter; label: string }[] = [
   { value: 'all', label: 'All' },
   { value: 'south-pole', label: 'South pole' },
   { value: 'equatorial', label: 'Equator' },
+  { value: 'other', label: 'Other latitudes' },
 ]
 
 const pct = (v: number) => `${Math.round(v * 100)}%`
@@ -161,10 +187,22 @@ interface Place {
   area: Exclude<AreaFilter, 'all'> | 'other'
   latDeg: number
   lonEastDeg: number
+  symbol?: MarkerSymbol
 }
 
-const areaOf = (lat: number): Place['area'] => (lat < -80 ? 'south-pole' : Math.abs(lat) <= 30 ? 'equatorial' : 'other')
-const AREA_LABEL: Record<Place['area'], string> = { 'south-pole': 'South pole', equatorial: 'Equator', other: 'Mid-latitude' }
+/** Missions that carried a crew to the surface: every other catalog landing is robotic. */
+const CREWED = /^(site:)?apollo-/
+
+/** Crewed landings keep the dot; robotic landers get a triangle, filled once landed, outlined while planned. */
+function siteSymbol(s: { id: string; kind?: string }): MarkerSymbol {
+  if (CREWED.test(s.id)) return 'site'
+  if (s.kind === 'previsto') return 'robotic'
+  if (s.kind === 'atterrato') return 'robotic-landed'
+  return 'site'
+}
+
+const areaOf = areaOfLatitude
+const AREA_LABEL: Record<Place['area'], string> = { 'south-pole': 'South pole', equatorial: 'Equator', other: 'Other latitudes' }
 
 /**
  * With the backend: its site catalog, then the NASA candidate region centres,
@@ -175,9 +213,9 @@ function usePlaces(): Place[] {
   const catalog = useStore((s) => s.regions)
   const sites = useStore((s) => s.sites)
   return useMemo(() => {
-    const site = (s: (typeof sites)[number]): Place => ({ id: s.id, name: s.name, short: s.short, area: areaOf(s.latDeg), latDeg: s.latDeg, lonEastDeg: s.lonEastDeg })
+    const site = (s: (typeof sites)[number]): Place => ({ id: s.id, name: s.name, short: s.short, area: areaOf(s.latDeg), latDeg: s.latDeg, lonEastDeg: s.lonEastDeg, symbol: siteSymbol(s) })
     if (API) {
-      const centres = (catalog?.locations ?? []).map((r): Place => ({ id: r.id, name: r.name, short: r.name, area: r.area, ...r.center }))
+      const centres = (catalog?.locations ?? []).map((r): Place => ({ id: r.id, name: r.name, short: r.name, area: r.area, ...r.center, symbol: 'artemis' }))
       return [...sites.map(site), ...centres]
     }
     const out: Place[] = (catalog?.regions ?? []).map((r) => ({ id: r.id, name: r.name, short: r.name.split(' · ')[0], area: r.area, ...r.center }))
@@ -395,175 +433,152 @@ function nightText(h: number, audience: Audience): string {
   return audience === 'planner' ? `${h} h` : `${Math.max(1, Math.round(h / 24))} d`
 }
 
-/**
- * Step 2 with the backend: the NASA candidate regions in catalog order. The
- * engine has no regional calculation yet, so there is no ranking to show.
- */
-function CandidateRegionsCard({ onPick, onHorizon }: { onPick: Pick; onHorizon: () => void }) {
+/** The period of the results, on the left of the sky, with the way back to change it. */
+function ResultsWhen() {
   const audience = useStore((s) => s.audience)
-  const input = useStore((s) => s.scenarios.A.input)
-  const area = useStore((s) => s.area)
-  const catalog = useStore((s) => s.regions)
-  const error = useStore((s) => s.regionError)
+  const startMs = useStore((s) => s.scenarios.A.input.startMs)
   const durationDays = useStore((s) => s.durationDays)
-  const planner = audience === 'planner'
-  const student = audience === 'student'
-  const place = input.siteName?.split(' · ')[0] ?? CUSTOM_SITE_NAME
-  const regions = (catalog?.locations ?? []).filter((r) => area === 'all' || r.area === area)
-
   return (
-    <Card as="section" className="plan-card results-card" aria-label="Candidate regions">
-      <div className="plan-fixed">
-        <span>
-          {whenText(input.startMs, audience)}
-          {planner && <span className="ui-muted"> · {durationDays} days</span>}
-        </span>
-        <button type="button" className="ui-dial-link" onClick={() => goTo('moon')}>
-          Change
-        </button>
-      </div>
-      <div className="results-head">
-        <h1 className="plan-title">Candidate regions</h1>
-        {!student && <Segmented<AreaFilter> label="Area" size="s" tone="sunk" value={area} onChange={(v) => setState({ area: v })} options={AREA_OPTIONS} />}
-      </div>
-      <p className="ui-field-hint">NASA 2022 catalog, in catalog order. Centres are for browsing: terrain, illumination and comparison results are not available yet.</p>
-
-      {error ? (
-        <p role="alert" className="catalog-status plan-body">
-          {error}{' '}
-          <Button size="s" onClick={() => void loadRegionCatalog()}>
-            Retry
-          </Button>
-        </p>
-      ) : !catalog ? (
-        <p role="status" className="ui-muted plan-body">
-          Loading the regions…
-        </p>
-      ) : (
-        <ol className="results-list" aria-label="Candidate regions">
-          {regions.map((r, i) => (
-            <li key={r.id}>
-              <button type="button" className="results-row is-catalog" aria-pressed={isChosen(input, r)} onClick={() => onPick({ ...r.center, name: r.name, id: r.id })}>
-                <span className="results-n">{i + 1}</span>
-                <span className="results-name">{r.name}</span>
-                <span className="results-value ui-small ui-muted">{r.active ? 'Initial analysis' : 'Catalog'}</span>
-              </button>
-            </li>
-          ))}
-          {regions.length === 0 && <li className="site-list-empty">No candidate regions in this area.</li>}
-        </ol>
-      )}
-
-      <Button size="l" block icon={<ArrowIcon />} onClick={onHorizon} className="plan-go">
-        {student ? `Fly down to ${place}` : `Open the horizon at ${place}`}
-      </Button>
-    </Card>
+    <div className="results-when plan-fixed">
+      <span>
+        {whenText(startMs, audience)}
+        <span className="ui-muted"> · {durationDays} days</span>
+      </span>
+      <button type="button" className="ui-dial-link" onClick={() => goTo('moon')}>
+        Change
+      </button>
+    </div>
   )
 }
 
-/** Step 2: the best sites for the chosen date, the leader set apart. */
-function ResultsCard({ ranked, onPick, onHorizon }: { ranked: Ranked[]; onPick: Pick; onHorizon: () => void }) {
+/**
+ * Step 2: every candidate site for the chosen period, one card each, from the
+ * best to the worst. With the engine the regions are measured one at a time:
+ * cards join the list in their place as each result arrives.
+ */
+function RankedSitesPanel({ ranked, onPick, onHorizon }: { ranked: Ranked[]; onPick: Pick; onHorizon: () => void }) {
   const audience = useStore((s) => s.audience)
   const input = useStore((s) => s.scenarios.A.input)
   const rankBy = useStore((s) => s.rankBy)
   const area = useStore((s) => s.area)
   const catalog = useStore((s) => s.regions)
-  const durationDays = useStore((s) => s.durationDays)
+  const error = useStore((s) => s.regionError)
+  const siteError = useStore((s) => s.siteError)
+  const sites = useStore((s) => s.sites)
+  const sitesLoaded = useStore((s) => s.sitesLoaded)
+  const progress = useStore((s) => s.ranking)
   const student = audience === 'student'
   const planner = audience === 'planner'
-  const shown = ranked.slice(0, TOP_N[audience])
-  const top = shown[0]
-  const best = top?.value || 1
-  const place = input.siteName?.split(' · ')[0] ?? CUSTOM_SITE_NAME
-  const valueText = (r: Ranked) => (rankBy === 'overall' ? String(r.score) : pct(r.value))
-  const pickRegion = (r: Ranked) => onPick({ ...r.center, name: r.name, id: r.id })
+  const shown = API ? ranked : ranked.slice(0, TOP_N[audience])
+  // The horizon opens for a site chosen from the cards: until then the button waits.
+  const chosen = shown.find((r) => isChosen(input, r))
+  const place = chosen?.name.split(' · ')[0]
+  const measuring = API && !!progress?.busy
+  const done = progress ? progress.regions.length + progress.failed.length : 0
+  const completed = new Set([...(progress?.regions ?? []), ...(progress?.failed ?? [])].map(p => p.id))
+  const pending = comparisonCandidates(catalog, sites).filter(p => !completed.has(p.id) && (area === 'all' || p.area === area))
 
   return (
-    <Card as="section" className="plan-card results-card" aria-label="Best sites">
-      <div className="plan-fixed">
-        <span>
-          {whenText(input.startMs, audience)}
-          {planner && <span className="ui-muted"> · {durationDays} days</span>}
-        </span>
-        <button type="button" className="ui-dial-link" onClick={() => goTo('moon')}>
-          Change
-        </button>
-      </div>
-      <div className="results-head">
-        <h1 className="plan-title">{student ? `Best places on ${formatUtcDate(input.startMs)}` : `Best sites on ${formatUtcDate(input.startMs)}`}</h1>
-        {!student && <Segmented<AreaFilter> label="Area" size="s" tone="sunk" value={area} onChange={(v) => setState({ area: v })} options={AREA_OPTIONS} />}
-      </div>
+    <section className="rank-panel" aria-label="Sites from best to worst">
+      <Card className="rank-head">
+        <Segmented<AreaFilter> label="Area" size="s" tone="sunk" value={area} onChange={(v) => setState({ area: v })} options={AREA_OPTIONS} />
+        <div className="results-rank">
+          <span className="ui-field-label">{catalog?.origin === 'demo' ? 'Rank by · practice data' : 'Rank by'}</span>
+          <Segmented<RankBy>
+            label="Rank by"
+            size="s"
+            tone="sunk"
+            value={rankBy}
+            onChange={(v) => setState({ rankBy: v })}
+            options={(API ? ['sun', 'earth', 'both'] as const : ['overall', 'sun', 'earth', 'both'] as const).map((v) => ({ value: v, label: RANK_SHORT[audience][v] }))}
+          />
+        </div>
+        {measuring && progress && (
+          <p className="rank-progress ui-small" role="status">
+            <span className="rank-progress-bar" aria-hidden="true">
+              <span style={{ width: `${(done / progress.total) * 100}%` }} />
+            </span>
+            Measuring {progress.current} · {done} of {progress.total}. The first time takes about a minute per site.
+          </p>
+        )}
+        {API && <p className="ui-small ui-muted">All catalog locations are considered. Region results describe their centre point, not the whole region. Comparisons use geometric visibility only; terrain resolution and model limitations apply.</p>}
+        {API && progress && <p role="status" className="ui-small">{progress.regions.length} evaluated · {progress.failed.length} not evaluable · {progress.total - done} pending · {progress.total} catalog points</p>}
+        {API && (error || siteError) && <p role="alert">Catalog incomplete: {[error, siteError].filter(Boolean).join(' ')} <Button size="s" onClick={() => { void loadRegionCatalog(); void loadSiteCatalog() }}>Reload catalogs</Button></p>}
+      </Card>
 
-      {!catalog ? (
-        <p className="ui-muted plan-body">Loading the regions…</p>
-      ) : !top ? (
-        <p className="ui-muted plan-body">No candidate site in this area yet.</p>
+      {API && ((!catalog && !error) || !sitesLoaded) ? (
+        <p role="status" className="ui-muted">Loading catalog points…</p>
+      ) : shown.length === 0 && !measuring ? (
+        <p className="ui-muted">No evaluable results in this area for the requested period.</p>
       ) : (
-        <>
-          <button type="button" className="results-best" aria-pressed={isChosen(input, top)} onClick={() => pickRegion(top)}>
-            <span className="results-best-head">
-              <span className="results-n is-lead">1</span>
-              <span className="results-best-name">{top.name.split(' · ')[0]}</span>
-              <span className="results-tag">Recommended</span>
-            </span>
-            <span className={`results-metrics is-${audience}`}>
-              {planner && (
-                <span className="results-metric">
-                  <small>Score</small>
-                  <b>{top.score}</b>
-                </span>
-              )}
-              <span className="results-metric is-sun">
-                <small>Sunlight</small>
-                <b>{pct(top.sunFraction)}</b>
-              </span>
-              <span className="results-metric is-earth">
-                <small>{student ? 'Earth in the sky' : 'Earth in view'}</small>
-                <b>{pct(top.earthFraction)}</b>
-              </span>
-              {!student && (
-                <span className="results-metric">
-                  <small>Longest night</small>
-                  <b>{nightText(top.longestNightH, audience)}</b>
-                </span>
-              )}
-            </span>
-            <span className="results-why">{why(top, rankBy, audience)}</span>
-          </button>
-
-          <div className="results-rank">
-            <span className="ui-field-label">{catalog.origin === 'demo' ? 'Rank by · practice data' : 'Rank by'}</span>
-            <Segmented<RankBy>
-              label="Rank by"
-              size="s"
-              tone="sunk"
-              value={rankBy}
-              onChange={(v) => setState({ rankBy: v })}
-              options={(['overall', 'sun', 'earth', 'both'] as const).map((v) => ({ value: v, label: RANK_SHORT[audience][v] }))}
-            />
-          </div>
-
-          <ol className="results-list" aria-label="Other sites">
-            {shown.slice(1).map((r) => (
-              <li key={r.id}>
-                <button type="button" className="results-row" aria-pressed={isChosen(input, r)} onClick={() => pickRegion(r)}>
-                  <span className="results-n">{r.rank}</span>
-                  <span className="results-name">{r.name.split(' · ')[0]}</span>
-                  <span className="results-bar" aria-hidden="true">
-                    <span style={{ width: `${(r.value / best) * 100}%` }} />
+        <ol className="rank-list" aria-label="Ranking">
+          {shown.map((r) => (
+            <li key={r.id}>
+              <button type="button" className="rank-card" aria-pressed={isChosen(input, r)} onClick={() => onPick({ ...r.center, name: r.name, id: r.id })}>
+                <span className="rank-card-head">
+                  <span className="rank-badge" style={{ background: rankColor(r.rank, shown.length) }}>
+                    {r.rank}
                   </span>
-                  {!student && <span className="results-value mono">{valueText(r)}</span>}
-                </button>
+                  <span className="rank-card-name">{r.name.split(' · ')[0]}</span>
+                  {!API && r.rank === 1 && <span className="results-tag">Recommended</span>}
+                  {planner && !API && (
+                    <span className="rank-card-score mono" title="Overall score">
+                      {r.score}
+                    </span>
+                  )}
+                </span>
+                <span className={`results-metrics is-${audience}`}>
+                  <span className="results-metric is-sun">
+                    <small>Sunlight</small>
+                    <b>{pct(r.sunFraction)}</b>
+                  </span>
+                  <span className="results-metric is-earth">
+                    <small>{student ? 'Earth in the sky' : 'Earth in view'}</small>
+                    <b>{pct(r.earthFraction)}</b>
+                  </span>
+                  {!student && (
+                    <span className="results-metric">
+                      <small>Sun + Earth</small>
+                      <b>{pct(r.bothFraction)}</b>
+                    </span>
+                  )}
+                  {planner && (
+                    <span className="results-metric">
+                      <small>{API ? 'Longest below C3' : 'Longest night'}</small>
+                      <b>{nightText(r.longestNightH, audience)}</b>
+                    </span>
+                  )}
+                </span>
+                {API && <span className="ui-small ui-muted">{r.pointKind === 'region-center' ? 'Region centre · point estimate' : 'Catalog site'}</span>}
+                {!API && r.rank === 1 && <span className="results-why">{why(r, rankBy, audience)}</span>}
+              </button>
+              {API && r.warnings?.length ? <details className="ui-small"><summary>Data resolution and limitations</summary>{r.warnings.map((w, i) => <p key={i}>{w}</p>)}</details> : null}
+            </li>
+          ))}
+          {measuring &&
+            progress &&
+            pending.map(p => (
+              <li key={p.id} className="rank-card is-pending">
+                <span className="rank-badge" />
+                <span className="ui-muted ui-small">{p.name} · {p.name === progress.current ? 'Measuring…' : 'Pending'}</span>
               </li>
             ))}
-          </ol>
-        </>
+        </ol>
       )}
 
-      <Button size="l" block icon={<ArrowIcon />} onClick={onHorizon} className="plan-go">
-        {student ? `Fly down to ${place}` : `Open the horizon at ${place}`}
+      {API && progress && progress.failed.length > 0 && <section aria-label="Not evaluable points">
+        <h2>Not evaluable for this period</h2>
+        <ul>{progress.failed.filter(p => area === 'all' || areaOfLatitude(p.center.latDeg) === area).map(p => <li key={p.id}>
+          <button type="button" className="ui-dial-link" onClick={() => onPick({ ...p.center, name: p.name, id: p.id })}>{p.name}</button>
+          <p>{p.reason}</p>
+        </li>)}</ul>
+        {!progress.busy && <Button size="s" onClick={() => void runRegionRanking(true)}>Retry comparison</Button>}
+      </section>}
+
+      <Button size="l" block icon={<ArrowIcon />} onClick={onHorizon} className="rank-go" disabled={!chosen}>
+        {!place ? 'Select a site to open its horizon' : student ? `Fly down to ${place}` : `Open the horizon at ${place}`}
       </Button>
-    </Card>
+    </section>
   )
 }
 
@@ -621,6 +636,13 @@ export function MoonScreen({ mode }: { mode: 'moon' | 'explore' }) {
   const audience = useStore((s) => s.audience)
   const input = useStore((s) => s.scenarios.A.input)
   const catalog = useStore((s) => s.regions)
+  const sites = useStore((s) => s.sites)
+  const sitesLoaded = useStore((s) => s.sitesLoaded)
+  const regionError = useStore((s) => s.regionError)
+  const durationDays = useStore((s) => s.durationDays)
+  const stepMinutes = useStore((s) => s.stepMinutes)
+  const azimuthStepDeg = useStore((s) => s.azimuthStepDeg)
+  const maxDistanceKm = useStore((s) => s.maxDistanceKm)
   const rankBy = useStore((s) => s.rankBy)
   const area = useStore((s) => s.area)
   const places = usePlaces()
@@ -631,21 +653,35 @@ export function MoonScreen({ mode }: { mode: 'moon' | 'explore' }) {
   const [resetNonce, setResetNonce] = useState(0)
   const [hover, setHover] = useState('')
   const [zoomed, setZoomed] = useState(false)
-  const [showCoverage, setShowCoverage] = useState(false)
-  const demProducts = useStore((s) => s.coverage?.products) ?? EMPTY_PRODUCTS
   const planner = audience === 'planner'
   const results = mode === 'explore'
-  // Numbered badges when the answer is a ranking: the results, and the date view that leads to it.
-  const ranking = results || plan === 'date'
+  const wide = useWide()
+  // Numbered badges only where the answer is a ranking: the results.
+  const ranking = results
+  // "By date" changes the day only: the sites stay on the Moon, greyed out.
+  const selectable = results || plan !== 'date'
 
-  const ranked = useMemo(() => (catalog ? rank(catalog.regions, rankBy, area) : []), [catalog, rankBy, area])
+  // With the engine the regions are measured for the chosen period; practice data carries its own numbers.
+  const measured = useStore((s) => s.ranking)
+  const ranked = useMemo(
+    () => (API ? rank(measured?.regions ?? [], rankBy, area) : catalog ? rank(catalog.regions, rankBy, area) : []),
+    [catalog, measured, rankBy, area],
+  )
+  useEffect(() => {
+    if (results && (catalog || regionError) && sitesLoaded) void runRegionRanking()
+  }, [results, catalog, regionError, sites, sitesLoaded, input.startMs, input.observerHeightM, durationDays, stepMinutes, azimuthStepDeg, maxDistanceKm])
 
   const markers = useMemo<GlobeMarker[]>(() => {
-    // The backend's region catalog has no ranking: its centres, without numbers.
-    if (ranking && API) return (catalog?.locations ?? []).map((r) => ({ id: r.id, label: r.name, ...r.center }))
-    if (ranking) return ranked.slice(0, TOP_N[audience]).map((r) => ({ id: r.id, label: r.name, rank: r.rank, ...r.center }))
-    return places.map((p) => ({ id: p.id, label: p.short, latDeg: p.latDeg, lonEastDeg: p.lonEastDeg }))
-  }, [ranking, ranked, audience, places, catalog])
+    // Results: a numbered badge per site, coloured by its place from best (green) to worst (red).
+    // Regions still being measured keep their plain square until their number arrives.
+    if (ranking) {
+      const top = API ? ranked : ranked.slice(0, TOP_N[audience])
+      const badges: GlobeMarker[] = top.map((r) => ({ id: r.id, label: r.name.split(' · ')[0], rank: r.rank, color: rankColor(r.rank, top.length), ...r.center }))
+      const waiting = API ? comparisonCandidates(catalog, sites).filter(l => (area === 'all' || l.area === area) && !top.some(r => r.id === l.id)) : []
+      return [...badges, ...waiting.map((l) => ({ id: l.id, label: l.name, ...l.center, symbol: l.pointKind === 'region-center' ? 'artemis' as const : 'site' as const }))]
+    }
+    return places.map((p) => ({ id: p.id, label: p.short, latDeg: p.latDeg, lonEastDeg: p.lonEastDeg, symbol: p.symbol }))
+  }, [ranking, ranked, audience, places, catalog, sites, area])
 
   const selectedId = API
     ? (input.selectionId ?? null)
@@ -653,14 +689,19 @@ export function MoonScreen({ mode }: { mode: 'moon' | 'explore' }) {
 
   // The results frame the chosen area, and move closer to a picked site.
   // The camera only slides, it never turns.
+  // On wide screens the results panel floats over the right of the sky: the
+  // target sits in the middle of the free part on the left.
+  const offset: [number, number] | undefined = results && wide ? [RESULTS_SCREEN_X, 0] : undefined
   const focus: GlobeFocus | null = results
     ? zoomed
-      ? { ...input.site, distanceM: 260_000 }
-      : area === 'south-pole'
-        ? { latDeg: -87.5, lonEastDeg: 20, distanceM: 760_000 }
+      ? { ...input.site, distanceM: 260_000, screen: offset }
+      : area === 'south-pole' || API // the engine's candidate regions are all at the south pole
+        ? { latDeg: -87.5, lonEastDeg: 20, distanceM: 760_000, screen: offset }
         : area === 'equatorial'
-          ? { latDeg: 8, lonEastDeg: 15, distanceM: 2_600_000 }
-          : null
+          ? { latDeg: 8, lonEastDeg: 15, distanceM: 2_600_000, screen: offset }
+          : offset
+            ? { latDeg: -48, lonEastDeg: 15, distanceM: 4_000_000, screen: offset }
+            : null
     : view === 'pole'
       ? { latDeg: -87.5, lonEastDeg: 20, distanceM: 760_000 }
       : null
@@ -677,6 +718,16 @@ export function MoonScreen({ mode }: { mode: 'moon' | 'explore' }) {
       equatorialLat: equator.length ? Math.ceil(Math.max(...equator) / 5) * 5 : null,
     }
   }, [catalog])
+
+  // The Artemis III candidate regions as the backend serves them: each one a
+  // separate square at its real size, as on NASA's maps. They are never merged
+  // into one area: the ground between them (deep, shadowed craters) is not a candidate.
+  const shapes = useMemo<RegionShape[]>(() => {
+    const regions = (catalog?.locations ?? []).map((r) => ({ id: r.id, rings: ringsOf(r.geometry), filled: true })).filter((r) => r.rings.length > 0)
+    return regions.length ? regions : NO_SHAPES
+  }, [catalog])
+  const symbolsShown = new Set(markers.map((m) => m.symbol ?? 'site'))
+  const [legendOpen, setLegendOpen] = useState(false)
 
   const resetView = () => {
     setView('whole')
@@ -710,16 +761,13 @@ export function MoonScreen({ mode }: { mode: 'moon' | 'explore' }) {
   }
 
   return (
-    <div className="moon-page">
-      <TopBar demo={false} />
+    <div className={results ? 'moon-page is-results' : 'moon-page'}>
+      {/* The results are the sky at full screen: no top bar. */}
+      {!results && <TopBar demo={false} />}
       <div className="moon-layout">
         <div className="moon-side">
           {results ? (
-            API ? (
-              <CandidateRegionsCard onPick={pick} onHorizon={openHorizon} />
-            ) : (
-              <ResultsCard ranked={ranked} onPick={pick} onHorizon={openHorizon} />
-            )
+            <RankedSitesPanel ranked={ranked} onPick={pick} onHorizon={openHorizon} />
           ) : (
             <PlanCard plan={plan} onPlan={setPlan} onResults={showResults} onHorizon={openHorizon} />
           )}
@@ -734,13 +782,15 @@ export function MoonScreen({ mode }: { mode: 'moon' | 'explore' }) {
                 lightMs={realLight ? input.startMs : null}
                 regions={showRegions ? bands : null}
                 resetNonce={resetNonce}
-                showCoverage={planner && showCoverage}
-                coverageProducts={demProducts}
+                regionShapes={showRegions ? shapes : NO_SHAPES}
+                selectable={selectable}
                 onPickMarker={pickMarker}
                 onPickPoint={(site) => setScenarioInput('A', { site, siteName: null })}
                 onHover={planner ? setHover : undefined}
               />
             </Suspense>
+
+            {results && <ResultsWhen />}
 
             <div className="moon-window-toggles">
               <Toggle checked={realLight} onChange={setRealLight} onDark>
@@ -749,16 +799,44 @@ export function MoonScreen({ mode }: { mode: 'moon' | 'explore' }) {
               <Toggle checked={showRegions} onChange={setShowRegions} onDark>
                 Regions
               </Toggle>
-              {planner && (
-                <Toggle checked={showCoverage} onChange={setShowCoverage} onDark>
-                  DEM coverage
-                </Toggle>
-              )}
+              <button
+                type="button"
+                className="moon-info"
+                aria-label="Map key"
+                aria-expanded={legendOpen}
+                aria-controls="moon-legend"
+                onClick={() => setLegendOpen((o) => !o)}
+              >
+                <Info size={20} strokeWidth={1.75} aria-hidden="true" />
+              </button>
             </div>
-            {planner && showCoverage && !demProducts.some((p) => p.available) && (
-              <span role="status" className="ui-space-caption moon-coverage-note">
-                No prepared DEM coverage available
-              </span>
+            {legendOpen && (
+              <ul id="moon-legend" className="moon-legend ui-small" aria-label="Map key">
+                {shapes.length > 0 && (
+                  <li>
+                    <span className="moon-legend-mark is-artemis" aria-hidden="true" />
+                    Published region outlines · NASA / Moon Trek ({shapes.length} in catalog)
+                  </li>
+                )}
+                {symbolsShown.has('site') && (
+                  <li>
+                    <span className="moon-legend-mark is-site" aria-hidden="true" />
+                    Crewed landing (Apollo) or chosen site
+                  </li>
+                )}
+                {symbolsShown.has('robotic-landed') && (
+                  <li>
+                    <svg className="moon-legend-mark" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 1.5 L11 10.5 H1 Z" fill="#f2b45a" stroke="#f2b45a" strokeWidth="1.6" strokeLinejoin="round" /></svg>
+                    Robotic lander, landed
+                  </li>
+                )}
+                {symbolsShown.has('robotic') && (
+                  <li>
+                    <svg className="moon-legend-mark" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 1.5 L11 10.5 H1 Z" fill="none" stroke="#f2b45a" strokeWidth="1.6" strokeLinejoin="round" /></svg>
+                    Robotic lander, planned (CLPS) · not a crewed site
+                  </li>
+                )}
+              </ul>
             )}
 
             {results ? (

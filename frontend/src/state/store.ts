@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react'
 import type { CoverageCatalog, ScenarioEvaluation, SiteCoordinates, TerrainAnalysis } from '../api/types'
-import type { AreaFilter, RankBy, RegionCatalog } from '../domain/ranking'
+import type { AreaFilter, RankBy, Region, RegionCatalog } from '../domain/ranking'
 import { EXAMPLE_SITES } from '../domain/sites'
 import type { ExampleSite } from '../domain/sites'
 import { provider } from '../api'
@@ -32,6 +32,23 @@ export interface Comparison {
   items: { name: string; now: SiteSummary; prev: SiteSummary | null }[]
 }
 
+/**
+ * Candidate regions measured for the chosen period, so they can be ranked
+ * best to worst. Filled one region at a time as the engine answers.
+ */
+export interface RegionRanking {
+  key: string
+  busy: boolean
+  /** Regions to measure, in catalog order. */
+  total: number
+  /** Measured regions (Sun, Earth, both, longest night). */
+  regions: Region[]
+  /** Catalog points that could not be evaluated, with an explicit reason. */
+  failed: { id: string; name: string; reason: string; center: SiteCoordinates }[]
+  /** Name of the region being measured now. */
+  current: string | null
+}
+
 export interface ScenarioInput {
   site: SiteCoordinates
   /** Name of the example site when chosen from the list; null for free picks. */
@@ -46,7 +63,7 @@ export type RunPhase = 'idle' | 'terrain' | 'ephemeris' | 'ready' | 'error'
 export interface ScenarioRun {
   phase: RunPhase
   progress?: number
-  /** Results stay visible while a newer run is in progress. */
+  /** Terrain becomes available independently of the subsequent scenario evaluation. */
   terrain?: TerrainAnalysis
   evaluation?: ScenarioEvaluation
   /** Same length of time just before the start, for "vs last month". */
@@ -54,6 +71,7 @@ export interface ScenarioRun {
   /** True while the shown results no longer match the inputs. */
   stale: boolean
   error?: string
+  message?: string
 }
 
 export interface Scenario {
@@ -78,10 +96,13 @@ export interface AppState {
   coverage: CoverageCatalog | null
   regions: RegionCatalog | null
   sites: ExampleSite[]
+  sitesLoaded: boolean
   regionError: string | null
   siteError: string | null
   /** Top regions of the ranking, computed for the same period as scenario A. */
   comparison: Comparison | null
+  /** Candidate regions measured for scenario A's period (engine only). */
+  ranking: RegionRanking | null
   rankBy: RankBy
   area: AreaFilter
   /** Incremented to ask the globe to fly to a scenario. */
@@ -138,10 +159,12 @@ const initialState: AppState = {
   coverage: null,
   regions: null,
   sites: provider.kind === 'demo' ? EXAMPLE_SITES : [],
+  sitesLoaded: provider.kind === 'demo',
   regionError: null,
   siteError: null,
   comparison: null,
-  rankBy: 'overall',
+  ranking: null,
+  rankBy: provider.kind === 'api' ? 'sun' : 'overall',
   area: 'all',
   flyRequest: null,
 }
@@ -167,7 +190,7 @@ export function updateScenario(key: ScenarioKey, fn: (s: Scenario) => Scenario):
 
 export function setScenarioInput(key: ScenarioKey, patch: Partial<ScenarioInput>): void {
   if (patch.site && !('selectionId' in patch)) patch = { ...patch, selectionId: null }
-  updateScenario(key, (s) => ({ input: { ...s.input, ...patch }, run: { ...s.run, stale: true } }))
+  updateScenario(key, (s) => ({ input: { ...s.input, ...patch }, run: { phase: 'idle', stale: true } }))
 }
 
 export function setAudience(audience: Audience): void {

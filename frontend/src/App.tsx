@@ -25,7 +25,7 @@ function useAutoRun() {
       const wanted: [ScenarioKey, typeof A][] = compare ? [['A', A], ['B', B]] : [['A', A]]
       for (const [key, input] of wanted) {
         const k = JSON.stringify([input, durationDays, stepMinutes, azimuthStepDeg, maxDistanceKm])
-        if (lastKeys.current[key] === k) continue
+        if (lastKeys.current[key] === k && getState().scenarios[key].run.phase !== 'idle') continue
         lastKeys.current[key] = k
         void runScenario(key)
       }

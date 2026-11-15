@@ -4,7 +4,7 @@
  */
 import type { DataOrigin, SiteCoordinates } from '../api/types'
 
-export type Area = 'south-pole' | 'equatorial'
+export type Area = 'south-pole' | 'equatorial' | 'other'
 export type AreaFilter = Area | 'all'
 export type RankBy = 'overall' | 'sun' | 'earth' | 'both'
 
@@ -16,6 +16,8 @@ export interface Region {
   sunFraction: number
   earthFraction: number
   bothFraction: number
+  warnings?: string[]
+  pointKind?: 'region-center' | 'site'
   longestNightH: number
   /** Same days one month earlier, for the comparison next to every number. */
   previous?: Pick<Region, 'sunFraction' | 'earthFraction' | 'bothFraction' | 'longestNightH'>
@@ -66,8 +68,21 @@ export function rank(regions: Region[], by: RankBy, area: AreaFilter): Ranked[] 
   return regions
     .filter((r) => area === 'all' || r.area === area)
     .map((r) => ({ ...r, score: overallScore(r), value: metric(r, by) }))
-    .sort((a, b) => b.value - a.value || b.score - a.score)
+    .sort((a, b) => b.value - a.value || a.id.localeCompare(b.id))
     .map((r, i) => ({ ...r, rank: i + 1 }))
+}
+
+/**
+ * Colour of a place in the ranking, from green (best) to red (worst), shared by
+ * the result cards and the badges on the Moon. The number in the badge carries
+ * the same information, so the order never depends on colour alone.
+ */
+export const RANK_COLORS = ['#2f9e6e', '#86c34a', '#f2c94c', '#f2994a', '#e0574f'] as const
+
+export function rankColor(rank: number, total: number): string {
+  if (total <= 1) return RANK_COLORS[0]
+  const i = Math.round(((rank - 1) / (total - 1)) * (RANK_COLORS.length - 1))
+  return RANK_COLORS[Math.min(RANK_COLORS.length - 1, Math.max(0, i))]
 }
 
 export const RANK_LABELS: Record<RankBy, { student: string; other: string }> = {

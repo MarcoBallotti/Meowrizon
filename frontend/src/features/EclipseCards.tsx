@@ -16,12 +16,13 @@ function goToEclipse(e: SiteEclipse) {
 }
 
 function useEclipses() {
+  const evaluation = useStore((s) => s.scenarios.A.run.evaluation)
   const site = useStore((s) => s.scenarios.A.input.site)
   const startMs = useStore((s) => s.scenarios.A.input.startMs)
   const profile = useStore((s) => s.scenarios.A.run.terrain?.profile)
   // Anchor the search on the day, so moving the cursor does not recompute it.
   const day = Math.floor(startMs / 86_400_000) * 86_400_000
-  return useMemo(() => upcomingEclipses(day - 3 * 86_400_000, site, profile), [day, site, profile])
+  return useMemo(() => evaluation?.origin === 'engine' ? evaluation.eclipseCalendar?.events ?? [] : upcomingEclipses(day - 3 * 86_400_000, site, profile), [day, site, profile, evaluation])
 }
 
 const kindLabel = (e: SiteEclipse) => (e.kind === 'total' ? 'total' : 'partial')
@@ -71,6 +72,7 @@ export function NextEclipseCard({ audience }: { audience: Audience }) {
 }
 
 export function EclipseStrip({ audience }: { audience: Audience }) {
+  const real = useStore((s) => s.scenarios.A.run.evaluation?.origin === 'engine')
   const eclipses = useEclipses()
   const startMs = useStore((s) => s.scenarios.A.input.startMs)
   const day = Math.floor(startMs / 86_400_000) * 86_400_000
@@ -83,7 +85,7 @@ export function EclipseStrip({ audience }: { audience: Audience }) {
     <Card as="article" className="eclipse-strip">
       <div className="report-head">
         <h2 className="ui-title">{audience === 'student' ? 'Eclipses here' : 'Eclipses from this site'}</h2>
-        <span className="ui-small ui-muted">next 2 years · approx. model</span>
+        <span className="ui-small ui-muted">next 2 years · {real ? 'JPL Horizons · sampled contacts' : 'approx. model'}</span>
       </div>
       <div className="strip" role="list" aria-label="Eclipses in the next two years">
         <span className="strip-line" aria-hidden="true" />

@@ -1,5 +1,9 @@
 # Guida ai dati per Lunar Landing Site Navigator
 
+**Perimetro V1 approvato il 15/11/2026:** confronto puntuale di 2–3 punti nelle due regioni di sviluppo, con date esplicite, finestra finita, Horizons topocentrico, terreno/dischi/eclissi, slope e validazione. Griglia e aree regionali, P50 annuale, robustezza aggregata e siti globali sono V2. Le sezioni che li descrivono restano specifiche future. Libreria/CLI/JSON prima; HTTP e frontend dopo. Prevalgono [criteri-algoritmo.md](criteri-algoritmo.md) e [piano-logica.md](piano-logica.md).
+
+**Revisione fonti del 15/11/2026:** fonti scientifiche NASA o istituzionali USA, con responsabilità del prodotto dichiarata. Registro delle sostituzioni, lacune e perimetro minimo approvato in [fonti-e-perimetro-challenge.md](fonti-e-perimetro-challenge.md). La riduzione è approvata; le definizioni V2 restano documentate per gli sviluppi successivi.
+
 **Aggiornata il 15/11/2026 alle decisioni approvate.** Questa guida descrive l'acquisizione e la verifica dei dati per misurare luce, visibilità geometrica della Terra e pendenza. Il riferimento delle definizioni è [criteri-algoritmo.md](criteri-algoritmo.md). L'aggiornamento riguarda solo la documentazione: l'engine e il frontend non vengono implementati in questa fase.
 
 Le risposte API annotate come verificate il 14/11/2026 documentano prove di accesso già svolte. Non attestano la validazione del futuro engine. Parametri, metadati e limiti dei servizi vanno registrati a ogni acquisizione.
@@ -32,7 +36,7 @@ La maschera d'orizzonte non dipende dalla data, ma dipende da coordinate, quota 
 - La tabella è delimitata da `$$SOE` e `$$EOE`. Un HTTP 200 non prova che la richiesta sia riuscita: controllare errori, delimitatori, intestazioni, numero di righe e copertura.
 - Conservare risposta integrale e intestazioni: contengono unità, frame, scala temporale, correzioni e identificazione delle effemeridi.
 
-### 2.2 Serie globale prevista per l'engine
+### 2.2 Serie globale — ottimizzazione V2, non implementare in V1
 
 La scelta approvata è usare **Horizons API**, senza introdurre SPICE o kernel NAIF in questo progetto.
 
@@ -50,11 +54,11 @@ La scelta approvata è usare **Horizons API**, senza introdurre SPICE o kernel N
 
 I precedenti esempi con `14,15,20` non includono la distanza solare. La configurazione estesa va verificata nell'implementazione, preservando i nomi delle colonne e le unità del servizio; non assegnare significati solo in base all'indice CSV.
 
-La serie globale è un percorso previsto da validare per ricostruire la geometria di ogni cella. Le quantità apparenti 14/15/19/20 sono riferite all'osservazione dal geocentro: una semplice rotazione di frame non garantisce la geometria apparente dell'osservatore lunare. Verificare epoche, tempi di luce, correzioni, distanza finita e parallasse contro richieste topocentriche. Non assumere che azimut, elevazione o direzione topocentrica terrestre siano identici nell'intera regione. Se la ricostruzione globale non soddisfa le tolleranze dichiarate, usare richieste topocentriche o vettori Horizons con trasformazioni validate, mantenendo Horizons come fonte.
+La serie globale è un percorso V2 da validare per ricostruire la geometria di ogni cella. Le quantità apparenti 14/15/19/20 sono riferite all'osservazione dal geocentro: una semplice rotazione di frame non garantisce la geometria apparente dell'osservatore lunare. Verificare epoche, tempi di luce, correzioni, distanza finita e parallasse contro richieste topocentriche. Non assumere che azimut, elevazione o direzione topocentrica terrestre siano identici nell'intera regione. Se la ricostruzione globale non soddisfa le tolleranze dichiarate, usare richieste topocentriche o vettori Horizons con trasformazioni validate, mantenendo Horizons come fonte.
 
 L'istante T rimane esatto, anche fra due campioni. Il metodo di interpolazione deve gestire angoli circolari e variazioni del vettore senza introdurre discontinuità artificiali. Il passo orario è un punto di partenza, non una precisione garantita.
 
-### 2.3 Richieste topocentriche di controllo
+### 2.3 Richieste topocentriche — fonte diretta V1
 
 | Parametro | Valore e significato |
 |---|---|
@@ -95,7 +99,7 @@ Al polo esatto il nord locale e l'azimut richiedono una convenzione dichiarata o
 
 Salvare richieste e risposte in cache con chiave dei parametri, versione del parser, data di acquisizione, hash, frame, unità e copertura. Una risposta parziale o errata non diventa una cache valida.
 
-Gli intervalli possono essere scaricati a blocchi mensili per gestire dimensioni e limiti del servizio. Il blocco di download **non** limita la ricerca scientifica a un mese: proseguire fino all'evento o alla fine della copertura disponibile, dichiarando eventi incompleti e lacune.
+Gli intervalli possono essere scaricati a blocchi mensili per gestire dimensioni e limiti del servizio. Il blocco di download non è un limite fisico. In V1 la ricerca termina al bordo della finestra di analisi richiesta o della copertura reale, dichiarando eventi incompleti e lacune; l’estensione automatica è V2.
 
 ## 3. NASA Moon Trek e archivi dei prodotti
 
@@ -154,7 +158,7 @@ Annotare coordinate, altezza, DEM/layer, istante e impostazioni del confronto. L
 
 Partire da due regioni del catalogo storico NASA 2022 e dall'ambito stabilito in [siti-e-regioni.md](siti-e-regioni.md). Conservare i poligoni originali, senza inventare contorni per regioni più recenti.
 
-Usare una griglia di aggregazione **100 × 100 m**; stimare separatamente la pendenza con un piano su supporto **circolare di diametro 100 m**, centrato nel punto di campionamento. Questo supporto non è un'ellisse d'atterraggio.
+In V1 analizzare soltanto i 2–3 punti espliciti scelti nelle due regioni; stimare la pendenza con un piano su supporto **circolare di diametro 100 m**, centrato nel punto. Questo supporto non è un'ellisse d'atterraggio. La griglia di aggregazione **100 × 100 m** e la copertura sistematica delle regioni sono rinviate alla V2.
 
 Classi descrittive approvate: **[0°,5°), [5°,10°), [10°,15°), ≥15°**. Sono convenzioni del team. Non applicare un filtro automatico a 10° e non tradurre le classi in capacità o sicurezza di un veicolo.
 
@@ -189,15 +193,15 @@ La convenzione C3 è **frazione ≥0,5** per entrambi i corpi, scelta del team. 
 
 Cercare attraversamenti della soglia con raffinamento e verificare eventi brevi anche quando gli estremi del passo orario hanno lo stesso stato. Non interpolare booleani e non dichiarare precisione al minuto soltanto perché il risolutore restituisce un minuto.
 
-Estendere la ricerca oltre un mese, finché l'evento è osservato o termina la copertura. Restituire evento completo, troncato all'inizio/alla fine o dati mancanti. Se non si osserva la fine, indicare il limite inferiore della durata verificata e il termine dei dati, non zero o infinito. Se il corpo è già sotto C3 a T, il tempo residuo della finestra attiva è 0 e si cerca la successiva; uno stato sconosciuto resta sconosciuto.
+In V1 fermare la ricerca al limite della finestra richiesta o della copertura reale; estensione automatica oltre la finestra solo in V2. Restituire evento completo, troncato all'inizio/alla fine o dati mancanti. Se non si osserva la fine, indicare il limite inferiore della durata verificata e il termine dei dati, non zero o infinito. Se il corpo è già sotto C3 a T, il tempo residuo della finestra attiva è 0 e si cerca la successiva; uno stato sconosciuto resta sconosciuto.
 
-Per l'illuminazione annua usare **P50**, percentuale di durata con `fSun≥0,5` dal 1° gennaio UTC al 1° gennaio successivo, **365 o 366 giorni**, includendo eclissi. L'evidenziazione ≥80% è del team. Non estrapolare un anno incompleto: riportare separatamente periodo coperto e statistica disponibile.
+**Solo V2:** per l'illuminazione annua usare **P50**, percentuale di durata con `fSun≥0,5` dal 1° gennaio UTC al 1° gennaio successivo, **365 o 366 giorni**, includendo eclissi. L'evidenziazione ≥80% è del team. Non estrapolare un anno incompleto: riportare separatamente periodo coperto e statistica disponibile.
 
 `Pany` (qualsiasi porzione visibile) e media temporale della frazione sono metriche diverse. Il benchmark 92,27% di Gläser riguarda un punto, un periodo pluriennale e una definizione specifici, non un massimo universale o un valore direttamente confrontabile con P50 annuale.
 
 La nota VIPER sulle **50 ore** riguarda ibernazione di uno specifico rover e non attiva allarmi universali, filtri o ordinamenti. Nessuna durata di buio viene trasformata in autonomia o temperatura.
 
-### 5.4 Aggregazione e confronto
+### 5.4 Aggregazione regionale — V2
 
 Definire **B(T)** come celle con `fSun≥0,5` e `fEarth≥0,5`, con geometria valida. La pendenza non entra in B.
 
@@ -209,7 +213,7 @@ Gestire validità **per metrica**: si può conoscere la visibilità senza poter 
 
 Il confronto usa metriche separate e ordinamenti espliciti, senza punteggio globale, pesi o cascata obbligatoria. Se si mostrano valori combinati di un punto rappresentativo, devono provenire dalla **stessa cella**, con ID, coordinate e criterio di selezione. Massimi di celle diverse restano statistiche distinte.
 
-### 5.5 Date vicine
+### 5.5 Scansione e persistenza fra date — V2
 
 Valutare T e T ±1, ±2, ±3 giorni alla stessa ora UTC, distinguendo:
 
@@ -224,8 +228,8 @@ Calcolare separatamente anticipi e ritardi, includendo T. Mostrare tutte le date
 
 | Dato | Ruolo |
 |---|---|
-| Horizons globale 14,15,19,20 | Effemeridi di produzione previste |
-| Horizons topocentrico 4,20 per Sole e Terra | Verifica indipendente della trasformazione locale |
+| Horizons topocentrico Sole/Terra | Effemeridi di produzione V1; tabella globale rinviata |
+| Horizons topocentrico a tempi intermedi | Controllo parser e interpolazione V1, non validazione indipendente dello stesso servizio |
 | LOLA numerico da Moon Trek / PDS / PGDA | Terreno e orizzonti, con metadati di qualità |
 | PGDA [prodotto 90](https://pgda.gsfc.nasa.gov/products/90) | DEM e slope di confronto `LDRM_80S_50MPP_ADJ_SLP_100M.TIF`, con supporto circolare su base 100 m |
 | PGDA [prodotto 78](https://pgda.gsfc.nasa.gov/products/78) | DEM locali a 5 m, errori e cloni disponibili per studiare l'incertezza |
@@ -239,8 +243,10 @@ I cataloghi locali delle **13 regioni storiche NASA 2022** e dei **16 siti** res
 
 ### 6.2 Evidenza richiesta
 
+In V1 applicare i controlli ai punti e agli intervalli richiesti, includendo il confronto con un’osservazione LROC datata previsto dal piano. I controlli su P50 annuale, aree e aggregazioni regionali appartengono alla V2; non sono condizioni di completamento della V1.
+
 1. **Geometria:** casi analitici di sfera e ostacoli, coordinate coerenti, controllo di poli e bordi.
-2. **Effemeridi:** confronto globale/topocentrico su siti e stagioni, stessa quota, epoca e correzioni; scarti medi/massimi e tolleranze fissate prima dell'esito.
+2. **Effemeridi:** in V1 verificare parser, unità, quota, epoca e correzioni; confrontare interpolazioni con query dirette a tempi intermedi. Confronto globale/topocentrico solo in V2. Tolleranze fissate prima dell’esito.
 3. **Slope:** piani di inclinazione nota e prodotto PGDA con supporto, scala e georeferenziazione compatibili; nessuna soglia d'errore inventata.
 4. **Dischi ed eclissi:** occultazione nulla, parziale, totale e sovrapposta, con cause e frazioni conservate.
 5. **Convergenza:** passi angolari, temporali, risoluzioni e raggi del DEM; misurare l'effetto su eventi, P50 e aree.
@@ -256,7 +262,7 @@ Un CAD o una mesh possono aiutare a controllare visivamente il terreno e le ombr
 
 La progettazione di schermate, API per il frontend, mappe e grafici è rimandata a dopo la costruzione dell'algoritmo. Non sono previsti in questa fase modelli di hardware, pannelli o antenne.
 
-## 8. Ordine di lavoro successivo
+## 8. Ordine di lavoro della specifica estesa — V2; per V1 seguire il piano aggiornato
 
 1. Verificare prodotti, coperture, qualità e manifesti sulle due regioni iniziali.
 2. Acquisire la serie Horizons estesa e validare le trasformazioni topocentriche.

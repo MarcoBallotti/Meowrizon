@@ -1,0 +1,48 @@
+{
+  "schema": "meowrizon.analysis.tolerances/1",
+  "fixed_on": "2026-11-15",
+  "fixed_before_results": true,
+  "note": "Tolleranze numeriche scelte dal team prima di eseguire i confronti. Non sono limiti o precisioni NASA e non sono soglie di idoneità. Un esito fallito resta nel rapporto: le tolleranze non si allargano dopo aver visto i risultati senza riportare il cambiamento.",
+  "scale": "Il raggio angolare del Sole visto dalla Luna è circa 0,27°: 0,005° è circa l'1% del diametro solare. Il Sole si sposta in azimut di circa 0,5° all'ora, cioè circa 0,0085° al minuto.",
+  "interpolation": {
+    "what": "Effemeridi interpolate dai campioni orari contro query Horizons dirette a istanti intermedi non usati nell'interpolazione. Verifica l'acquisizione e l'interpolazione, non l'accuratezza astronomica di Horizons.",
+    "direction_max_abs_deg": 0.002,
+    "angular_radius_max_abs_deg": 0.0002,
+    "sun_earth_separation_max_abs_deg": 0.002,
+    "justification": "0,002° è meno dello 0,4% del diametro solare e corrisponde a circa 15 s di moto del Sole: un ordine di grandezza sotto il passo di scansione degli eventi (60 s)."
+  },
+  "fractions": {
+    "what": "Variazione delle frazioni dei dischi raddoppiando le strisce di integrazione e dimezzando il passo in azimut dell'orizzonte.",
+    "max_abs_change": 0.01,
+    "analytic_cases_max_abs_error": 0.005,
+    "justification": "0,01 è l'1% del disco: piccolo rispetto alla soglia C3 di 0,5 e alla variazione della frazione in un passo di scansione (circa 0,02 al minuto nel caso peggiore)."
+  },
+  "horizon": {
+    "what": "Convergenza del profilo d'orizzonte reale rispetto a passo in azimut, passo radiale e raggio massimo del terreno.",
+    "azimuth_refinement_rms_deg": 0.02,
+    "radial_refinement_max_abs_deg": 0.02,
+    "max_radius_reduction_max_abs_deg": 0.02,
+    "synthetic_sphere_max_abs_deg": 0.001,
+    "synthetic_obstacle_max_abs_deg": 0.01,
+    "justification": "0,02° è circa il 4% del diametro solare. Per il raggio massimo si confronta il raggio configurato con uno ridotto al 75%: se l'orizzonte non cambia, il terreno oltre il raggio ridotto non lo determina."
+  },
+  "slope": {
+    "what": "Piani sintetici di pendenza nota e confronto con il prodotto PGDA LDRM_80S_50MPP_ADJ_SLP_100M sui nodi vicini ai punti.",
+    "synthetic_plane_max_abs_deg": 0.001,
+    "pgda_median_abs_difference_deg": 1.0,
+    "pgda_p95_abs_difference_deg": 3.0,
+    "justification": "Il confronto PGDA non isola l'errore dell'algoritmo: i due valori derivano da versioni diverse del DEM LOLA (Moon Trek contro PGDA co-registrato) e PGDA adatta il piano su una griglia a 50 m. Le soglie sono una scelta iniziale del team per segnalare incoerenze grossolane di supporto, scala o georeferenziazione."
+  },
+  "events": {
+    "what": "Spostamento degli istanti di transizione affinando il passo di scansione (60 s -> 20 s) e il passo delle effemeridi (60 min -> 30 min).",
+    "refinement_tolerance_s": 1.0,
+    "convergence_max_shift_s": 60.0,
+    "interval_count_must_match": true,
+    "justification": "60 s è il passo di scansione iniziale. La tolleranza della bisezione (1 s) è numerica: non implica che il terreno sia noto a quel livello."
+  },
+  "lroc": {
+    "what": "Luce/ombra prevista (fSunTerrain a quota suolo, all'epoca dell'immagine) contro pixel di un'ortofoto LROC NAC datata dentro una regione di sviluppo.",
+    "min_agreement_fraction": 0.9,
+    "justification": "Scelta iniziale del team. Il confronto dipende dalla soglia di luminosità, dalla co-registrazione dell'ortofoto e dalla risoluzione del DEM: lo scarto non è solo errore numerico."
+  }
+}

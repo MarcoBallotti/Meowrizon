@@ -10,6 +10,8 @@ export interface ExampleSite extends SiteCoordinates {
   region: SiteRegion
   source?: string
   properties?: Record<string, unknown>
+  /** Backend catalog status: 'atterrato' (landed), 'previsto' (planned), 'personalizzato'. */
+  kind?: string
 }
 
 /**

@@ -47,8 +47,10 @@ def create_app(data_settings: DataSettings | None = None) -> FastAPI:
         jobs.start()
         app.state.data_jobs = jobs
         try:
+            app.state.scientific_jobs.start()
             yield
         finally:
+            app.state.scientific_jobs.close()
             jobs.close()
 
     app = FastAPI(

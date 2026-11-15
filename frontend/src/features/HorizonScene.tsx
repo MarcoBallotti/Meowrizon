@@ -221,12 +221,12 @@ export function HorizonScene({ profile, evaluation, cursorMs, audience }: Props)
   const sy = view.y(sun.elevationDeg)
   const ex = view.x(earth.azimuthDeg)
   const ey = view.y(earth.elevationDeg)
-  const sunR = Math.max(2.5, (SUN_DIAMETER_DEG / 2) * pxY)
-  const earthR = Math.max(4, (EARTH_DIAMETER_DEG / 2) * pxY)
+  const sunR = Math.max(2.5, (sun.angularRadiusDeg ?? SUN_DIAMETER_DEG / 2) * pxY)
+  const earthR = Math.max(4, (earth.angularRadiusDeg ?? EARTH_DIAMETER_DEG / 2) * pxY)
   const elongation = angularSeparation(sun.azimuthDeg, sun.elevationDeg, earth.azimuthDeg, earth.elevationDeg)
-  const lit = earthLitFraction(elongation)
+  const lit = earth.illuminatedFraction ?? earthLitFraction(elongation)
   const litAngle = (Math.atan2(sy - ey, sx - ex) * 180) / Math.PI
-  const eclipse = coverage(elongation)
+  const eclipse = sun.occultedFraction ?? coverage(elongation)
 
   const grid = audience !== 'student'
   const yStep = niceStep(spanEl)

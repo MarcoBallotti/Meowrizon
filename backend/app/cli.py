@@ -8,6 +8,10 @@ Acquisizione e preparazione dei dati grezzi (backend/data, vedi backend/README.m
     python -m app fetch [--config ...] [--only NOME] [--refresh]
     python -m app prepare
     python -m app data-info [--name NOME]
+
+Engine puntuale V1 (docs/criteri-algoritmo.md, risultati in backend/data/analysis):
+    python -m app analyze --config config/analysis.demo.json [--offline] [--output data/analysis]
+    python -m app validate-engine [--check interpolation] [--check slope] ...
 """
 
 import argparse
@@ -144,6 +148,101 @@ def _data_command(args) -> int:
     return 0
 
 
+# --- Engine puntuale V1 ------------------------------------------------------------------------
+
+
+def _analyze(args) -> int:
+    from pydantic import ValidationError
+
+    from app.services.engine.acquisition import AcquisitionError, OfflineDataMissing
+    from app.services.engine.orchestrator import (
+        EnginePaths,
+        RequestError,
+        load_request,
+        run_analysis,
+        write_outputs,
+    )
+
+    try:
+        request = load_request(inside_backend(args.config))
+        paths = EnginePaths.default(SETTINGS, args.output)
+        result, report = run_analysis(request, offline=args.offline, paths=paths)
+    except ValidationError as exc:
+        print(f"Richiesta non valida: {exc}", file=sys.stderr)
+        return 1
+    except (RequestError, OSError, ValueError) as exc:
+        print(f"Errore: {exc}", file=sys.stderr)
+        return 1
+    except OfflineDataMissing as exc:
+        print(f"Cache insufficiente: {exc}", file=sys.stderr)
+        return 2
+    except AcquisitionError as exc:
+        print(f"Errore di acquisizione: {exc}", file=sys.stderr)
+        return 3
+    written = write_outputs(result, report, paths)
+    for point in result.points:
+        slope = point.slope
+        print(
+            f"{point.id}: quota {point.elevation.value} m, pendenza "
+            f"{'sconosciuta' if slope.value_deg is None else f'{slope.value_deg:.2f}°'} "
+            f"({slope.band_label or slope.reason}), orizzonte "
+            f"{point.horizon.directions_complete if point.horizon else 0}/"
+            f"{point.horizon.directions if point.horizon else 0} direzioni complete"
+        )
+    for scenario in result.scenarios:
+        state = scenario.state_at_t
+        if state is None:
+            print(f"{scenario.point_id} @ {scenario.t_utc}: {scenario.status} ({scenario.reason})")
+            continue
+        print(
+            f"{scenario.point_id} @ {scenario.t_utc}: fSun={state.f_sun} ({state.sun_state}), "
+            f"fEarth={state.f_earth}, finestre Sole C3={len(scenario.windows.sun_c3)}, "
+            f"Terra C3={len(scenario.windows.earth_c3)}, buio={len(scenario.windows.dark)} "
+            f"[{scenario.status}]"
+        )
+    timings = ", ".join(f"{name} {value:.1f} s" for name, value in report.timings_s.items())
+    print(
+        f"Fonti: {report.downloads} scaricate, {report.source_cache_hits} dalla cache; "
+        f"terreno {report.terrain_cache_hits} dalla cache/{report.terrain_computed} calcolati; "
+        f"serie {report.series_cache_hits} dalla cache/{report.series_computed} calcolate"
+    )
+    print(f"Tempi: {timings}")
+    print(f"Scritti {written['result']} e {written['manifest']}")
+    return 0
+
+
+def _validate_engine(args) -> int:
+    from app.services.engine.acquisition import AcquisitionError
+    from app.services.engine.orchestrator import EnginePaths, RequestError, load_request
+    from app.services.engine.validation import run_validation, write_evidence
+
+    try:
+        request = load_request(inside_backend(args.config))
+        tolerances = json.loads(inside_backend(args.tolerances).read_text(encoding="utf-8"))
+        paths = EnginePaths.default(SETTINGS, args.output)
+        evidence = run_validation(
+            request,
+            tolerances,
+            paths=paths,
+            core=get_settings(),
+            checks=set(args.check) or None,
+        )
+    except (RequestError, AcquisitionError, OSError, ValueError) as exc:
+        print(f"Errore: {exc}", file=sys.stderr)
+        return 1
+    path = write_evidence(evidence, paths)
+    summary = evidence["summary"]
+    print(
+        f"Controlli: {summary['checks']}, superati {summary['passed']}, "
+        f"non superati {summary['failed']}, non valutati {summary['not_evaluated']}; "
+        f"allineamento DEM {'ok' if summary['alignment_passed'] else 'NON ok'}; "
+        f"LROC {summary['lroc_passed']}/{summary['lroc_images']} immagini entro tolleranza; "
+        f"{summary['elapsed_s']} s"
+    )
+    print(f"Scritto {path}")
+    return 0 if summary["status"] == "passed" else 4
+
+
 # --- Ingresso ----------------------------------------------------------------------------------
 
 
@@ -175,8 +274,35 @@ def main(argv: list[str] | None = None) -> int:
     )
     info.add_argument("--prepared", type=Path, default=prepared)
     info.add_argument("--name")
+    analyze = commands.add_parser(
+        "analyze", help="Engine puntuale V1: scrive result.json e manifest.json"
+    )
+    analyze.add_argument("--config", type=Path, default=Path("config/analysis.demo.json"))
+    analyze.add_argument("--output", type=Path, default=Path("data/analysis"))
+    analyze.add_argument(
+        "--offline", action="store_true", help="Usa solo dati già in cache; nessuna richiesta"
+    )
+    validate = commands.add_parser(
+        "validate-engine", help="Evidenza su dati reali per il rapporto di validazione V1 (rete)"
+    )
+    validate.add_argument("--config", type=Path, default=Path("config/analysis.demo.json"))
+    validate.add_argument(
+        "--tolerances", type=Path, default=Path("config/analysis.tolerances.json")
+    )
+    validate.add_argument("--output", type=Path, default=Path("data/analysis"))
+    validate.add_argument(
+        "--check",
+        action="append",
+        default=[],
+        choices=["interpolation", "slope", "convergence", "alignment", "eclipse", "lroc"],
+        help="Ripetere per scegliere più controlli; senza opzione si eseguono tutti",
+    )
     args = parser.parse_args(argv)
 
+    if args.command == "analyze":
+        return _analyze(args)
+    if args.command == "validate-engine":
+        return _validate_engine(args)
     if args.command != "init-regions":
         return _data_command(args)
 

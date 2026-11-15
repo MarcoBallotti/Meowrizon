@@ -134,8 +134,8 @@ export function SiteScreen() {
   const A = useStore((s) => s.scenarios.A)
   const offset = useStore((s) => s.cursorOffsetMs)
   const { terrain, evaluation, phase, progress, error } = A.run
-  const busy = phase === 'terrain' || phase === 'ephemeris'
-  const waiting = busy || !evaluation
+  const busy = phase === 'idle' || phase === 'terrain' || phase === 'ephemeris'
+  const waiting = busy
   const p = overall(phase, progress)
   const name = A.input.siteName ?? CUSTOM_SITE_NAME
   const [orbitsOpen, setOrbitsOpen] = useState(false)
@@ -183,16 +183,9 @@ export function SiteScreen() {
         <div ref={horizon} className={`site-horizon span-8${full ? ' is-full' : ''}${orbitsOpen ? ' has-orbits' : ''}`}>
           <SpaceWindow className="site-window" aria-label="View from the site">
             {phase === 'error' && !evaluation ? (
-              <div className="site-loading">
-                <Notice tone="danger">
-                  <strong>We could not work out this horizon.</strong> {error}{' '}
-                  <Button size="s" variant="inverse" onClick={() => void runScenario('A')}>
-                    Try again
-                  </Button>
-                </Notice>
-              </div>
+              <div className="site-loading"><Notice tone="danger"><strong>We could not calculate this scenario.</strong> {error}{' '}<Button size="s" variant="inverse" onClick={() => void runScenario('A')}>Try again</Button></Notice></div>
             ) : (
-              <Building busy={waiting} progress={p} phase={phaseText(phase)} tone="dark" className="site-building">
+              <Building busy={busy || !evaluation} progress={p} phase={A.run.message ?? phaseText(phase)} tone="dark" className="site-building">
                 {terrain && evaluation && <HorizonScene profile={terrain.profile} evaluation={evaluation} cursorMs={cursorMs} audience={audience} />}
               </Building>
             )}

@@ -24,16 +24,36 @@ function features(value: unknown): ObjectValue[] {
   return rows
 }
 
+export function areaOfLatitude(lat: number): 'south-pole' | 'equatorial' | 'other' {
+  return lat < -80 ? 'south-pole' : Math.abs(lat) <= 35 ? 'equatorial' : 'other'
+}
+
+export interface ComparisonCandidate {
+  id: string
+  name: string
+  center: { latDeg: number; lonEastDeg: number }
+  area: 'south-pole' | 'equatorial' | 'other'
+  pointKind: 'region-center' | 'site'
+}
+
+export function comparisonCandidates(catalog: RegionCatalog | null, sites: ExampleSite[]): ComparisonCandidate[] {
+  const regions = (catalog?.locations ?? []).map(r => ({ id: r.id, name: r.name,
+    center: r.center, area: areaOfLatitude(r.center.latDeg), pointKind: 'region-center' as const }))
+  const points = sites.map(s => ({ id: s.id, name: s.name,
+    center: { latDeg: s.latDeg, lonEastDeg: s.lonEastDeg }, area: areaOfLatitude(s.latDeg), pointKind: 'site' as const }))
+  return [...new Map([...regions, ...points].map(p => [p.id, p])).values()]
+}
+
 export function regionCatalog(value: unknown): RegionCatalog {
   return {
-    origin: 'engine', note: 'NASA 2022 candidate regions via Moon Trek. Catalog order; scientific comparison unavailable.',
+    origin: 'engine', note: 'All published region outlines in the backend catalog, via Moon Trek. Region centres are sample points, not regional assessments.',
     period: { days: 0 }, regions: [],
     locations: features(value).map((row) => {
       const p = object(row.properties)
       const geometry = object(row.geometry)
       if (row.type !== 'Feature' || !['Polygon', 'MultiPolygon'].includes(String(geometry.type)) || !Array.isArray(geometry.coordinates) || typeof p.active !== 'boolean') throw new Error('Invalid region geometry or status.')
       return {
-        id: `region:${text(p.id)}`, name: text(p.name), area: 'south-pole',
+        id: `region:${text(p.id)}`, name: text(p.name), area: areaOfLatitude(number(p.center_lat, -90, 90)),
         center: { latDeg: number(p.center_lat, -90, 90), lonEastDeg: number(p.center_lon, -180, 180) },
         active: p.active, geometry, properties: p,
       }
@@ -52,6 +72,7 @@ export function siteCatalog(value: unknown): ExampleSite[] {
       latDeg, lonEastDeg: number(geometry.coordinates[0], -180, 180),
       region: latDeg < -80 ? 'South pole' : Math.abs(latDeg) <= 35 ? 'Equatorial band' : 'Other latitudes',
       source: text(p.source), properties: p,
+      ...(typeof p.kind === 'string' ? { kind: p.kind } : {}),
     }
   })
 }
