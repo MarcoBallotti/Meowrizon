@@ -8,13 +8,17 @@ import { Minimize2, Trophy } from 'lucide-react'
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { formatLat, formatLon, previousMonthName } from '../domain/format'
 import { rank, RANK_LABELS, type AreaFilter, type Ranked, type RankBy } from '../domain/ranking'
-import { CUSTOM_SITE_NAME, EXAMPLE_SITES, normalizeLon, validateSite } from '../domain/sites'
+import { CUSTOM_SITE_NAME, normalizeLon, validateSite } from '../domain/sites'
+import { provider } from '../api'
+import type { DemProduct } from '../api/types'
+import { loadRegionCatalog, loadSiteCatalog } from '../state/runner'
 import type { GlobeFocus, GlobeMarker } from '../features/MoonGlobe'
 import { AudienceSwitch, DemoChip, TopBar } from '../features/TopBar'
 import { goTo, setScenarioInput, setState, useStore, type Audience } from '../state/store'
 import { ArrowIcon, BackIcon, Button, Card, DateDial, Delta, Field, Input, Logo, Segmented, Select, SiteTile, SpaceWindow, Toggle } from '../ui'
 
 const MoonGlobe = lazy(() => import('../features/MoonGlobe'))
+const EMPTY_PRODUCTS: DemProduct[] = []
 
 const DURATIONS = [7, 14, 30, 60, 90]
 const STEPS = [10, 30, 60, 120]
@@ -27,8 +31,8 @@ function caption(lat: number, audience: Audience): string {
   return 'Away from the poles, every place gets about two weeks of day and two weeks of night.'
 }
 
-function selectSite(s: { latDeg: number; lonEastDeg: number; name: string }) {
-  setScenarioInput('A', { site: { latDeg: s.latDeg, lonEastDeg: s.lonEastDeg }, siteName: s.name })
+function selectSite(s: { latDeg: number; lonEastDeg: number; name: string; id?: string }) {
+  setScenarioInput('A', { site: { latDeg: s.latDeg, lonEastDeg: s.lonEastDeg }, siteName: s.name, selectionId: s.id ?? null })
 }
 
 /* ------------------------------------------------------------------ shared inputs */
@@ -76,17 +80,17 @@ interface Place {
   lonEastDeg: number
 }
 
-/** Example sites first, then every region of the catalogue not already listed. */
+/** Keep real sites and region centers as separate catalog identities. */
 function usePlaces(): Place[] {
   const catalog = useStore((s) => s.regions)
+  const sites = useStore((s) => s.sites)
   return useMemo(() => {
-    const out: Place[] = EXAMPLE_SITES.map((s) => ({ id: s.id, name: s.name, short: s.short, area: s.region, latDeg: s.latDeg, lonEastDeg: s.lonEastDeg }))
-    for (const r of catalog?.regions ?? []) {
-      if (out.some((p) => p.name === r.name)) continue
-      out.push({ id: r.id, name: r.name, short: r.name, area: r.area === 'south-pole' ? 'South pole' : 'Equatorial band', ...r.center })
+    const out: Place[] = sites.map((s) => ({ id: s.id, name: s.name, short: s.short, area: s.region, latDeg: s.latDeg, lonEastDeg: s.lonEastDeg }))
+    for (const r of catalog?.locations ?? catalog?.regions ?? []) {
+      out.push({ id: r.id, name: r.name, short: r.name, area: catalog?.origin === 'engine' ? 'Candidate region centers' : r.area === 'south-pole' ? 'South pole' : 'Equatorial band', ...r.center })
     }
     return out
-  }, [catalog])
+  }, [catalog, sites])
 }
 
 /** Every place, searchable. Opens from "All places" so the grid never grows. */
@@ -119,7 +123,7 @@ function PlaceList({ places, selected, planner, onPick, onClose }: { places: Pla
             {shown
               .filter((p) => p.area === a)
               .map((p) => (
-                <button key={p.id} type="button" className="place-list-row" aria-pressed={p.name === selected} onClick={() => onPick(p)}>
+                <button key={p.id} type="button" className="place-list-row" aria-pressed={p.id === selected} onClick={() => onPick(p)}>
                   <span className="place-list-name">{p.name.split(' · ')[0]}</span>
                   {planner && <span className="mono ui-muted">{`${formatLat(p.latDeg, 2)} ${formatLon(p.lonEastDeg, 2)}`}</span>}
                 </button>
@@ -186,16 +190,21 @@ function HomePanel({ onNext }: { onNext: () => void }) {
   const [listOpen, setListOpen] = useState(false)
   const planner = audience === 'planner'
   const places = usePlaces()
+  const siteError = useStore((s) => s.siteError)
+  const regionError = useStore((s) => s.regionError)
   // A fixed number of equal tiles; the chosen place always shows as a tile.
   const max = planner ? 6 : 4
   const base = places.filter((p) => planner || (p.id !== 'sp-ref' && p.id !== 'apollo15')).slice(0, max)
-  const chosen = places.find((p) => p.name === input.siteName)
+  const chosen = places.find((p) => provider.kind === 'api' ? p.id === input.selectionId : p.name === input.siteName)
   const tiles = chosen && !base.some((p) => p.id === chosen.id) ? [...base.slice(0, max - 1), chosen] : base
 
   return (
     <div className="moon-side">
       <h1 className="ui-display is-s">{planner ? 'Landing site and date' : 'Where shall we land?'}</h1>
       <Card as="section" className="home-card" aria-label="Place and day">
+        {provider.kind === 'api' && <p className="ui-field-hint">Backend site catalog and NASA 2022 region centers. Region centers are browsing locations, not recommended landing points.</p>}
+        {(siteError || regionError) && <p role="alert" className="ui-small">{siteError || regionError} <Button size="s" onClick={() => { void loadSiteCatalog(); void loadRegionCatalog() }}>Retry catalogs</Button></p>}
+        {provider.kind === 'api' && !places.length && !siteError && !regionError && <p role="status">Loading places…</p>}
         <div className="ui-card-head">
           <h2 className="ui-title">{planner ? 'Landing site' : 'Pick a place'}</h2>
           {planner && (
@@ -224,7 +233,7 @@ function HomePanel({ onNext }: { onNext: () => void }) {
                   key={p.id}
                   name={planner ? p.short : p.name.split(' · ')[0]}
                   meta={planner ? `${Math.abs(p.latDeg).toFixed(1)}°${p.latDeg < 0 ? 'S' : 'N'} ${Math.abs(p.lonEastDeg).toFixed(1)}°${p.lonEastDeg < 0 ? 'W' : 'E'}` : undefined}
-                  selected={input.siteName === p.name}
+                  selected={chosen?.id === p.id}
                   onSelect={() => selectSite(p)}
                 />
               ))}
@@ -244,7 +253,7 @@ function HomePanel({ onNext }: { onNext: () => void }) {
             {listOpen && (
               <PlaceList
                 places={places}
-                selected={input.siteName}
+                selected={chosen?.id ?? null}
                 planner={planner}
                 onPick={(p) => {
                   selectSite(p)
@@ -282,7 +291,7 @@ function HomePanel({ onNext }: { onNext: () => void }) {
 
 /* ------------------------------------------------------------------ step 3: ranking */
 
-type Pick = (site: { latDeg: number; lonEastDeg: number; name: string }) => void
+type Pick = (site: { latDeg: number; lonEastDeg: number; name: string; id?: string }) => void
 
 function Metrics({ r, audience }: { r: Ranked; audience: Audience }) {
   const p = r.previous
@@ -313,10 +322,35 @@ function RankingPanel({ ranked, audience, onPick }: { ranked: Ranked[]; audience
   const siteName = useStore((s) => s.scenarios.A.input.siteName)
   const startMs = useStore((s) => s.scenarios.A.input.startMs)
   const catalog = useStore((s) => s.regions)
+  const error = useStore((s) => s.regionError)
+  const selectionId = useStore((s) => s.scenarios.A.input.selectionId)
   const label = RANK_LABELS[rankBy][audience === 'student' ? 'student' : 'other']
   const shown = ranked.slice(0, TOP_N[audience])
   const best = shown[0]?.value ?? 1
   const headline = (r: Ranked) => (rankBy === 'overall' ? String(r.score) : `${Math.round(r.value * 100)}%`)
+
+  if (provider.kind === 'api') return (
+    <section className="ranking ui-card" aria-label="Candidate region catalog">
+      <header className="ranking-head">
+        <h2 className="ui-title">Candidate regions</h2>
+        <span className="ui-small ui-muted">NASA 2022 catalog · no calculated ranking</span>
+      </header>
+      {error ? <p role="alert">{error} <Button size="s" onClick={() => void loadRegionCatalog()}>Retry</Button></p>
+        : !catalog ? <p role="status">Loading the regions…</p>
+          : <ul className={`ranking-list is-${audience}`}>
+            {(catalog.locations ?? []).map((r) => (
+              <li key={r.id}>
+                <button type="button" className="ranking-row" aria-pressed={r.id === selectionId} onClick={() => onPick({ ...r.center, name: r.name, id: r.id })}>
+                  <span className="ranking-name">{r.name}</span>
+                  <span className="ranking-meta">{r.active ? 'Selected for initial analysis' : 'Catalog region'} · {formatLat(r.center.latDeg, 2)} {formatLon(r.center.lonEastDeg, 2)}</span>
+                </button>
+              </li>
+            ))}
+            {catalog.locations?.length === 0 && <li>No candidate regions in this catalog.</li>}
+          </ul>}
+      <p className="ui-field-hint">Centers are for browsing. Terrain, illumination and comparison results are not available yet.</p>
+    </section>
+  )
 
   return (
     <section className="ranking ui-card" aria-label="Ranking">
@@ -370,8 +404,8 @@ function ExploreBox({ ranked, onOpen, onPick }: { ranked: Ranked[]; onOpen: () =
   const input = useStore((s) => s.scenarios.A.input)
   const catalog = useStore((s) => s.regions)
   const planner = audience === 'planner'
-  const all = catalog?.regions ?? []
-  const current = all.find((r) => r.name === input.siteName)
+  const all = catalog?.locations ?? catalog?.regions ?? []
+  const current = all.find((r) => provider.kind === 'api' ? r.id === input.selectionId : r.name === input.siteName)
   const labelKey = audience === 'student' ? 'student' : 'other'
 
   return (
@@ -384,7 +418,7 @@ function ExploreBox({ ranked, onOpen, onPick }: { ranked: Ranked[]; onOpen: () =
             value={current?.id ?? ''}
             onChange={(e) => {
               const r = all.find((x) => x.id === e.target.value)
-              if (r) onPick({ ...r.center, name: r.name })
+              if (r) onPick({ ...r.center, name: r.name, id: r.id })
             }}
           >
             {!current && <option value="">{input.siteName ?? `${CUSTOM_SITE_NAME} · ${formatLat(input.site.latDeg, 2)}`}</option>}
@@ -399,7 +433,7 @@ function ExploreBox({ ranked, onOpen, onPick }: { ranked: Ranked[]; onOpen: () =
           <span className="ui-field-label">{planner ? 'Date and time (UTC)' : 'Day'}</span>
           <StartDial label={planner ? 'Date and time, UTC' : 'Day'} minutes={planner} strip={false} />
         </div>
-        <div className="ui-field">
+        {provider.kind === 'demo' && <div className="ui-field">
           <span className="ui-field-label">Rank by</span>
           <Segmented<RankBy>
             label="Rank by"
@@ -412,8 +446,8 @@ function ExploreBox({ ranked, onOpen, onPick }: { ranked: Ranked[]; onOpen: () =
               label: audience === 'student' ? { overall: 'Best', sun: 'Sunniest', earth: 'Radio', both: 'Both' }[v] : RANK_LABELS[v][labelKey],
             }))}
           />
-        </div>
-        {audience !== 'student' && (
+        </div>}
+        {provider.kind === 'demo' && audience !== 'student' && (
           <div className="ui-field">
             <span className="ui-field-label">Area</span>
             <Segmented<AreaFilter>
@@ -450,10 +484,12 @@ export function MoonScreen({ mode }: { mode: 'moon' | 'explore' }) {
   const audience = useStore((s) => s.audience)
   const input = useStore((s) => s.scenarios.A.input)
   const catalog = useStore((s) => s.regions)
+  const sites = useStore((s) => s.sites)
   const rankBy = useStore((s) => s.rankBy)
   const area = useStore((s) => s.area)
   const [realLight, setRealLight] = useState(true)
   const [coverage, setCoverage] = useState(false)
+  const demProducts = useStore((s) => s.coverage?.products) ?? EMPTY_PRODUCTS
   const [hover, setHover] = useState('')
   const [zoomed, setZoomed] = useState(false)
   const planner = audience === 'planner'
@@ -462,11 +498,12 @@ export function MoonScreen({ mode }: { mode: 'moon' | 'explore' }) {
   const ranked = useMemo(() => (catalog ? rank(catalog.regions, rankBy, area) : []), [catalog, rankBy, area])
 
   const markers = useMemo<GlobeMarker[]>(() => {
+    if (explore && catalog?.origin === 'engine') return (catalog.locations ?? []).map((r) => ({ id: r.id, label: r.name, ...r.center }))
     if (explore) return ranked.slice(0, TOP_N[audience]).map((r) => ({ id: r.id, label: r.name, rank: r.rank, ...r.center }))
-    return EXAMPLE_SITES.filter((s) => planner || s.id !== 'sp-ref').map((s) => ({ id: s.id, label: s.short, latDeg: s.latDeg, lonEastDeg: s.lonEastDeg }))
-  }, [explore, ranked, audience, planner])
+    return sites.filter((s) => planner || s.id !== 'sp-ref').map((s) => ({ id: s.id, label: s.short, latDeg: s.latDeg, lonEastDeg: s.lonEastDeg }))
+  }, [explore, ranked, audience, planner, sites, catalog])
 
-  const selectedId = (explore ? ranked.find((r) => r.name === input.siteName)?.id : EXAMPLE_SITES.find((s) => s.name === input.siteName)?.id) ?? null
+  const selectedId = provider.kind === 'api' ? input.selectionId ?? null : (explore ? ranked.find((r) => r.name === input.siteName)?.id : sites.find((s) => s.name === input.siteName)?.id) ?? null
 
   // Explore frames the chosen area in the space left free by the panels;
   // picking a region moves closer to it. The camera only slides, it never turns.
@@ -492,9 +529,9 @@ export function MoonScreen({ mode }: { mode: 'moon' | 'explore' }) {
   if (!explore && zoomed) setZoomed(false)
 
   const pickMarker = (id: string) => {
-    const r = catalog?.regions.find((x) => x.id === id)
-    if (r) return pick({ ...r.center, name: r.name })
-    const s = EXAMPLE_SITES.find((x) => x.id === id)
+    const r = (catalog?.locations ?? catalog?.regions ?? []).find((x) => x.id === id)
+    if (r) return pick({ ...r.center, name: r.name, id: r.id })
+    const s = sites.find((x) => x.id === id)
     if (s) pick(s)
   }
 
@@ -512,6 +549,7 @@ export function MoonScreen({ mode }: { mode: 'moon' | 'explore' }) {
                 focus={focus}
                 lightMs={realLight ? input.startMs : null}
                 showCoverage={planner && coverage}
+                coverageProducts={demProducts}
                 onPickMarker={pickMarker}
                 onPickPoint={(site) => setScenarioInput('A', { site, siteName: null })}
                 onHover={planner ? setHover : undefined}
@@ -542,6 +580,7 @@ export function MoonScreen({ mode }: { mode: 'moon' | 'explore' }) {
                   DEM coverage
                 </Toggle>
               )}
+              {planner && coverage && !demProducts.some((p) => p.available) && <span role="status" className="ui-space-caption">No prepared DEM coverage available</span>}
             </div>
 
             {explore && zoomed && (

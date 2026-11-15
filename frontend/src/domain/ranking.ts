@@ -26,6 +26,18 @@ export interface RegionCatalog {
   note: string
   period: { days: number }
   regions: Region[]
+  /** Real catalog metadata, kept separate from calculated/demo rankings. */
+  locations?: RegionLocation[]
+}
+
+export interface RegionLocation {
+  id: string
+  name: string
+  area: Area
+  center: SiteCoordinates
+  active: boolean
+  geometry: unknown
+  properties: Record<string, unknown>
 }
 
 /** Weights of the overall score. Shorter nights score higher. */

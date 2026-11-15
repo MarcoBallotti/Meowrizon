@@ -28,7 +28,7 @@ CMD ["npx", "vite", "--host", "0.0.0.0", "--port", "5173", "--strictPort"]
 FROM deps AS build
 COPY frontend/ frontend/
 # Le variabili VITE_* vengono scritte nel bundle al momento della compilazione.
-ARG VITE_DATA_SOURCE=demo
+ARG VITE_DATA_SOURCE=api
 ARG VITE_API_BASE_URL=/api
 RUN npm run build --workspace @meowrizon/frontend
 

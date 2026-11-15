@@ -31,7 +31,7 @@ import {
 } from 'cesium'
 import 'cesium/Build/Cesium/Widgets/widgets.css'
 import { useEffect, useRef, useState } from 'react'
-import type { SiteCoordinates } from '../api/types'
+import type { DemProduct, SiteCoordinates } from '../api/types'
 import { subSolarPoint } from '../domain/approxEphemeris'
 import { formatLat, formatLon } from '../domain/format'
 import { normalizeLon } from '../domain/sites'
@@ -46,13 +46,6 @@ const SHADE_LAYER = 'LRO_LOLA_Shade_Global_256ppd_v06'
 const FONT = '"Figtree", system-ui, sans-serif'
 const SPACE = Color.fromCssColorString('#0b0c1a')
 const INK = Color.fromCssColorString('#171a2b')
-
-const COVERAGE_LINES = [
-  { lat: -80, label: 'LOLA 20 m · 80°S' },
-  { lat: -87, label: 'LOLA 5 m · 87°S' },
-  { lat: -60, label: 'SLDEM2015 · 60°S' },
-  { lat: 60, label: 'SLDEM2015 · 60°N' },
-]
 
 const svgUri = (svg: string) => `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`
 
@@ -169,12 +162,13 @@ interface MoonGlobeProps {
   /** Light the globe as on this date (approximate Sun direction); null = flat light. */
   lightMs: number | null
   showCoverage: boolean
+  coverageProducts: DemProduct[]
   onPickMarker: (id: string) => void
   onPickPoint: (site: SiteCoordinates) => void
   onHover?: (text: string) => void
 }
 
-export default function MoonGlobe({ markers, selected, focus, lightMs, showCoverage, onPickMarker, onPickPoint, onHover }: MoonGlobeProps) {
+export default function MoonGlobe({ markers, selected, focus, lightMs, showCoverage, coverageProducts, onPickMarker, onPickPoint, onHover }: MoonGlobeProps) {
   const container = useRef<HTMLDivElement>(null)
   const viewerRef = useRef<Viewer | null>(null)
   const ring = useRef<Entity | null>(null)
@@ -239,23 +233,7 @@ export default function MoonGlobe({ markers, selected, focus, lightMs, showCover
     viewer.scene.screenSpaceCameraController.maximumZoomDistance = 9_000_000
     viewerRef.current = viewer
 
-    coverage.current = COVERAGE_LINES.map((c) =>
-      viewer.entities.add({
-        show: false,
-        polyline: { positions: parallel(c.lat), width: 1.5, arcType: ArcType.RHUMB, material: Color.fromCssColorString('#9fb8ff').withAlpha(0.7) },
-        position: Cartesian3.fromDegrees(0, c.lat, 0, MOON),
-        label: {
-          text: c.label,
-          font: `500 12px "JetBrains Mono", ui-monospace, monospace`,
-          fillColor: Color.fromCssColorString('#cfdcff'),
-          outlineColor: SPACE,
-          outlineWidth: 3,
-          style: LabelStyle.FILL_AND_OUTLINE,
-          verticalOrigin: VerticalOrigin.BOTTOM,
-          pixelOffset: new Cartesian2(0, -4),
-        },
-      }),
-    )
+
 
     ring.current = viewer.entities.add({
       billboard: { image: RING, width: 44, height: 44, disableDepthTestDistance: Number.POSITIVE_INFINITY },
@@ -397,9 +375,35 @@ export default function MoonGlobe({ markers, selected, focus, lightMs, showCover
   }, [lightMs])
 
   useEffect(() => {
+    const viewer = viewerRef.current
+    if (!viewer) return
+    for (const entity of coverage.current) viewer.entities.remove(entity)
+    coverage.current = coverageProducts.filter((p) => p.available).flatMap((p) => [
+      { lat: p.latMinDeg, label: p.title }, { lat: p.latMaxDeg, label: p.title },
+    ]).filter((c) => Math.abs(c.lat) < 90).map((c) =>
+      viewer.entities.add({
+        show: false,
+        polyline: { positions: parallel(c.lat), width: 1.5, arcType: ArcType.RHUMB, material: Color.fromCssColorString('#9fb8ff').withAlpha(0.7) },
+        position: Cartesian3.fromDegrees(0, c.lat, 0, MOON),
+        label: {
+          text: c.label,
+          font: `500 12px "JetBrains Mono", ui-monospace, monospace`,
+          fillColor: Color.fromCssColorString('#cfdcff'),
+          outlineColor: SPACE,
+          outlineWidth: 3,
+          style: LabelStyle.FILL_AND_OUTLINE,
+          verticalOrigin: VerticalOrigin.BOTTOM,
+          pixelOffset: new Cartesian2(0, -4),
+        },
+      }),
+    )
+    viewer.scene.requestRender()
+  }, [coverageProducts])
+
+  useEffect(() => {
     for (const e of coverage.current) setShow(e, showCoverage)
     viewerRef.current?.scene.requestRender()
-  }, [showCoverage])
+  }, [showCoverage, coverageProducts])
 
   return (
     <div className="moon-globe">

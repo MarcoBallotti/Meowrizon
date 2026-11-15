@@ -1,7 +1,8 @@
-import { provider } from '../api'
+import { catalogApi, provider } from '../api'
 import { runJob } from '../api/jobs'
 import type { ScenarioEvaluation, SiteCoordinates } from '../api/types'
 import { loadRegions, rank } from '../domain/ranking'
+import { regionCatalog, siteCatalog } from '../domain/catalogs'
 import { intervalStats } from '../domain/sampling'
 import { getState, setState, updateScenario, type ScenarioKey, type SiteSummary } from './store'
 
@@ -114,6 +115,7 @@ let comparisonController: AbortController | null = null
  * scenario A (and the period before), so the site can be compared fairly.
  */
 export async function runComparison(): Promise<void> {
+  if (provider.kind === 'api') return // No approved regional calculation endpoint yet.
   const s = getState()
   const catalog = s.regions
   const A = s.scenarios.A
@@ -163,11 +165,31 @@ export async function runComparison(): Promise<void> {
   }
 }
 
+let regionRequest: ReturnType<typeof catalogApi.getRegions> | null = null
+let siteRequest: ReturnType<typeof catalogApi.getSites> | null = null
+
 export async function loadRegionCatalog(): Promise<void> {
+  setState({ regionError: null })
   try {
-    setState({ regions: await loadRegions() })
-  } catch {
-    setState({ regions: null })
+    const catalog = provider.kind === 'api'
+      ? regionCatalog(await (regionRequest ??= catalogApi.getRegions()))
+      : await loadRegions()
+    setState({ regions: catalog })
+  } catch (err) {
+    regionRequest = null
+    setState({ regions: null, regionError: describe(err) })
+  }
+}
+
+export async function loadSiteCatalog(): Promise<void> {
+  if (provider.kind !== 'api') return
+  setState({ siteError: null })
+  try {
+    const sites = siteCatalog(await (siteRequest ??= catalogApi.getSites()))
+    setState({ sites })
+  } catch (err) {
+    siteRequest = null
+    setState({ sites: [], siteError: describe(err) })
   }
 }
 
