@@ -95,13 +95,24 @@ def test_earth_dem_is_rejected_before_reading_elevations(tmp_path):
             engine.window_for(tmp_path, -89.5, 120, 1000, 20)
 
 
-def test_unsupported_site_is_explicit_and_does_not_fetch(tmp_path):
+def test_nonpolar_site_uses_global_provider_without_fetching_polar_dem(tmp_path):
     parameters = {
         "site": {"latDeg": 10, "lonEastDeg": 10},
         "observerHeightM": 2,
         "config": {"azimuthStepDeg": 1, "maxDistanceKm": 150},
     }
-    with patch.object(engine, "window_for") as fetch:
-        with pytest.raises(engine.TerrainError, match="south-polar"):
-            engine.calculate(tmp_path, parameters, lambda *args: None)
-        fetch.assert_not_called()
+
+    def progress(*args):
+        return None
+
+    with (
+        patch.object(engine, "window_for") as polar_fetch,
+        patch(
+            "app.services.terrain.global_dem.calculate",
+            side_effect=engine.TerrainError("Global DEM unavailable"),
+        ) as global_calculate,
+    ):
+        with pytest.raises(engine.TerrainError, match="Global DEM unavailable"):
+            engine.calculate(tmp_path, parameters, progress)
+        global_calculate.assert_called_once_with(tmp_path, parameters, progress)
+        polar_fetch.assert_not_called()

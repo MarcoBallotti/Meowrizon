@@ -70,7 +70,8 @@ class ScientificApiTests(unittest.TestCase):
                     self.calculate.assert_called_once()
                 else:
                     self.assertEqual(job["status"], "failed")
-                    self.assertEqual(job["error"]["code"], "scenario_engine_unavailable")
+                    self.assertEqual(job["error"]["code"], "scenario_data_unavailable")
+                    self.assertIn("Terrain analysis not found", job["error"]["message"])
                     self.assertNotIn("result", job)
                 self.assertEqual(self.client.get(f"/api/{route}/{job['id']}").json(), job)
                 # A new service instance reads the same terminal state after restart.
@@ -78,7 +79,8 @@ class ScientificApiTests(unittest.TestCase):
                 saved = json.loads(
                     (self.settings.jobs / "scientific" / f"{job['id']}.json").read_text()
                 )
-                self.assertEqual(saved["parameters"], payload)
+                expected = payload if kind == "terrain" else {"includeContext": True, **payload}
+                self.assertEqual(saved["parameters"], expected)
                 other = "scenario-evaluations" if kind == "terrain" else "terrain-analyses"
                 self.assertEqual(self.client.get(f"/api/{other}/{job['id']}").status_code, 404)
 
