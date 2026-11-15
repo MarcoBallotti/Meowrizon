@@ -53,6 +53,14 @@ export class HttpProvider implements DataProvider {
     return this.request('/coverage', { signal })
   }
 
+  getRegions(signal?: AbortSignal): Promise<unknown> {
+    return this.request('/regions', { signal })
+  }
+
+  getSites(signal?: AbortSignal): Promise<unknown> {
+    return this.request('/sites', { signal })
+  }
+
   submitTerrainAnalysis(req: TerrainAnalysisRequest, signal?: AbortSignal): Promise<JobState<TerrainAnalysis>> {
     return this.request('/terrain-analyses', { method: 'POST', body: JSON.stringify(req), signal })
   }

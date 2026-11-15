@@ -1,0 +1,197 @@
+# Siti di Meowrizon: punti mostrati sulla mappa all'apertura dell'app e valutati come una cella
+# di 100 × 100 m (precisione di atterraggio richiesta da Artemis III [F1, slide 28]).
+# Fonti tra parentesi quadre: elenco in docs/piano-logica.md.
+#
+# Scelta del team (14/11/2026):
+#   - "atterrato": atterraggi RIUSCITI tra i più conosciuti dal pubblico, cioè tutti quelli con
+#     equipaggio più le missioni robotiche con un primato storico. Niente atterraggi falliti né
+#     riusciti solo in parte (IM-1, IM-2 e SLIM si sono rovesciati);
+#   - "previsto": missioni CLPS future. Non hanno ancora un punto di atterraggio pubblicato, quindi
+#     il punto è il CENTRO DELLA FORMAZIONE BERSAGLIO (Gazetteer IAU o regione Artemis):
+#     indica la zona, non il punto in cui atterreranno.
+#
+# Regole per aggiungere un sito:
+#   - "source" è obbligatoria (fonte delle coordinate): il comando init-regions rifiuta un sito senza;
+#   - coordinate planetocentriche nel sistema Mean Earth, sfera di 1737,4 km, in gradi decimali:
+#     latitudine negativa a sud, longitudine Est in 0…360 o −180…180, scritte come nella fonte;
+#   - il sito può stare ovunque sulla Luna. Il limite del settore (regions.toml) vale solo per le
+#     regioni: un sito fuori dal settore ha in_sector = false e il suo terreno verrà da un DEM globale;
+#   - la quota non si scrive: si leggerà dal DEM.
+#
+# Campi: id, name, lat, lon, kind ("atterrato" | "previsto" | "personalizzato"), source,
+#        date (facoltativa, AAAA-MM-GG UTC, data di atterraggio), note (facoltativa)
+#
+# Fonti delle coordinate:
+#   [MT-S] Moon Trek, layer "Lunar Anthropogenic Impacts and Spacecraft Sites", atterraggi morbidi
+#          (dati NSSDCA, layer del 7/11/2022):
+#          https://trek.nasa.gov/moon/trekarcgis2/rest/services/Lunar_Landing_Impact_Sites/MapServer/1/query?where=1%3D1&outFields=*&returnGeometry=true&outSR=4326&f=json
+#   [MT-C] stesso layer, atterraggi con equipaggio (stadio di discesa del LM):
+#          https://trek.nasa.gov/moon/trekarcgis2/rest/services/Lunar_Landing_Impact_Sites/MapServer/2/query?where=1%3D1&outFields=*&returnGeometry=true&outSR=4326&f=json
+#   [LROC] pagine del team LROC, posizione del lander misurata nelle immagini di LRO
+#   [IAU]  USGS Gazetteer of Planetary Nomenclature, centro della formazione:
+#          https://planetarynames.wr.usgs.gov/shapefiles/MOON_nomenclature_center_pts.zip
+#
+# Coordinate lette il 14/11/2026.
+
+# --- Atterrati: missioni con equipaggio [MT-C] -------------------------------------------------
+
+[[site]]
+id = "apollo-11"
+name = "Apollo 11 · Tranquility Base"
+lat = 0.67416
+lon = 23.47314
+kind = "atterrato"
+date = "1969-07-20"
+source = "https://trek.nasa.gov/moon/trekarcgis2/rest/services/Lunar_Landing_Impact_Sites/MapServer/2/query?where=1%3D1&outFields=*&returnGeometry=true&outSR=4326&f=json"
+note = "Primi esseri umani sulla Luna. NSSDCA 1969-059C"
+
+[[site]]
+id = "apollo-12"
+name = "Apollo 12 · Oceanus Procellarum"
+lat = -3.0128
+lon = -23.4219
+kind = "atterrato"
+date = "1969-11-19"
+source = "https://trek.nasa.gov/moon/trekarcgis2/rest/services/Lunar_Landing_Impact_Sites/MapServer/2/query?where=1%3D1&outFields=*&returnGeometry=true&outSR=4326&f=json"
+note = "Atterraggio di precisione accanto a Surveyor 3. NSSDCA 1969-099C"
+
+[[site]]
+id = "apollo-14"
+name = "Apollo 14 · Fra Mauro"
+lat = -3.64589
+lon = -17.47194
+kind = "atterrato"
+date = "1971-02-05"
+source = "https://trek.nasa.gov/moon/trekarcgis2/rest/services/Lunar_Landing_Impact_Sites/MapServer/2/query?where=1%3D1&outFields=*&returnGeometry=true&outSR=4326&f=json"
+note = "NSSDCA 1971-008C"
+
+[[site]]
+id = "apollo-15"
+name = "Apollo 15 · Hadley Rille"
+lat = 26.13239
+lon = 3.6333
+kind = "atterrato"
+date = "1971-07-30"
+source = "https://trek.nasa.gov/moon/trekarcgis2/rest/services/Lunar_Landing_Impact_Sites/MapServer/2/query?where=1%3D1&outFields=*&returnGeometry=true&outSR=4326&f=json"
+note = "Primo rover con equipaggio. NSSDCA 1971-063C"
+
+[[site]]
+id = "apollo-16"
+name = "Apollo 16 · Descartes"
+lat = -8.9734
+lon = 15.5011
+kind = "atterrato"
+date = "1972-04-21"
+source = "https://trek.nasa.gov/moon/trekarcgis2/rest/services/Lunar_Landing_Impact_Sites/MapServer/2/query?where=1%3D1&outFields=*&returnGeometry=true&outSR=4326&f=json"
+note = "Prima missione con equipaggio sugli altopiani. NSSDCA 1972-031C"
+
+[[site]]
+id = "apollo-17"
+name = "Apollo 17 · Taurus-Littrow"
+lat = 20.1911
+lon = 30.7723
+kind = "atterrato"
+date = "1972-12-11"
+source = "https://trek.nasa.gov/moon/trekarcgis2/rest/services/Lunar_Landing_Impact_Sites/MapServer/2/query?where=1%3D1&outFields=*&returnGeometry=true&outSR=4326&f=json"
+note = "Ultimi esseri umani sulla Luna. NSSDCA 1972-096C"
+
+# --- Atterrati: missioni robotiche con un primato ----------------------------------------------
+
+[[site]]
+id = "luna-9"
+name = "Luna 9 · Oceanus Procellarum"
+lat = 7.13
+lon = -64.37
+kind = "atterrato"
+date = "1966-02-03"
+source = "https://trek.nasa.gov/moon/trekarcgis2/rest/services/Lunar_Landing_Impact_Sites/MapServer/1/query?where=1%3D1&outFields=*&returnGeometry=true&outSR=4326&f=json"
+note = "Primo atterraggio morbido sulla Luna. NSSDCA 1966-006A"
+
+[[site]]
+id = "luna-17"
+name = "Luna 17 / Lunokhod 1 · Mare Imbrium"
+lat = 38.23764
+lon = -35.00163
+kind = "atterrato"
+date = "1970-11-17"
+source = "https://trek.nasa.gov/moon/trekarcgis2/rest/services/Lunar_Landing_Impact_Sites/MapServer/1/query?where=1%3D1&outFields=*&returnGeometry=true&outSR=4326&f=json"
+note = "Primo rover robotico. Punto del lander: il rover si è fermato a 38,315°N 35,0081°W. NSSDCA 1970-095A"
+
+[[site]]
+id = "change-4"
+name = "Chang'e 4 · von Kármán"
+lat = -45.457
+lon = 177.589
+kind = "atterrato"
+date = "2019-01-03"
+source = "https://trek.nasa.gov/moon/trekarcgis2/rest/services/Lunar_Landing_Impact_Sites/MapServer/1/query?where=1%3D1&outFields=*&returnGeometry=true&outSR=4326&f=json"
+note = "Primo atterraggio sulla faccia nascosta: la Terra non è mai visibile. NSSDCA 2018-103A"
+
+[[site]]
+id = "change-6"
+name = "Chang'e 6 · bacino Apollo"
+lat = -41.6385
+lon = 206.0148
+kind = "atterrato"
+date = "2024-06-01"
+source = "https://www.lroc.asu.edu/images/1374"
+note = "Primi campioni dalla faccia nascosta. Precisione LROC ±30 m"
+
+[[site]]
+id = "chandrayaan-3"
+name = "Chandrayaan-3 · alte latitudini sud"
+lat = -69.3741
+lon = 32.32
+kind = "atterrato"
+date = "2023-08-23"
+source = "https://www.lroc.asu.edu/images/1314"
+note = "Primo atterraggio vicino al polo sud. Longitudine LROC con 2 decimali (~300 m). Da non confondere con il bersaglio di Chandrayaan-2 (70,8°S 23,5°E)"
+
+[[site]]
+id = "blue-ghost-m1"
+name = "Blue Ghost Mission 1 · Mare Crisium"
+lat = 18.5623
+lon = 61.8103
+kind = "atterrato"
+date = "2025-03-02"
+source = "https://www.lroc.asu.edu/images/1407"
+note = "Primo atterraggio commerciale riuscito del tutto (Firefly, CLPS). Punto del lander dopo l'atterraggio, non il centro della zona prevista (LROC 1400)"
+
+# --- Previsti: missioni CLPS future (centro della formazione bersaglio) ------------------------
+# Stato al 14/11/2026, da ricontrollare: le date slittano spesso.
+
+[[site]]
+id = "griffin-1"
+name = "Griffin Mission One · Mons Mouton"
+lat = -84.6
+lon = 31.0
+kind = "previsto"
+source = "http://planetarynames.wr.usgs.gov/Feature/16070"
+note = "Astrobotic / Voyager, CLPS. Bersaglio: regione di Nobile vicino a Mons Mouton (https://voyagertechnologies.com/insights/how-voyager-chose-griffins-lunar-landing-site/). Punto = centro IAU di Mons Mouton (130 km): zona, non punto di atterraggio. Lancio non prima di novembre 2026"
+
+[[site]]
+id = "blue-moon-mk1-pathfinder"
+name = "Blue Moon MK1 Pathfinder · Connecting Ridge"
+lat = -89.4631628
+lon = -137.4895529
+kind = "previsto"
+source = "https://trek.nasa.gov/moon/trekarcgis2/rest/services/A3_Named_regions_SP/MapServer/0/query?where=1%3D1&outFields=label&returnGeometry=true&f=json"
+note = "Blue Origin, CLPS. Bersaglio: Shackleton Connecting Ridge (https://en.wikipedia.org/wiki/Blue_Moon_Pathfinder_Mission_1). Punto = centro della regione Artemis III 'Connecting Ridge', calcolato da data/regions/regions.geojson: zona, non punto di atterraggio. Previsto nel 2027"
+
+[[site]]
+id = "im-3"
+name = "IM-3 · Reiner Gamma"
+lat = 7.3853
+lon = 301.0417
+kind = "previsto"
+source = "http://planetarynames.wr.usgs.gov/Feature/4987"
+note = "Intuitive Machines, CLPS. Bersaglio: vortice lunare di Reiner Gamma (https://en.wikipedia.org/wiki/IM-3). Punto = centro IAU della formazione (73 km): zona, non punto di atterraggio. Previsto all'inizio del 2027"
+
+[[site]]
+id = "blue-ghost-m2"
+name = "Blue Ghost Mission 2 · Nassau"
+lat = -24.9137
+lon = 177.337
+kind = "previsto"
+source = "http://planetarynames.wr.usgs.gov/Feature/4159"
+note = "Firefly, CLPS, faccia nascosta. Bersaglio: cratere Nassau (https://fireflyspace.com/blue-ghost-mission-2). Punto = centro IAU del cratere (76 km): zona, non punto di atterraggio. Previsto nel 2027"

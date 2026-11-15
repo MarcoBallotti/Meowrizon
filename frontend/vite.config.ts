@@ -56,6 +56,9 @@ function cesiumStatic(): Plugin {
 export default defineConfig({
   plugins: [react(), cesiumStatic()],
   server: {
+    // In Docker su Windows le modifiche ai file montati non arrivano come eventi:
+    // docker-compose.yml imposta MEOWRIZON_WATCH_POLLING=true.
+    watch: { usePolling: process.env.MEOWRIZON_WATCH_POLLING === 'true' },
     proxy: {
       // Used only when VITE_DATA_SOURCE=api: forwards to the Python engine.
       '/api': process.env.MEOWRIZON_API_ORIGIN ?? 'http://localhost:8000',

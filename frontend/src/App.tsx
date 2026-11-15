@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import { KitScreen } from './screens/KitScreen'
 import { MoonScreen } from './screens/MoonScreen'
 import { SiteScreen } from './screens/SiteScreen'
-import { loadCoverage, loadRegionCatalog, runScenario } from './state/runner'
+import { loadCoverage, loadRegionCatalog, loadSiteCatalog, runScenario } from './state/runner'
 import { getState, screenFromHash, setState, useStore, type ScenarioKey } from './state/store'
 import './screens/screens.css'
 import './screens/responsive.css'
@@ -14,20 +14,24 @@ function useAutoRun() {
   const compare = useStore((s) => s.compare)
   const durationDays = useStore((s) => s.durationDays)
   const stepMinutes = useStore((s) => s.stepMinutes)
+  const screen = useStore((s) => s.screen)
+  const azimuthStepDeg = useStore((s) => s.azimuthStepDeg)
+  const maxDistanceKm = useStore((s) => s.maxDistanceKm)
   const lastKeys = useRef<Partial<Record<ScenarioKey, string>>>({})
 
   useEffect(() => {
+    if (screen !== 'site') return
     const timer = setTimeout(() => {
       const wanted: [ScenarioKey, typeof A][] = compare ? [['A', A], ['B', B]] : [['A', A]]
       for (const [key, input] of wanted) {
-        const k = JSON.stringify([input, durationDays, stepMinutes])
+        const k = JSON.stringify([input, durationDays, stepMinutes, azimuthStepDeg, maxDistanceKm])
         if (lastKeys.current[key] === k) continue
         lastKeys.current[key] = k
         void runScenario(key)
       }
     }, 350)
     return () => clearTimeout(timer)
-  }, [A, B, compare, durationDays, stepMinutes])
+  }, [A, B, compare, durationDays, stepMinutes, screen, azimuthStepDeg, maxDistanceKm])
 }
 
 /** Space toggles playback on the site view, outside form controls. */
@@ -68,6 +72,7 @@ export default function App() {
   useEffect(() => {
     void loadCoverage()
     void loadRegionCatalog()
+    void loadSiteCatalog()
   }, [])
   useEffect(() => {
     document.documentElement.dataset.audience = audience

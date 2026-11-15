@@ -1,0 +1,12 @@
+# A capo LF nel repository e nelle copie di lavoro, come chiede .editorconfig.
+# Evita file con CRLF dentro i container Linux (script, configurazioni nginx, Dockerfile).
+* text=auto eol=lf
+
+*.pdf binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.glb binary
+*.wasm binary

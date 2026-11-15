@@ -8,7 +8,9 @@ React 19 + TypeScript + Vite + CesiumJS. Tre viste sincronizzate:
 
 ## Avvio
 
-Dalla radice del repository, con Node indicato in `.nvmrc`:
+Con Docker, dalla radice del repository: `npm start` avvia frontend (http://localhost:5173) e backend insieme; `npm run prod` avvia la versione compilata servita da nginx su http://localhost:8080. In Docker Vite inoltra `/api` al servizio `backend` e controlla i file a intervalli, così il ricaricamento funziona anche su Windows. Dettagli e altri comandi nel [README principale](../README.md).
+
+Senza Docker, dalla radice del repository, con Node indicato in `.nvmrc`:
 
 ```sh
 nvm use
@@ -16,16 +18,24 @@ npm install
 npm run dev
 ```
 
-Altri comandi: `npm run build` (type-check + build), `npm run lint`, `npm run preview`.
+Altri comandi: `npm run build` (type-check + build), `npm run lint`, `npm run preview`. Da `frontend/`, `npm test` verifica adapter dei cataloghi, identità, rifiuto di payload invalidi e assenza di fallback per copertura sconosciuta.
 
 ## Fonte dei dati
 
 | `VITE_DATA_SOURCE` | Comportamento |
 |---|---|
-| `demo` (predefinito) | `DemoProvider`: orizzonte procedurale ed effemeridi analitiche approssimate. Il badge «Dati dimostrativi» resta sempre visibile. |
-| `api` | `HttpProvider` verso `VITE_API_BASE_URL` (predefinito `/api`). In sviluppo Vite inoltra `/api` a `MEOWRIZON_API_ORIGIN`, predefinito `http://localhost:8000`. |
+| `demo` (opzionale) | `DemoProvider`: esempi, ranking e analisi sintetici, con badge dimostrativo. |
+| `api` (predefinito) | Cataloghi regioni/siti e copertura dal backend tramite `VITE_API_BASE_URL` (predefinito `/api`). In sviluppo Vite inoltra `/api` a `MEOWRIZON_API_ORIGIN`, predefinito `http://localhost:8000` (in Docker `http://backend:8000`). In produzione lo stesso inoltro lo fa nginx (`nginx.conf`). |
 
-Vedere [`.env.example`](.env.example) e il contratto in [`docs/api-contract.md`](../docs/api-contract.md).
+Vedere [`.env.example`](.env.example) e il [contratto corrente](../docs/api-contract.md), con [mappa delle interazioni e righe di codice](../docs/api-integration-map.md), [dizionario JSON e visualizzazioni](../docs/api-data-dictionary.md) e [piano TanStack Query](../docs/api-query-plan.md). TanStack non è ancora installato. Verifica delle ancore: `python3 scripts/verify_api_integration.py` dalla radice.
+
+In modalità `api`, picker, ricerca, marker e selettore B usano i siti reali di `/api/sites`. Le regioni di `/api/regions` appaiono in ordine di catalogo, senza punteggi, percentuali, trofei o confronti inventati. I centri sono punti di navigazione, non siti ottimali. Gli ID dei siti e delle regioni sono distinti; i metadati e le geometrie originali sono conservati dagli adapter. Errori di caricamento hanno messaggi e retry senza fallback demo.
+
+La copertura DEM usa solo prodotti dichiarati disponibili da `/api/coverage`: con catalogo vuoto non disegna fasce. Le analisi partono solo sulla pagina sito. Il server accetta terreno/scenario e restituisce errori espliciti finché l'engine non è disponibile. Eclissi, luce del globo e orbite sono ancora anteprime locali approssimate; il badge lo dichiara. I nuovi DTO scientifici richiedono ancora le decisioni U01–U09 del contratto.
+
+Per l'avvio locale: da `backend/`, `.venv/bin/python -m uvicorn app:app --port 8000`, e inizializzare i cataloghi con `.venv/bin/python -m app.cli init-regions`. Da `frontend/`, `npm run dev` usa API per default; `VITE_DATA_SOURCE=demo npm run dev` abilita la demo. Eventuali `.env` locali con `VITE_DATA_SOURCE=demo` vanno cambiati o sovrascritti con `VITE_DATA_SOURCE=api`. Dopo cambi di ambiente riavviare Vite; per produzione ricompilare il bundle.
+
+La mappa statica e gli hash dell'audit precedente non descrivono questa integrazione: `verify_api_integration.py` segnala i sorgenti modificati e richiede una nuova revisione della mappa, non solo nuovi hash.
 
 ## Struttura
 
@@ -34,7 +44,9 @@ src/
   api/          types.ts (contratto), httpProvider, demoProvider, jobs (polling)
   domain/       siti di esempio, formattazione, lettura di campioni e intervalli
   state/        store esterno (useSyncExternalStore) e runner dei lavori
-  components/   ControlPanel, GlobeView (lazy), HorizonView, TimelineView, …
+  screens/      Home/Explore (MoonScreen), SiteScreen, Brand kit
+  features/     globo, panorama, timeline, report, eclissi, orbite e grafici
+  ui/           componenti condivisi, controlli e DateDial
 ```
 
 ## Scelte implementative
@@ -47,6 +59,6 @@ src/
 
 ## Limiti noti
 
-- Nessun backend: con `demo` i numeri non hanno valore scientifico.
+- Backend presente per cataloghi/acquisizione, engine scientifico non ancora implementato o collegato; con `demo` i numeri non hanno valore scientifico.
 - Le immagini equirettangolari si deformano vicino ai poli. Un mosaico polare stereografico richiederebbe tessere preparate apposta.
-- Le coperture DEM mostrate sul globo sono fasce di latitudine dichiarate, non la disponibilità effettiva dei dati.
+- Le coperture DEM mostrate sul globo sono le fasce dei prodotti disponibili dichiarate dal backend: non certificano il cerchio di una singola analisi.

@@ -31,7 +31,7 @@ import {
 } from 'cesium'
 import 'cesium/Build/Cesium/Widgets/widgets.css'
 import { useEffect, useRef, useState } from 'react'
-import type { SiteCoordinates } from '../api/types'
+import type { DemProduct, SiteCoordinates } from '../api/types'
 import { subSolarPoint } from '../domain/approxEphemeris'
 import { formatLat, formatLon } from '../domain/format'
 import { normalizeLon } from '../domain/sites'
@@ -50,6 +50,8 @@ const SPACE = Color.fromCssColorString('#0b0c1a')
 const SITE_FILL = Color.fromCssColorString('#6cc4f5')
 const SITE_RIM = Color.fromCssColorString('#12507c')
 const REGION_LINE = Color.fromCssColorString('#a9dcfa')
+
+const NO_PRODUCTS: DemProduct[] = []
 
 const svgUri = (svg: string) => `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`
 
@@ -190,17 +192,21 @@ interface MoonGlobeProps {
   regions: RegionBands | null
   /** Change it to put the camera back on the current framing. */
   resetNonce: number
+  /** Latitude limits of the prepared DEM products, shown on demand (engineers). */
+  showCoverage?: boolean
+  coverageProducts?: DemProduct[]
   onPickMarker: (id: string) => void
   onPickPoint: (site: SiteCoordinates) => void
   onHover?: (text: string) => void
 }
 
-export default function MoonGlobe({ markers, selected, focus, lightMs, regions, resetNonce, onPickMarker, onPickPoint, onHover }: MoonGlobeProps) {
+export default function MoonGlobe({ markers, selected, focus, lightMs, regions, resetNonce, showCoverage = false, coverageProducts = NO_PRODUCTS, onPickMarker, onPickPoint, onHover }: MoonGlobeProps) {
   const container = useRef<HTMLDivElement>(null)
   const viewerRef = useRef<Viewer | null>(null)
   const ring = useRef<Entity | null>(null)
   const markerEntities = useRef<Map<string, Entity>>(new Map())
   const regionEntities = useRef<Entity[]>([])
+  const coverage = useRef<Entity[]>([])
   const handlers = useRef({ onPickMarker, onPickPoint, onHover })
   // The selection chip is HTML (crisp, rounded), so it is placed on the screen each frame.
   const chip = useRef<HTMLDivElement>(null)
@@ -458,6 +464,39 @@ export default function MoonGlobe({ markers, selected, focus, lightMs, regions, 
     )
     viewer.scene.requestRender()
   }, [southLat, equatorLat])
+
+  // DEM coverage: the latitude limits of every prepared product, hidden until asked for.
+  useEffect(() => {
+    const viewer = viewerRef.current
+    if (!viewer) return
+    for (const entity of coverage.current) viewer.entities.remove(entity)
+    coverage.current = coverageProducts.filter((p) => p.available).flatMap((p) => [
+      { lat: p.latMinDeg, label: p.title }, { lat: p.latMaxDeg, label: p.title },
+    ]).filter((c) => Math.abs(c.lat) < 90).map((c) =>
+      viewer.entities.add({
+        show: false,
+        polyline: { positions: parallel(c.lat), width: 1.5, arcType: ArcType.RHUMB, material: Color.fromCssColorString('#9fb8ff').withAlpha(0.7) },
+        position: Cartesian3.fromDegrees(0, c.lat, 0, MOON),
+        label: {
+          text: c.label,
+          font: `500 24px "JetBrains Mono", ui-monospace, monospace`,
+          scale: 0.5,
+          fillColor: Color.fromCssColorString('#cfdcff'),
+          outlineColor: SPACE,
+          outlineWidth: 6,
+          style: LabelStyle.FILL_AND_OUTLINE,
+          verticalOrigin: VerticalOrigin.BOTTOM,
+          pixelOffset: new Cartesian2(0, -4),
+        },
+      }),
+    )
+    viewer.scene.requestRender()
+  }, [coverageProducts])
+
+  useEffect(() => {
+    for (const e of coverage.current) setShow(e, showCoverage)
+    viewerRef.current?.scene.requestRender()
+  }, [showCoverage, coverageProducts])
 
   return (
     <div className="moon-globe">

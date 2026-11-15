@@ -2217,3 +2217,27 @@
 .timeline-axis span:last-child:not(:first-child) {
   transform: translateX(-100%);
 }
+
+/* ---------------------------------------------------------------- backend catalogs */
+
+/* Loading and error messages of the backend catalogs, with the Retry button. */
+.catalog-status {
+  flex: none;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--text-s);
+}
+
+/* Candidate regions of the backend catalog: no ranking, so no bar. */
+.results-row.is-catalog {
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+}
+
+.moon-coverage-note {
+  position: absolute;
+  left: 16px;
+  top: 76px;
+}

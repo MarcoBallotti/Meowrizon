@@ -2,6 +2,8 @@ import { useSyncExternalStore } from 'react'
 import type { CoverageCatalog, ScenarioEvaluation, SiteCoordinates, TerrainAnalysis } from '../api/types'
 import type { AreaFilter, RankBy, RegionCatalog } from '../domain/ranking'
 import { EXAMPLE_SITES } from '../domain/sites'
+import type { ExampleSite } from '../domain/sites'
+import { provider } from '../api'
 
 export type ScenarioKey = 'A' | 'B'
 
@@ -34,6 +36,7 @@ export interface ScenarioInput {
   site: SiteCoordinates
   /** Name of the example site when chosen from the list; null for free picks. */
   siteName: string | null
+  selectionId?: string | null
   observerHeightM: number
   startMs: number
 }
@@ -74,6 +77,9 @@ export interface AppState {
   speed: number
   coverage: CoverageCatalog | null
   regions: RegionCatalog | null
+  sites: ExampleSite[]
+  regionError: string | null
+  siteError: string | null
   /** Top regions of the ranking, computed for the same period as scenario A. */
   comparison: Comparison | null
   rankBy: RankBy
@@ -112,11 +118,11 @@ const initialState: AppState = {
   audience: storedAudience(),
   scenarios: {
     A: {
-      input: { site: { latDeg: first.latDeg, lonEastDeg: first.lonEastDeg }, siteName: first.name, observerHeightM: 2, startMs: startOfTodayUtc },
+      input: { site: { latDeg: first.latDeg, lonEastDeg: first.lonEastDeg }, siteName: provider.kind === 'demo' ? first.name : null, observerHeightM: 2, startMs: startOfTodayUtc },
       run: { phase: 'idle', stale: true },
     },
     B: {
-      input: { site: { latDeg: second.latDeg, lonEastDeg: second.lonEastDeg }, siteName: second.name, observerHeightM: 2, startMs: startOfTodayUtc },
+      input: { site: { latDeg: second.latDeg, lonEastDeg: second.lonEastDeg }, siteName: provider.kind === 'demo' ? second.name : null, observerHeightM: 2, startMs: startOfTodayUtc },
       run: { phase: 'idle', stale: true },
     },
   },
@@ -131,6 +137,9 @@ const initialState: AppState = {
   speed: 12,
   coverage: null,
   regions: null,
+  sites: provider.kind === 'demo' ? EXAMPLE_SITES : [],
+  regionError: null,
+  siteError: null,
   comparison: null,
   rankBy: 'overall',
   area: 'all',
@@ -157,6 +166,7 @@ export function updateScenario(key: ScenarioKey, fn: (s: Scenario) => Scenario):
 }
 
 export function setScenarioInput(key: ScenarioKey, patch: Partial<ScenarioInput>): void {
+  if (patch.site && !('selectionId' in patch)) patch = { ...patch, selectionId: null }
   updateScenario(key, (s) => ({ input: { ...s.input, ...patch }, run: { ...s.run, stale: true } }))
 }
 

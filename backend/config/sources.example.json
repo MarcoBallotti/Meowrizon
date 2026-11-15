@@ -1,0 +1,67 @@
+{
+  "description": "Small independent acquisition examples; edit dates, site, products and raster bbox for your study. These samples do not describe one complete mission.",
+  "downloads": [
+    {
+      "name": "moon_catalog_south", "provider": "moon_trek", "format": "json", "check": "catalog",
+      "url": "https://trek.nasa.gov/moon/TrekServices/ws/index/polar/searchItems",
+      "params": {"proj": "urn:ogc:def:crs:IAU2000::30120", "start": 0, "rows": 2000, "facetKeys": "itemType", "facetValues": "product"}
+    },
+    {
+      "name": "moon_catalog_global", "provider": "moon_trek", "format": "json", "check": "catalog",
+      "url": "https://trek.nasa.gov/moon/TrekServices/ws/index/eq/searchItems",
+      "params": {"proj": "urn:ogc:def:crs:EPSG::104903", "start": 0, "rows": 3000, "facetKeys": "itemType", "facetValues": "product"}
+    },
+    {
+      "name": "candidate_region_services", "provider": "moon_trek", "format": "json",
+      "url": "https://trek.nasa.gov/moon/TrekServices/ws/index/getLayerServices",
+      "params": {"uuid": "2a261565-52ca-42e2-ab67-01427512dbea"}
+    },
+    {
+      "name": "candidate_region_metadata", "provider": "moon_trek", "format": "json",
+      "url": "https://trek.nasa.gov/moon/trekarcgis2/rest/services/A3_Named_regions_SP/MapServer/0",
+      "params": {"f": "json"}
+    },
+    {
+      "name": "candidate_regions_2022", "provider": "moon_trek", "format": "json", "check": "features",
+      "url": "https://trek.nasa.gov/moon/trekarcgis2/rest/services/A3_Named_regions_SP/MapServer/0/query",
+      "params": {"where": "1=1", "outFields": "*", "returnGeometry": "true", "f": "json"}
+    },
+    {
+      "name": "dem_south_metadata", "provider": "moon_trek", "format": "json",
+      "url": "https://trek.nasa.gov/moon/trekarcgis/rest/services/LRO_LOLA_DEM_SPole875_5mp_v04/ImageServer",
+      "params": {"f": "json"}
+    },
+    {
+      "name": "dem_south_pole_sample", "provider": "moon_trek", "format": "tiff",
+      "description": "100 m by 100 m at the south pole, 20 by 20 pixels. Bbox is lunar stereographic metres. Independent of the Horizons sample site.",
+      "url": "https://trek.nasa.gov/moon/trekarcgis/rest/services/LRO_LOLA_DEM_SPole875_5mp_v04/ImageServer/exportImage",
+      "params": {"bbox": "-50,-50,50,50", "size": "20,20", "format": "tiff", "pixelType": "F32", "interpolation": "RSP_NearestNeighbor", "f": "image"}
+    },
+    {
+      "name": "moon_imagery_capabilities", "provider": "moon_trek", "format": "xml",
+      "url": "https://trek.nasa.gov/tiles/Moon/EQ/LRO_WAC_Mosaic_Global_303ppd_v02/1.0.0/WMTSCapabilities.xml"
+    },
+    {
+      "name": "moon_imagery_sample", "provider": "moon_trek", "format": "jpeg",
+      "url": "https://trek.nasa.gov/tiles/Moon/EQ/LRO_WAC_Mosaic_Global_303ppd_v02/1.0.0/default/default028mm/0/0/0.jpg"
+    },
+    {
+      "name": "horizons_sun_observer", "provider": "horizons", "format": "json",
+      "description": "Sun from longitude 0, latitude -89.45, altitude 0 km above the reference sphere; this is not height above local terrain.",
+      "url": "https://ssd.jpl.nasa.gov/api/horizons.api",
+      "params": {"format": "json", "COMMAND": "'10'", "OBJ_DATA": "'NO'", "MAKE_EPHEM": "'YES'", "EPHEM_TYPE": "'OBSERVER'", "CENTER": "'coord@301'", "COORD_TYPE": "'GEODETIC'", "SITE_COORD": "'0,-89.45,0'", "START_TIME": "'2026-12-01 00:00'", "STOP_TIME": "'2026-12-02 00:00'", "STEP_SIZE": "'1 h'", "QUANTITIES": "'4,20'", "CSV_FORMAT": "'YES'"}
+    },
+    {
+      "name": "horizons_earth_observer", "provider": "horizons", "format": "json",
+      "description": "Earth from the same sample lunar observer as horizons_sun_observer.",
+      "url": "https://ssd.jpl.nasa.gov/api/horizons.api",
+      "params": {"format": "json", "COMMAND": "'399'", "OBJ_DATA": "'NO'", "MAKE_EPHEM": "'YES'", "EPHEM_TYPE": "'OBSERVER'", "CENTER": "'coord@301'", "COORD_TYPE": "'GEODETIC'", "SITE_COORD": "'0,-89.45,0'", "START_TIME": "'2026-12-01 00:00'", "STOP_TIME": "'2026-12-02 00:00'", "STEP_SIZE": "'1 h'", "QUANTITIES": "'4,20'", "CSV_FORMAT": "'YES'"}
+    },
+    {
+      "name": "horizons_moon_vectors", "provider": "horizons", "format": "json",
+      "description": "Moon position/velocity relative to Earth, ICRF axes, km and km/s. This is the Moon's orbit, not a spacecraft trajectory.",
+      "url": "https://ssd.jpl.nasa.gov/api/horizons.api",
+      "params": {"format": "json", "COMMAND": "'301'", "OBJ_DATA": "'YES'", "MAKE_EPHEM": "'YES'", "EPHEM_TYPE": "'VECTORS'", "CENTER": "'500@399'", "START_TIME": "'2026-12-01 00:00'", "STOP_TIME": "'2026-12-02 00:00'", "STEP_SIZE": "'1 h'", "REF_SYSTEM": "'ICRF'", "REF_PLANE": "'FRAME'", "VEC_CORR": "'NONE'", "VEC_TABLE": "'2'", "OUT_UNITS": "'KM-S'", "TIME_TYPE": "'UT'", "CSV_FORMAT": "'YES'"}
+    }
+  ]
+}

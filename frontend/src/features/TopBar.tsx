@@ -18,7 +18,7 @@ export function AudienceSwitch({ size = 'm' }: { size?: 's' | 'm' }) {
 }
 
 export function DemoChip() {
-  if (provider.kind !== 'demo') return null
+  if (provider.kind !== 'demo') return <Chip tone="neutral" title="Real backend catalogs. Scientific analysis is unavailable; orbital and globe lighting previews remain approximate.">Backend catalogs · preview visuals</Chip>
   return (
     <Chip tone="demo" dot title="Synthetic horizon and approximate ephemeris. Not a site assessment.">
       Practice data
