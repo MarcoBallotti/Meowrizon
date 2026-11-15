@@ -102,7 +102,7 @@ function LightCalendar({ ev, startMs, days, cursorMs, audience }: { ev: Scenario
           const date = new Date(c.a)
           const label = date.getUTCDate() === 1 && d > 0 ? formatUtcDate(c.a) : String(date.getUTCDate())
           const text =
-            audience === 'student'
+            audience === 'public'
               ? `${formatUtcDate(c.a)}: ${words(c.sunH, 'sun')}, ${words(c.earthH, 'earth').toLowerCase()}`
               : `${formatUtcDate(c.a)}: Sun ${Math.round(c.sunH)} h, Earth ${Math.round(c.earthH)} h`
           const show = (el: HTMLElement) => {
@@ -135,10 +135,10 @@ function LightCalendar({ ev, startMs, days, cursorMs, audience }: { ev: Scenario
       <Tip tip={tip} />
       <div className="deep-legend">
         <span>
-          <SunIcon size={16} /> {audience === 'student' ? 'Sunlight' : 'Hours of sunlight'}
+          <SunIcon size={16} /> {audience === 'public' ? 'Sunlight' : 'Hours of sunlight'}
         </span>
         <span>
-          <EarthIcon size={16} /> {audience === 'student' ? 'Earth in view' : 'Hours with Earth in view'}
+          <EarthIcon size={16} /> {audience === 'public' ? 'Earth in view' : 'Hours with Earth in view'}
         </span>
       </div>
     </div>
@@ -268,7 +268,7 @@ function CompareBars({ audience, own }: { audience: Audience; own: { name: strin
   const comparison = useStore((s) => s.comparison)
   const startMs = useStore((s) => s.scenarios.A.input.startMs)
   const rows = [{ ...own, me: true }, ...(comparison?.items ?? []).map((i) => ({ ...i, me: false }))]
-  const metrics = audience === 'student' ? [METRICS.sun, METRICS.earth] : [METRICS.sun, METRICS.earth, METRICS.both, METRICS.night]
+  const metrics = audience === 'public' ? [METRICS.sun, METRICS.earth] : [METRICS.sun, METRICS.earth, METRICS.both, METRICS.night]
   const delta = (m: Metric, now: SiteSummary, prev: SiteSummary | null) =>
     prev ? <Delta value={m.unit ? m.get(now) - m.get(prev) : (m.get(now) - m.get(prev)) * 100} unit={m.unit} better={m.better} /> : null
 
@@ -290,7 +290,7 @@ function CompareBars({ audience, own }: { audience: Audience; own: { name: strin
                   <span className="cmp-track" aria-hidden="true">
                     <span style={{ width: `${(m.get(r.now) / max) * 100}%` }} />
                   </span>
-                  {audience !== 'student' && (
+                  {audience !== 'public' && (
                     <span className="cmp-value mono">
                       {m.show(m.get(r.now))} {audience === 'planner' && delta(m, r.now, r.prev)}
                     </span>
@@ -460,7 +460,7 @@ export function LightCalendarCard({ audience }: { audience: Audience }) {
   return (
     <ChartCard
       title="Light calendar"
-      question={audience === 'student' ? 'Which days have sunlight and a radio link?' : 'Hours of sunlight and of Earth in view, day by day.'}
+      question={audience === 'public' ? 'Which days have sunlight and a radio link?' : 'Hours of sunlight and of Earth in view, day by day.'}
     >
       <LightCalendar ev={d.evaluation} startMs={d.startMs} days={d.days} cursorMs={d.cursorMs} audience={audience} />
     </ChartCard>
@@ -505,8 +505,8 @@ export function CompareCard({ audience }: { audience: Audience }) {
   }
   return (
     <ChartCard
-      title={audience === 'student' ? 'How does this place compare?' : 'Compared with the best sites'}
-      question={audience === 'student' ? 'This place next to the top three of the ranking.' : 'This site next to the top three of the ranking, same days.'}
+      title={audience === 'public' ? 'How does this place compare?' : 'Compared with the best sites'}
+      question={audience === 'public' ? 'This place next to the top three of the ranking.' : 'This site next to the top three of the ranking, same days.'}
     >
       <CompareBars audience={audience} own={own} />
     </ChartCard>

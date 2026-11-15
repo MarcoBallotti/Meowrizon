@@ -1,37 +1,37 @@
-# Protocollo osservativo LROC v2 — non ancora superato
+# LROC observational protocol v2 — pending
 
-Registrato il 15/11/2026 prima di applicare un nuovo metodo alle scene di verifica. Il benchmark Otsu v1 resta fallito; questo protocollo non ne cambia le tolleranze né ne sostituisce retroattivamente l'esito.
+Registered on **2026-11-15**, before applying a new method to verification scenes. The Otsu v1 benchmark remains failed; this protocol neither changes its tolerances nor retroactively replaces its outcome. See the [review](validazione-engine-v1-revisione.md).
 
-## Selezione e separazione dei dati
+## Data selection and separation
 
-Le sei ortofoto MALAPERT02/MALAPERT03 già esaminate sono **solo sviluppo**, anche cambiando soglia o annotatore. Nuove scene di verifica devono provenire da acquisizioni distinte, con geometria e data note, copertura del poligono V1 e presenza osservabile di luce e ombra. Non dividere pixel adiacenti della stessa scena fra sviluppo e verifica. Se si modifica il metodo dopo una verifica, quella scena diventa sviluppo.
+The six already examined MALAPERT02/MALAPERT03 orthophotos are **development only**, even after changing threshold or annotator. Verification requires distinct acquisitions with known date/geometry, overlap with a V1 polygon and observable light/shadow. Do not split adjacent pixels from one acquisition between development and verification. If the method changes after inspecting verification, that scene becomes development.
 
-La selezione non deve usare previsioni o scarti dell'engine. Conservare tutti i candidati, motivi di esclusione, footprint, metadati, hash e data. Prodotti shaded relief simulati non sono osservazioni. Un mosaico multitemporale non ha un unico istante solare: serve risalire ai segmenti e alle acquisizioni originali.
+Selection must not use engine predictions or errors. Retain all candidates, exclusions/reasons, footprints, metadata, hashes and dates. Simulated shaded relief is not observation. Multi-epoch mosaics require identification of original segments/acquisitions rather than a single assumed solar epoch.
 
-## Riferimento indipendente
+## Independent reference
 
-Un annotatore competente, senza vedere le previsioni, delimita aree sicuramente illuminate, ombra proiettata e zone incerte su ortofoto radiometricamente calibrate. Un secondo revisore controlla bordi e interpretazione; i disaccordi restano incerti. Un tono scuro da solo non dimostra ombra: usare morfologia della cresta/bordo, contesto e metadati; verificare albedo, incidenza, saturazione e NoData. Non imporre una percentuale di esclusioni per migliorare l'accordo.
+A qualified annotator, blinded to predictions, marks confidently illuminated terrain, cast shadow and uncertain areas on radiometrically calibrated orthophotos. A second reviewer checks boundaries/interpretation; disagreements remain uncertain. Darkness alone is not proof of cast shadow: inspect crest/edge morphology, context, albedo, incidence, saturation and NoData. Do not impose an exclusion fraction to improve agreement.
 
-Il pacchetto `backend/data/analysis/validation/review-20261115/annotation/` contiene campioni delle scene di sviluppo, coordinate stereografiche in metri, I/F, campi etichetta non compilati e viste dei dati osservati **senza predizioni**. `label=-1` significa non annotato/incerto, 0 ombra, 1 luce; non è un giudizio scientifico già espresso. Registrare annotatori, motivi, revisione e hash delle etichette prima di eseguire il confronto.
+`backend/data/analysis/validation/review-20261115/annotation/` contains development-scene samples, stereographic metre coordinates, I/F, empty annotation fields and observed-data-only views. `label=-1` means unannotated/uncertain, 0 shadow, 1 light. These are not already established scientific labels. Record annotator/reviewer identities, reasons and label hashes before comparison.
 
-Le etichette del modello non sono ground truth. Le sei scene note non possono diventare holdout mediante questa annotazione. Per la verifica sono ancora necessari nuovi dati e riferimento controllato.
+Model labels are not ground truth. Annotating the six existing scenes does not turn them into holdout data; new acquisitions and a controlled reference are still required.
 
-## Confronto e criteri immutati
+## Comparison and unchanged criteria
 
-- Confrontare `fSunTerrain` a quota suolo, usando epoca per linea quando disponibile. Se si usa l'epoca media, calcolare l'effetto fra inizio e fine acquisizione: se cambia lo stato di un campione, segnalarlo come temporalmente ambiguo e riportarne il numero.
-- Conservare la convenzione v1: ombra a frazione zero, luce a frazione ≥0,5, frazioni intermedie parziali; esplicitare l'epsilon numerico. Registrare separatamente unknown e parziali.
-- Metrica principale: accordo sui campioni osservativi annotati e con previsione decidibile; soglia **≥0,90 invariata**. Non basta se manca una classe o il riferimento non è indipendente: in tali casi il benchmark è incompleto.
-- Riportare matrice 2×2 (righe riferimento, colonne previsione), precisione e richiamo per ciascuna classe, balanced accuracy, numerosità per scena, copertura, esclusioni e classi assenti. Nessuna nuova soglia numerica per queste diagnostiche.
-- Bordi: sulle maschere dense georeferenziate, estrarre solo confini luce/ombra all'interno di aree annotate (escludere bordi di NoData e incerto); calcolare distanza dal bordo più vicino in entrambe le direzioni, mediana e P95 in metri, indicando scala e incertezza di registrazione. Non stimare la distanza dei bordi dalla griglia sparsa ogni 152 m come se fosse una maschera densa. Se i bordi mancano, metrica non valutabile.
-- Non attribuire indipendenza statistica a pixel adiacenti. Riportare metriche per scena, senza usare il numero di pixel come numero di osservazioni indipendenti.
+- Compare ground-level `fSunTerrain`, using line timestamps when available. If using mean epoch, quantify start/end-acquisition effects; samples changing state are temporally ambiguous and must be counted.
+- Retain v1 convention: shadow at zero fraction, light at fraction ≥0.5, intermediate fractions partial; declare numerical epsilon. Record unknown/partial cases separately.
+- Primary metric: agreement on independently labeled samples with decidable predictions, criterion **≥0.90 unchanged**. Missing either class or independent reference leaves the benchmark incomplete.
+- Report reference-row/prediction-column 2 × 2 matrix, precision/recall for each class, balanced accuracy, scene counts, coverage, exclusions and absent classes. These diagnostics have no newly invented numerical pass threshold.
+- For **dense georeferenced masks**, extract light/shadow edges only within annotated areas, excluding NoData/uncertain edges. Report bidirectional nearest-edge distances, median/P95 in metres, scale and registration uncertainty. The sparse 152 m sample grid is not a dense mask. Without edges the metric is unavailable.
+- Adjacent pixels are not independent observations. Report per-scene metrics rather than treating pixel count as independent sample count.
 
-## Ricerca dei candidati e limiti
+## Recorded candidate search and limits
 
-Ricerca del 15/11/2026:
+The 2026-11-15 search recorded:
 
-- [MALAPERTA01](https://data.lroc.im-ldi.com/lroc/view_rdr/NAC_DTM_MALAPERTA01): centro −80,29°, fuori dalle regioni V1; non è Malapert Massif.
-- [ESALL_MP1](https://data.lroc.im-ldi.com/lroc/view_rdr/NAC_DTM_ESALL_MP1): elaborazione DLR. L'archiviazione PDS non rende statunitense il produttore; escluso da questa verifica nel perimetro restrittivo delle fonti, senza sostituirlo arbitrariamente a dati NASA/USA.
-- [DEGERRIMLO1](https://data.lroc.im-ldi.com/lroc/view_rdr/NAC_ROI_DEGERRIMLO1): mosaico di 144 NAC, 656 segmenti e tre intervalli di longitudine subsolare, acquisizioni 2009–2013. È utile per individuare le immagini originali, non come immagine a epoca unica. Il catalogo elenca fra i candidati `M168932116L`, `M168938902L`, `M168945689L`; footprint e ortorettifica dei singoli segmenti restano da verificare.
-- Le sei ortofoto esistenti sono dati NASA LRO, prodotti ASU, serviti dall'archivio `pds.mcp.nasa.gov`; restano ammesse e disponibili per sviluppo.
+- [MALAPERTA01](https://data.lroc.im-ldi.com/lroc/view_rdr/NAC_DTM_MALAPERTA01): centered at −80.29°, outside V1 regions; not Malapert Massif.
+- [ESALL_MP1](https://data.lroc.im-ldi.com/lroc/view_rdr/NAC_DTM_ESALL_MP1): DLR processing. PDS hosting does not make the producer US-based; excluded under the restrictive team source policy.
+- [DEGERRIMLO1](https://data.lroc.im-ldi.com/lroc/view_rdr/NAC_ROI_DEGERRIMLO1): mosaic of 144 NAC acquisitions, 656 segments and three subsolar-longitude ranges from 2009–2013. Useful for identifying originals, not a single-epoch scene. Listed candidates include `M168932116L`, `M168938902L`, `M168945689L`; segment footprints/orthorectification remain unverified.
+- The six existing NASA LRO/ASU orthophotos served by `pds.mcp.nasa.gov` remain accepted development data.
 
-La ricerca non dimostra che altre scene adatte non esistano. Non sono stati prodotti nuovi riferimenti annotati indipendenti: il gate osservativo resta aperto. Il passo necessario è acquisire e georeferenziare almeno una nuova scena con ombre estese, completare la revisione delle etichette e applicare il protocollo congelato. Per affermare copertura di entrambe le regioni servono riscontri in entrambe.
+This search does not establish that no suitable scenes exist. No new independently reviewed reference was produced. The observational gate remains open: acquire/georeference a new extensive-shadow scene, complete blinded annotation/review and apply the frozen protocol. Claims covering both regions require evidence in both.

@@ -9,15 +9,14 @@ import { DEFAULT_MISSION, missionIssue, type MissionProfile } from '../domain/mi
 export type ScenarioKey = 'A' | 'B'
 
 /** Who is reading: the whole tool adapts its copy, density and data. */
-export type Audience = 'student' | 'teacher' | 'planner'
+export type Audience = 'public' | 'educator' | 'planner'
 export const AUDIENCES: { id: Audience; label: string; hint: string }[] = [
-  // Most technical first. The id stays `planner`; the label says who it is for.
-  { id: 'planner', label: 'Engineer', hint: 'For mission engineers: full technical data, exact times, A/B comparison.' },
-  { id: 'teacher', label: 'Teacher', hint: 'Numbers with explanations and prompts for the class.' },
-  { id: 'student', label: 'Student', hint: 'Plain words, big pictures, no jargon.' },
+  { id: 'planner', label: 'Mission Planner', hint: 'Compare sites by date and inspect full technical data.' },
+  { id: 'educator', label: 'Educator', hint: 'Demonstrate why sites are more or less favorable using comparisons and visual evidence.' },
+  { id: 'public', label: 'General Public', hint: 'Choose a site and a date to explore its characteristics.' },
 ]
 
-export type Screen = 'moon' | 'explore' | 'site' | 'kit'
+export type Screen = 'moon' | 'explore' | 'site' | 'compare' | 'kit'
 
 /** Period summary used to compare sites. Fractions 0..1, night in hours. */
 export interface SiteSummary {
@@ -84,6 +83,47 @@ export interface Scenario {
   run: ScenarioRun
 }
 
+/** Most sites the compare screen shows side by side. */
+export const COMPARE_MAX = 4
+
+/** One site on the compare screen. Slot order gives the letters A–D. */
+export interface CompareSite {
+  key: string
+  name: string
+  site: SiteCoordinates
+}
+
+export type CompareView = 'circle' | 'sun'
+
+/** One General Public try: where, when, and the grade it earned. */
+export interface Attempt {
+  site: SiteCoordinates
+  name: string
+  startMs: number
+  grade: 'A' | 'B' | 'C' | 'D' | 'F'
+  index: number
+}
+
+/** Educator experiment switches on the compare screen. */
+export interface ExperimentState {
+  /** Preset being demonstrated, or null for a free choice of sites. */
+  id: string | null
+  /** Draw the horizon as if the ground were flat. */
+  flat: boolean
+  /** Dots tracing the Sun and Earth over the period. */
+  trails: boolean
+}
+
+/** Skyline only: what the site picker needs to preview a site. */
+export interface Skyline {
+  azimuthDeg: number[]
+  elevationDeg: number[]
+}
+
+export function siteKey(site: SiteCoordinates): string {
+  return `${site.latDeg.toFixed(4)},${site.lonEastDeg.toFixed(4)}`
+}
+
 export interface AppState {
   screen: Screen
   audience: Audience
@@ -114,6 +154,17 @@ export interface AppState {
   area: AreaFilter
   /** Incremented to ask the globe to fly to a scenario. */
   flyRequest: { key: ScenarioKey; nonce: number } | null
+  /** Sites on the compare screen, in slot order (A–D). */
+  compareSites: CompareSite[]
+  /** One run per compared site, keyed by `siteKey`, with the inputs it was made for. */
+  compareRuns: Record<string, ScenarioRun & { runKey: string }>
+  compareView: CompareView
+  pickerOpen: boolean
+  /** Horizon outlines already known, keyed by `siteKey`, for the picker previews. */
+  skylines: Record<string, Skyline>
+  /** General Public tries this visit, oldest first. */
+  attempts: Attempt[]
+  experiment: ExperimentState
 }
 
 const startOfTodayUtc = (() => {
@@ -127,11 +178,13 @@ const second = EXAMPLE_SITES[2]
 function storedAudience(): Audience {
   try {
     const v = localStorage.getItem('meowrizon.audience')
-    if (v === 'student' || v === 'teacher' || v === 'planner') return v
+    if (v === 'planner' || v === 'educator') return v
+    if (v === 'teacher') return 'educator'
+    if (v === 'public' || v === 'student') return 'public'
   } catch {
     // Storage unavailable (private mode, blocked site data): use the default.
   }
-  return 'student'
+  return 'public'
 }
 
 function storedMission(): MissionProfile {
@@ -144,6 +197,7 @@ function storedMission(): MissionProfile {
 
 export function screenFromHash(hash: string): Screen {
   if (hash.startsWith('#/site')) return 'site'
+  if (hash.startsWith('#/compare')) return 'compare'
   if (hash.startsWith('#/kit')) return 'kit'
   if (hash.startsWith('#/explore')) return 'explore'
   return 'moon'
@@ -183,6 +237,13 @@ const initialState: AppState = {
   pointShown: false,
   area: 'all',
   flyRequest: null,
+  compareSites: [],
+  compareRuns: {},
+  compareView: 'circle',
+  pickerOpen: false,
+  skylines: {},
+  attempts: [],
+  experiment: { id: null, flat: false, trails: true },
 }
 
 type Listener = () => void

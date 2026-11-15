@@ -2,7 +2,7 @@
 #
 # Qui si decide QUALI regioni usare. I contorni non si scrivono a mano: li scarica da Moon Trek
 #   docker compose run --rm backend python -m app.cli init-regions
-# Fonti tra parentesi quadre: elenco in docs/piano-logica.md.
+# Fonti tra parentesi quadre: elenco in docs/criteri-algoritmo.md.
 #
 # Campi di ogni regione:
 #   id              identificativo stabile, minuscolo con trattini
@@ -57,7 +57,7 @@ id = "de-gerlache-rim-2"
 name = "de Gerlache Rim 2"
 moontrek_label = "de Gerlache Rim 2"
 lists = ["2022", "2024"]
-active = true  # regione di sviluppo (docs/piano-logica.md, 2.2)
+active = true  # development region (docs/stato-decisioni.md)
 
 [[region]]
 id = "faustini-rim-a"
@@ -78,7 +78,7 @@ id = "malapert-massif"
 name = "Malapert Massif"
 moontrek_label = "Malapert Massif"
 lists = ["2022", "2024"]
-active = true  # regione di sviluppo (docs/piano-logica.md, 2.2)
+active = true  # development region (docs/stato-decisioni.md)
 
 [[region]]
 id = "de-gerlache-kocher-massif"

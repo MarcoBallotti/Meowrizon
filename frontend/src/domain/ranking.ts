@@ -121,3 +121,7 @@ export function loadRegions(): Promise<RegionCatalog> {
   })
   return pending
 }
+
+export function publicExplanation(r: Region): string {
+  return `Sunlight is available for ${Math.round(r.sunFraction * 100)}% of the period, Earth is visible for ${Math.round(r.earthFraction * 100)}%, and both are visible together for ${Math.round(r.bothFraction * 100)}%. The longest stretch without sunlight is ${r.longestNightH.toFixed(1)} hours. More shared visibility and shorter interruptions improve the visibility index; a weak result in one visibility measure lowers it.`
+}

@@ -3,11 +3,14 @@
  * One 12-column grid; cards in a row share their height. Every card builds
  * itself with tiles while its data is computed.
  */
-import { Maximize2, Minimize2, Orbit, X } from 'lucide-react'
+import { Columns2, Maximize2, Minimize2, Orbit, X } from 'lucide-react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { formatLat, formatLon, formatUtcLong } from '../domain/format'
 import { CUSTOM_SITE_NAME } from '../domain/sites'
+import { PublicAssessment } from '../features/PublicAssessment'
+import { Scorecard } from '../features/Scorecard'
 import { CompareCard, DayHourCard, EventsCard, LightCalendarCard, WindowsCard } from '../features/DeepDive'
+import { openComparePicker } from '../features/compareSlots'
 import { EclipseStrip, NextEclipseCard } from '../features/EclipseCards'
 import { HorizonScene } from '../features/HorizonScene'
 import { OrbitView } from '../features/OrbitView'
@@ -49,56 +52,31 @@ interface Section {
 
 /** Which cards each reader gets, grouped by the question they answer. */
 function sectionsFor(audience: Audience): Section[] {
-  if (audience === 'student') {
+  if (audience === 'public') {
+    return [{ key: 'why', title: 'Right now and over the month', cells: [
+      { key: 'now', span: 6, node: <NowPanel audience="public" /> },
+      { key: 'characteristics', span: 6, node: <MonthPanel /> },
+      { key: 'calendar', span: 12, node: <LightCalendarCard audience="public" /> },
+      { key: 'why', span: 12, node: <WhyPanel /> },
+    ] }]
+  }
+
+  if (audience === 'educator') {
     return [
-      {
-        key: 'choose',
-        title: 'Is this a good place to land?',
-        cells: [
-          { key: 'cmp', span: 6, node: <CompareCard audience="student" />, rest: 360 },
-          { key: 'cal', span: 6, node: <LightCalendarCard audience="student" />, rest: 360 },
-        ],
-      },
-      {
-        key: 'eclipse',
-        title: 'Eclipses',
-        cells: [
-          { key: 'next', span: 6, node: <NextEclipseCard audience="student" />, rest: 240 },
-          { key: 'strip', span: 6, node: <EclipseStrip audience="student" />, rest: 240 },
-        ],
-      },
-      { key: 'why', title: 'Good to know', cells: [{ key: 'why', span: 12, node: <WhyPanel />, rest: 120 }] },
+      { key: 'explain', title: 'Why is this site more or less favorable?', cells: [
+        { key: 'assessment', span: 12, node: <PublicAssessment /> },
+        { key: 'comparison', span: 12, node: <CompareCard audience="educator" />, rest: 480 },
+        { key: 'numbers', span: 6, node: <MonthPanel /> },
+        { key: 'prompts', span: 6, node: <PromptsPanel /> },
+      ] },
+      { key: 'demonstrate', title: 'Demonstrate how conditions change', cells: [
+        { key: 'calendar', span: 12, node: <LightCalendarCard audience="educator" /> },
+        { key: 'windows', span: 12, node: <WindowsCard audience="educator" /> },
+        { key: 'eclipses', span: 12, node: <EclipseStrip audience="educator" /> },
+      ] },
     ]
   }
-  if (audience === 'teacher') {
-    return [
-      {
-        key: 'choose',
-        title: 'Is this a good place to land?',
-        cells: [
-          { key: 'cmp', span: 6, node: <CompareCard audience="teacher" />, rest: 480 },
-          { key: 'month', span: 6, node: <MonthPanel />, rest: 480 },
-          { key: 'win', span: 12, node: <WindowsCard audience="teacher" />, rest: 200 },
-        ],
-      },
-      {
-        key: 'time',
-        title: 'Light over the month',
-        cells: [
-          { key: 'cal', span: 6, node: <LightCalendarCard audience="teacher" />, rest: 360 },
-          { key: 'class', span: 6, node: <PromptsPanel />, rest: 360 },
-        ],
-      },
-      {
-        key: 'eclipse',
-        title: 'Eclipses',
-        cells: [
-          { key: 'next', span: 6, node: <NextEclipseCard audience="teacher" />, rest: 240 },
-          { key: 'strip', span: 6, node: <EclipseStrip audience="teacher" />, rest: 240 },
-        ],
-      },
-    ]
-  }
+
   return [
     {
       key: 'choose',
@@ -167,7 +145,10 @@ export function SiteScreen() {
       <TopBar
         start={
           <div className="site-title">
-            <BackLink label="Back to the sites" onClick={() => goTo('explore')} />
+            <BackLink
+              label={audience === 'public' ? 'Pick another spot' : audience === 'educator' ? 'Back to the comparison' : 'Back to the shortlist'}
+              onClick={() => goTo(audience === 'educator' ? 'compare' : 'moon')}
+            />
             <div className="site-title-text">
               <h1 className="ui-title is-m">{name}</h1>
               <span className="ui-small ui-muted">
@@ -178,7 +159,11 @@ export function SiteScreen() {
             </div>
           </div>
         }
-      />
+      >
+        <Button variant="secondary" size="s" icon={<Columns2 size={18} strokeWidth={1.75} aria-hidden="true" />} onClick={openComparePicker}>
+          Compare
+        </Button>
+      </TopBar>
 
       <div className="site-grid">
         <div ref={horizon} className={`site-horizon span-8${full ? ' is-full' : ''}${orbitsOpen ? ' has-orbits' : ''}`}>
@@ -214,10 +199,14 @@ export function SiteScreen() {
           )}
         </div>
 
-        <aside className="site-now span-4" aria-label="Right now">
-          <Building busy={waiting} progress={p} phase={!evaluation ? phaseText(phase) : undefined} minHeight={440} className="fill">
-            {evaluation && <NowPanel audience={audience} />}
-          </Building>
+        <aside className="site-now span-4" aria-label={audience === 'public' ? 'Your result' : 'Right now'}>
+          {audience === 'public' ? (
+            <Scorecard />
+          ) : (
+            <Building busy={waiting} progress={p} phase={!evaluation ? phaseText(phase) : undefined} minHeight={440} className="fill">
+              {evaluation && <NowPanel audience={audience} />}
+            </Building>
+          )}
         </aside>
 
         <div className="span-12">

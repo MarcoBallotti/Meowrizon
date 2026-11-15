@@ -69,7 +69,7 @@ def create_app(data_settings: DataSettings | None = None) -> FastAPI:
     app.add_middleware(
         CORSMiddleware,
         allow_origins=list(settings.cors_origins),
-        allow_methods=["GET", "POST"],  # il contratto prevede POST per le analisi
+        allow_methods=["GET", "POST", "DELETE"],
         allow_headers=["*"],
     )
 

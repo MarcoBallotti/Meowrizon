@@ -1,213 +1,105 @@
-# Contratto API e integrazione del simulatore
+# HTTP API contract
 
-**Priorità approvata V1 (15/11/2026):** engine puntuale Python per 2–3 punti e date esplicite, con CLI/JSON e validazione; aggregazioni regionali, P50 e robustezza sono V2. HTTP scientifico e frontend seguono il nucleo. I dettagli estesi sotto non ampliano questo incarico: vedere il [piano V1](piano-logica.md).
+Reviewed against the working tree on **2026-11-15**. The authoritative implemented request models are in [scientific.py](../backend/app/api/scientific.py), the frontend DTOs in [types.ts](../frontend/src/api/types.ts), and the served schema at `/api/openapi.json`. This replaces the obsolete revision-3 frontend audit, whose source fingerprints and unimplemented-endpoint inventory no longer matched the application.
 
-**Revisione 3.0, 15 novembre 2026. Audit statico del frontend `48c2cdf`, su `main`.** Questa revisione documenta il codice esistente e il lavoro di integrazione. Non modifica l'applicazione, non installa TanStack Query e non certifica un engine già disponibile.
+FastAPI uses file-backed storage. All application routes below include `/api`; the frontend defaults to base URL `/api`, so do not add that prefix twice. Vite/nginx proxy requests to the backend.
 
-Il backend corrente usa **Python/FastAPI e file**, come verificabile in [main.py](../backend/app/main.py). La precedente richiesta di Flask non descrive più il repository. Le [specifiche scientifiche approvate](criteri-algoritmo.md) prevalgono sui modelli del vecchio client e sugli appunti storici.
+## Implemented routes
 
-## Indice operativo
-
-| Documento | Contenuto |
-|---|---|
-| Questo contratto | Stato degli endpoint, parametri, flussi e vincoli di integrazione. |
-| [Mappa delle interazioni](api-integration-map.md) | Ogni controllo/evento/effetto con stato, righe di codice, comportamento e chiamate condizionali. Include 42 punti precisi dove intervenire. |
-| [Dizionario dati](api-data-dictionary.md) | Campi JSON esistenti, dati letti da ciascuna visualizzazione e lacune del nuovo modello. |
-| [Piano TanStack Query](api-query-plan.md) | Chiavi, dipendenze, abilitazione, polling, riuso, annullamento e stati. |
-| [Manifest verificabile](api-integration-map.json) | Hash e ancore: 150 interazioni, 25 effetti, 18 accessi dati, 303 funzioni e 97 modelli TypeScript. |
-| [Archivio precedente](../backend/API_CONTRACT.v1-archive.md) | Vecchio contratto backend conservato integralmente, comprese le annotazioni preesistenti. Non è il target da implementare. |
-
-L'audit copre tutti i TS/TSX/CSS di `frontend/src`, il JSON mock e i confini di configurazione/server indicati nel manifest. Include i callback delegati e i pulsanti Brand kit senza handler. Non sono 150 pulsanti distinti: uno stesso controllo può avere più eventi e un template più istanze. Non sono stati eseguiti test UI/e2e né tutte le combinazioni dinamiche del DOM.
-
-## Decisioni ancora aperte: cosa non so
-
-La mappa del codice è completa per la revisione censita; **non è possibile dichiarare definitivo al 100% il contratto scientifico**, perché mancano decisioni reali. Le evidenze sono nella [sezione 8 della mappa](api-integration-map.md#8-decisioni-aperte).
-
-| ID | Mancanza verificata | Impatto |
+| Method | Route | Purpose |
 |---|---|---|
-| U01 | UX di `Overall/Best`, trofeo e primi tre candidati, incompatibili con l'assenza di uno score globale approvato. | Non implementare i pesi mock come algoritmo scientifico. |
-| U02 | DTO finale della nuova scienza e binding HTTP del confronto regionale; il client usa ancora `body-center`. | Nessun URL di ranking o conversione dei booleani in frazioni inventati. |
-| U03 | Corrispondenza fra regioni/siti/esempi, filtro `Equatorial/All` e selezione del rappresentante. | Servono identità e adapter espliciti, senza alias per somiglianza dei nomi. |
-| U04 | Deduplicazione, retention, job scaduti, retry e ripresa dei job scientifici. | Nessuna garanzia di exactly-once o header di idempotenza fittizio. |
-| U05 | Copertura temporale, limiti, timeout e accuratezza numerica reali. | Non ereditare limiti demo o promettere precisione di un secondo. |
-| U06 | Significato del badge eclissi “visible”: osservabilità sopra terreno oppure stato solare C3. | Una totalità osservabile con `fSun=0` non è automaticamente nascosta dal terreno. |
-| U07 | Altezze supportate e qualità della slope con DEM/coordinate incerti. | Non forzare 2 m né riempire unknown con zero. |
-| U08 | Versione/configurazione TanStack, memoria, persistenza e offline. | Il piano v5 è una proposta, nessuna dipendenza installata. |
-| U09 | Adapter Horizons validato, frame pubblico delle orbite e correzioni. | Nessuna garanzia numerica o trasformazione implicita fra frame. |
+| GET | `/api/health` | Process health; `/health` is also available |
+| GET | `/api/regions` | Historical candidate polygons; optional `active` filter |
+| GET | `/api/sites` | Documented site GeoJSON |
+| GET | `/api/coverage` | Prepared-product catalog; currently `{origin:"engine",products:[]}` |
+| POST | `/api/terrain-analyses` | Submit terrain analysis; HTTP 202 job receipt |
+| GET | `/api/terrain-analyses/{jobId}` | Poll terrain job |
+| DELETE | `/api/terrain-analyses/{jobId}` | Release a consumer; cancel when no consumers remain |
+| POST | `/api/scenario-evaluations` | Submit scenario based on a completed terrain result; HTTP 202 |
+| GET | `/api/scenario-evaluations/{jobId}` | Poll scenario job |
+| DELETE | `/api/scenario-evaluations/{jobId}` | Release a consumer; cancel when no consumers remain |
+| GET | `/api/terrain-preview/{region}.png` | Retired preview; returns 410 |
+| GET | `/api/docs`, `/api/openapi.json` | Interactive documentation / schema |
 
-Le sezioni distinguono **implementato server**, **dichiarato client** e **proposto**. Le proposte non sono campi o rotte già supportati. REGION_COMPARISON resta senza URL fino alla soluzione di U01/U02/U03.
+There are no standalone `/api/globe-state`, `/api/visualization-config`, `/api/map-tiles`, `/api/eclipse-searches`, `/api/system-ephemerides` or `/api/ranking` routes. Eclipse/orbit context can be included in scenario results. Catalog ranking and mission assessment are assembled by the frontend.
 
-## 1. Dati utilizzati oggi
-
-- [api/index.ts](../frontend/src/api/index.ts#L5-L17): `VITE_DATA_SOURCE` ha default `demo`, `VITE_API_BASE_URL` default `/api`. `DemoProvider` genera orizzonti e risultati sintetici; `HttpProvider` dichiara cinque metodi scientifici non implementati nel server corrente.
-- [ranking.ts](../frontend/src/domain/ranking.ts#L67-L74) carica sempre [public/mock/regions.json](../frontend/public/mock/regions.json), anche in modalità `api`. Frazioni/notti sono inventate e indipendenti da T.
-- [sites.ts](../frontend/src/domain/sites.ts#L17-L24) contiene sei esempi con coordinate approssimate; non è il catalogo reale dei sedici siti.
-- Globo, orbite, eclissi, fase e diametri usano ancora `approxEphemeris.ts`, `eclipses.ts` e `sky.ts`. Cambiare provider non li sostituisce.
-- Le immagini WMTS di Cesium provengono da servizi esterni. Provenienza e qualità vanno dichiarate per prodotto: la modalità `api` non certifica tutti i prodotti della pagina.
-
-**Comportamento osservato:** [useAutoRun](../frontend/src/App.tsx#L10-L30) dopo 350 ms avvia A su ogni route, anche Home/Brand kit, e B se compare è attivo. Ogni run fa terreno → corrente → precedente non bloccante. Il bootstrap carica coverage e catalogo mock. CompareCard montata in `site` avvia anche i tre candidati mock. Non è una cache Query condivisa.
-
-## 2. Convenzioni e parametri
-
-| Dato | Definizione nel codice |
-|---|---|
-| T_A / T_B | `scenarios.A/B.input.startMs`, millisecondi Unix UTC. Cambiare T_A non cambia T_B. |
-| D | `durationDays * 86_400_000`; controllo 7/14/30/60/90 giorni. |
-| Passo | `stepMinutes`: 10/30/60/120 nel controllo Planner; passo visuale distinto dall'accuratezza degli eventi. |
-| h | `observerHeightM` sopra DEM; default 2 m, UI 0–500 m, supporto reale U07. |
-| Config terreno | Default stato `azimuthStepDeg=0.5`, `maxDistanceKm=150`; non limiti scientifici validati. |
-| Coordinate | `{latDeg,lonEastDeg}`; latitudine `[-90,90]`, longitudine planetocentrica Est normalizzata `[-180,180)`. GeoJSON usa invece `[lon,lat]`. |
-| Tempo HTTP | `new Date(ms).toISOString()`, senza conversione locale. |
-| Corrente / precedente | `[T,T+D)` e `[T-D,T)`, stessa durata, terreno, altezza e modello. Il precedente non è il mese di calendario. |
-| Cursore | `t=T_A+cursorOffsetMs`, senza cambiare T. |
-| Unità | Gradi; azimut Nord in senso orario; elevazione sull'orizzontale locale; altezze m, distanze km, aree km², frazioni 0–1. |
-
-Nome, audience, route, lettera A/B, hover, camera, playback e minimo delle finestre non sono parametri scientifici. L'identità di un risultato comprende valori della richiesta e revisioni effettive di fonti/modello; se queste mancano, non inventarle. Un campione al bordo finale serve all'interpolazione, senza aggiungere durata al range.
-
-## 3. Registro HTTP
-
-I percorsi sono completi di `/api`; il provider concatena base `/api` e suffissi `/coverage`, ecc. Non duplicare il prefisso.
-
-| Prodotto | Operazione | Stato / input e risposta |
-|---|---|---|
-| REGIONS | `GET /api/regions`, `active` booleano opzionale | Server implementato, non collegato al ranking. GeoJSON metadata, senza metriche a T. |
-| SITES | `GET /api/sites` | Server implementato, non collegato agli esempi. Nessun parametro, GeoJSON punti. |
-| COVERAGE | `GET /api/coverage` | Solo client. Nessun parametro → `CoverageCatalog`. |
-| TERRAIN | `POST /api/terrain-analyses`; `GET /api/terrain-analyses/{jobId}` | Solo client. `TerrainAnalysisRequest` → `JobState<TerrainAnalysis>`. |
-| SCENARIO / PREVIOUS | `POST /api/scenario-evaluations`; `GET /api/scenario-evaluations/{jobId}` | Solo client; nuova scienza U02. Stesso endpoint, due range/chiavi. |
-| GLOBE | `GET /api/globe-state?utc=<ISO>` | Proposta non implementata. Direzione solare Moon-fixed lunocentrica a T, non azimut del punto A. |
-| VIS_CONFIG | `GET /api/visualization-config` | Proposta non implementata. Manifest disponibilità/layer WMTS, schema da concordare. |
-| MAP_TILE | `GET /api/map-tiles/{layerId}/{tileMatrix}/{tileRow}/{tileCol}.{format}` | Proxy proposto. Byte `image/jpeg`/`image/png`, stile/griglia validati da Capabilities. |
-| ECLIPSES | `POST /api/eclipse-searches`; `GET /api/eclipse-searches/{jobId}` | Proposta non implementata; U06. `terrainAnalysisId,startUtc,stopUtc` → calendario locale condiviso. |
-| SYSTEM | `POST /api/system-ephemerides`; `GET /api/system-ephemerides/{jobId}` | Proposta non implementata; U09. Range UTC e passo visuale da concordare → serie globali. |
-| REGION_COMPARISON | **Binding HTTP non definito** | ID regioni, T, metrica esplicita, verso, soglie, copertura/versioni. Non è `/api/regions` né uno score `/api/ranking` approvato. |
-
-I JSON esatti già dichiarati e i dati ancora da concordare sono nel [dizionario](api-data-dictionary.md). L'OpenAPI servita da FastAPI descrive le sole rotte implementate: oggi non genera i tipi delle API scientifiche future.
-
-### Richieste del client esistente
-
-Esempio terreno con il primo punto demo, non una coordinata certificata:
+## Terrain request
 
 ```json
 {
-  "site": { "latDeg": -89.67, "lonEastDeg": 129.8 },
+  "site": {"latDeg": -85.994785, "lonEastDeg": -0.235784},
   "observerHeightM": 2,
-  "config": { "azimuthStepDeg": 0.5, "maxDistanceKm": 150 }
+  "config": {"azimuthStepDeg": 0.5, "maxDistanceKm": 150},
+  "includeLocalTerrain": true
 }
 ```
 
-Il terreno non dipende da T, D o passo temporale. Per lo scenario usare **`terrain.result.id`**, non `job.id`:
+Coordinates are planetocentric degrees; longitude is normalized to `[-180,180)`. Exact poles are rejected because local azimuth is undefined. Numeric values must be finite, heights nonnegative, and azimuth spacing must divide 360 into an integer number of samples. Unknown request fields are forbidden. Terrain providers apply additional limits and coverage checks; rejection at calculation time produces a failed job rather than synthetic terrain.
+
+The polar HTTP provider uses native PGDA 20 m terrain within 5 km and 240 m terrain beyond it, for supported radii 1–300 km and azimuth steps at least 0.1°. Other latitudes use the global DEM provider. `includeLocalTerrain` optionally requests a 100 m circular slope/plane-residual fit; inadequate native resolution produces unknown metrics.
+
+Terrain has no date input. Its result includes `id`, `origin`, `preview`, `profile`, and optionally `localTerrain`. Use **`result.id`**, not the job receipt ID, for the next request.
+
+## Scenario request
 
 ```json
 {
-  "terrainAnalysisId": "<id risultato terreno>",
-  "startUtc": "2026-11-15T00:00:00.000Z",
-  "stopUtc": "2026-12-15T00:00:00.000Z",
-  "stepMinutes": 30
+  "terrainAnalysisId": "<completed terrain result id>",
+  "startUtc": "2026-12-01T00:00:00.000Z",
+  "stopUtc": "2026-12-31T00:00:00.000Z",
+  "stepMinutes": 30,
+  "includeContext": false,
+  "minSunFraction": 0.45
 }
 ```
 
-Con D=30, PREVIOUS chiede `2026-10-16T00:00:00.000Z` → `2026-11-15T00:00:00.000Z`. Non chiede automaticamente ottobre. Sono esempi di formato, non garanzie di copertura.
+`startUtc` and `stopUtc` must be ISO UTC strings ending in `Z`, with stop later than start. `stepMinutes` is a positive integer. `includeContext` defaults to **true**; false omits the additional eclipse calendar/orbit context. `minSunFraction` is optional, finite and in `[0,1]`; it enables early solar screening and has a separate cache identity. It is supported by the server/ranking transport even though the ordinary `ScenarioEvaluationRequest` frontend interface does not declare it.
 
-### Job, polling ed errori
+The current HTTP implementation limits requested duration to 366 days and its internal ephemeris grid to 60,000 steps, using spacing no coarser than ten minutes. These are implementation limits, not scientific accuracy guarantees. Scenario visibility uses finite-disc C3 geometry; sampled event discovery can still miss brief events. A previous-period comparison uses `[T-D,T)`, not a calendar month.
+
+A screened result has `skipped:true`, `reason:"sunlight_below_threshold"`, the requested range, threshold and `sunFractionUpperBound`. It is neither a complete Sun/Earth scenario nor a failed calculation. The first screening pass omits eclipses to form a sampled upper estimate; borderline candidates continue, followed by eclipse-aware screening. This bound applies to the sampled model, not to every possible unresolved event.
+
+## Job lifecycle
 
 ```json
-{ "id": "job-123", "status": "running", "progress": 0.4, "message": "Computing" }
+{"id":"<job id>","status":"running","progress":0.4,"message":"Computing"}
 ```
 
 ```json
-{ "id": "job-123", "status": "failed", "error": { "code": "<codice server>", "message": "<messaggio leggibile>" } }
+{"id":"<job id>","status":"failed","error":{"code":"scenario_data_unavailable","message":"Source unavailable"}}
 ```
 
-[JobState](../frontend/src/api/types.ts#L47-L58) ammette `queued|running|completed|failed` e opzionali `progress,message,result,error`. In `completed`, `result` deve essere **il risultato completo** del relativo tipo. Il client accetta POST già completata oppure fa polling GET da 250 ms a un massimo di 3 s fra tentativi ([runJob](../frontend/src/api/jobs.ts#L34-L55)). Non ha timeout totale o cancellazione server.
+States are `queued`, `running`, `completed`, `failed`; `progress`, `message`, `result` and `error` are optional as appropriate. A completed receipt contains the result. A single scientific worker prioritizes queued interactive requests over background comparisons, preserving FIFO order within each priority. It admits background work below eight pending requests and interactive work below sixteen. An active calculation is not preempted. POST headers `X-Job-Priority: interactive|background` (default interactive) and `X-Job-Consumer` identify scheduling priority and a per-submission consumer token; neither participates in scientific cache identity. Identical pending requests share a job; an interactive consumer promotes queued shared work.
 
-HTTP non riuscito → `HttpError(status,message)`; viene letto solo `detail` stringa, non la validazione strutturata FastAPI. Il cast JSON non valida il payload. Dedup, job scaduti e retry dopo failed sono U04: non aggiungere header/flag fittizi. `AbortSignal` interrompe l'attesa client senza provare che il server abbia cancellato il lavoro.
+Receipts are stored under `backend/data/jobs/scientific/` and remain specific to request parameters and algorithm versions. Full physical scenario measurements are additionally cached under `cache/scenario-measurements/`, keyed by the physical terrain profile, period, sampling and algorithm version, independently of `minSunFraction` and `includeContext`. Cached measurements are screened without recalculation; orbital/eclipse context is cached separately and added only when requested. Early rejected screens remain partial receipts and never masquerade as complete measurements. Interrupted jobs become failed at restart; failed requests may be resubmitted. There is no automatic retention expiry.
 
-### API di acquisizione e servizio
+Malformed input returns 422; an unknown job or an ID from the wrong job family returns 404; a full queue returns 429. Missing terrain results or unavailable source data produce failed scientific jobs. `preview:false` means the requested computation finished; `origin:"engine"` means backend output. Neither certifies scientific validity.
 
-[routes.py](../backend/app/routes.py) implementa, sotto `/api/data`: `/sources`, POST `/collect`, POST `/prepare`, GET `/jobs/{job_id}`, `/datasets`, `/datasets/{dataset_id}/raw`, `/sources/{source_name}/data`, `/datasets/{dataset_id}/samples`, `/products`, `/regions`. Parametri e formati interni nel [README backend](../backend/README.md#acquisizione-e-preparazione-dei-dati-apidata).
+The frontend polls with delays increasing from 250 ms to at most 3 s, accepts already completed submissions, and uses `AbortSignal` to stop client waits. Client abort sends DELETE with the submission's `X-Job-Consumer` token, including when the abort happened before the POST receipt arrived. A queued job with no remaining consumers is cancelled immediately; running work stops at its next progress checkpoint, after any current external request or numerical stage returns. Shared work continues while another consumer remains. Legacy submissions without consumer tokens are retained. Cancellation uses terminal status `failed` with error code `cancelled`; cancelled requests can be resubmitted. There is no total polling timeout. HTTP errors and invalid/missing scientific measurements must remain explicit rather than falling back to demo values.
 
-**Nessun controllo attuale del simulatore chiama queste rotte.** Non avviare acquisizioni/download a ogni click o playback. I dati preparati richiedono adapter scientifici, non sono automaticamente un `ScenarioEvaluation`. La coda dati non prova l'esistenza della coda scientifica. `/api/health`, `/health`, `/api/docs` e `/api/openapi.json` sono rotte di servizio senza azione UI corrente.
+## Source-data service
 
-## 4. Attivazione target per pagina e pubblico
+These routes operate on saved acquisition/preparation data, independently of scenario jobs:
 
-Questa è una proposta di integrazione, distinta da `useAutoRun` attuale. Attivare un prodotto significa leggere dati coerenti dalla cache o caricarli se mancanti; navigare non impone un nuovo POST.
+| Method | Route | Purpose |
+|---|---|---|
+| GET | `/api/data/sources` | Configured profiles and source requests |
+| POST | `/api/data/collect` | Collect selected configured sources, then prepare |
+| POST | `/api/data/prepare` | Prepare existing downloads offline |
+| GET | `/api/data/jobs/{job_id}` | Poll data-service job |
+| GET | `/api/data/datasets` | List saved versions; optional source `name` |
+| GET | `/api/data/datasets/{id}/raw` | Original response for an exact dataset |
+| GET | `/api/data/sources/{name}/data` | Latest saved response, optionally selected by `request_sha256` |
+| GET | `/api/data/datasets/{id}/samples` | Inclusive sample filtering by `start_ms` / `stop_ms` |
+| GET | `/api/data/datasets/{id}/products` | Product filters: title, native resolution and limit |
+| GET | `/api/data/datasets/{id}/regions` | Native candidate polygons and reference metadata |
 
-| Contesto | Prodotti necessari |
-|---|---|
-| Home `moon` | Cataloghi, manifest/immagini, GLOBE se luce accesa; COVERAGE se necessario. Nessuna valutazione puntuale per sola selezione/globo. |
-| Explore | Come Home + confronto regionale dopo U01/U02/U03; non mostrare frazioni mock sotto una data reale. |
-| `site`, tutti | TERRAIN A → SCENARIO A; ECLIPSES; SYSTEM per miniatura/aperta; confronto candidati dopo accordo. |
-| Student | CompareCard, LightCalendar, NextEclipse/Strip, spiegazioni. CompareCard oggi legge anche current/previous dei candidati: non ometterli se resta questo confronto. |
-| Teacher | Come site + PREVIOUS A per MonthInNumbers; BestWindows, LightCalendar, Prompts. |
-| Planner | Come site + PREVIOUS A; PeriodPanel, BestWindows, DayHourMap, EventList, DataSource. Se compare attivo: prodotti B con input B. |
-| Brand kit | Nessun nuovo prodotto scientifico; controlli dimostrativi censiti. |
+Collection accepts `profile` (`default` or `trajectory`), optional nonempty `names`, and `refresh`. It does not accept arbitrary URLs. Exact dataset IDs come from `/datasets`, not job receipts. Missing records return 404, unavailable/unprepared data or ambiguous source shortcuts 409, and malformed parameters 422. Raw GETs never initiate downloads. Details are in the [backend guide](../backend/README.md).
 
-Le schede derivano da [sectionsFor](../frontend/src/screens/SiteScreen.tsx#L51-L130). Cambiare audience non cambia il modello; abilita prodotti di schede prima assenti. NextEclipse e Strip condividono dati; B non è uno dei tre candidati di CompareCard. Le dipendenze e le chiavi sono nel [piano Query](api-query-plan.md).
+## Frontend integration rules
 
-## 5. Azioni trasversali
+The frontend starts site analysis after inputs settle for 350 ms on the site page. Terrain precedes the current scenario; the previous period loads without blocking the current result. The comparison screen maintains separate runs for up to four points. Catalog comparison evaluates site coordinates and polygon centers, not regional areas. Playback, camera movement, hover and CSV export use loaded data rather than submitting a job for each frame.
 
-La [mappa completa](api-integration-map.md#2-tutti-i-punti-di-interazione) contiene ogni binding con stato e righe. Queste regole valgono per tutte le sue istanze:
+Results must remain associated with their complete input identity: coordinates, height, terrain parameters, epoch, duration and sampling. Changes invalidate dependent products; stale responses must not overwrite current requests. A scenario failure must not hide a valid terrain profile. Missing baselines and failed candidates remain separate from zero-valued results.
 
-| Azione | Parametri / prodotti da attivare, solo se mancanti |
-|---|---|
-| Selezionare punto A, tile, marker, riga; commit coordinate valido | Nuovo `site` → TERRAIN → corrente, eventuale precedente/eclissi. Globo/orbite globali riusati. Il centro di un poligono non è un rappresentante operativo approvato. |
-| Digitazione, ricerca, menu, apertura calendario, navigazione mesi | Solo stato locale. Submit/blur valido applica le coordinate; il testo invalido non genera job. |
-| Data da strip/spin/giorno/Today/frecce | T_A esatto → corrente/precedente e prodotti globali attivi; terreno riusato, T_B invariato. |
-| D / passo / h | D cambia i range A/B e azzera cursore; passo cambia le serie A/B; h A richiede nuovo terreno A e dipendenze. B conserva h propria. |
-| Compare B / scelta B | Prodotti B mancanti; stesso payload A/B condivide cache. Chiusura non cancella job condivisi. |
-| Ordinamento / Area / primi N | Filtro/ordine locale su risultato completo; prodotto regionale aggiuntivo solo se realmente necessario e dopo U01/U02/U03. Nessuna chiamata assegnata a Best universale. |
-| Luce globo / DEM overlay | GLOBE a T se on, luce piatta se off; overlay legge COVERAGE. Nessun terreno per disegnare l'overlay. |
-| Aprire orbite / fullscreen / frame / scala | SYSTEM solo se manca copertura; miniatura e vista grande condividono serie. Frame e scale visuali sono locali. |
-| Play/pause/Space/scrub/±6h/velocità/click giorno, ora, finestra o evento | Cambia cursore, non T: nessuna nuova analisi. Leggere serie/intervalli disponibili, senza fetch per frame. |
-| Go to eclipse / evento strip | `T=floor((maxMs−2 giorni)/1 ora)*1 ora`, `offset=maxMs−T`, playback fermo. Come cambio T, senza perdere l'offset con un reset generico. |
-| Drag globo/panorama, Look/Lens/Paths, hover | Camera/rendering/tooltip locali; Cesium può scaricare immagini per la vista, senza calcoli scientifici. |
-| CSV intervalli/eventi | Export locale dei dati coerenti già caricati; nessun endpoint export necessario per il formato corrente. |
-| Retry | Riprendere stadio mancante con lo stesso fingerprint, conservando dipendenze valide; protocollo failed/scaduto U04. |
-| Link fonte / preview Brand kit senza handler | Navigazione esterna / nessuna operazione. Non inventare API per icone dimostrative. |
-
-## 6. Stati e casi limite
-
-Ogni prodotto ha stato autonomo: un errore eclissi non deve cancellare un panorama valido; baseline mancante non è zero.
-
-| Stato / evento | Regola target |
-|---|---|
-| Input invalido o incompleto | Nessun job; errore del campo. Testo digitato distinto da parametro applicato. |
-| Valido, dati assenti | Caricare dipendenze della pagina; scenario solo dopo terreno pronto. |
-| Stessa richiesta già in corso | Condividere query, senza POST per ogni scheda. Dedup server U04 separata. |
-| Input cambia durante job | Nuova chiave, annullare attese inutilizzate, ignorare risposte obsolete. Ordine di arrivo non decide quale risultato mostrare. |
-| Stessa scelta / nome diverso ma stessi valori | Nessuna nuova analisi. Non usare identità dell'oggetto come identità scientifica. |
-| Risultato precedente durante caricamento | Anteprima esplicitamente etichettata con vecchi parametri; non usarla per KPI/CSV del nuovo input. |
-| Terreno valido, scenario fallito | Retry scenario, senza rifare terreno. |
-| Previous fallito | Corrente resta utilizzabile, delta non disponibile; retry della sola baseline. |
-| Un candidato fallito | Stato per riga; non azzerare gli altri con Promise.all. |
-| HTTP/payload errato, failed, job scaduto | Errore esplicito e protocollo U04, nessun loop di POST infinito. |
-| Partial/NoData/unknown | Motivo e copertura; niente false/0 o interpolazioni attraverso buchi. |
-| Nessun evento nel range completo | Lista vuota valida con range; distinguere errore e ricerca incompleta. |
-| Bordo del range/cache | Non è un tramonto o evento fisico; clipping e limiti inferiori espliciti. |
-| Back/forward, deep link, reload | Attivazione della route. Oggi input non persistiti né serializzati in URL; solo audience persistita. Ripresa job/cache U04/U08. |
-| StrictMode, remount, focus, reconnect | Nessuna assunzione di effetto eseguito una sola volta; opzioni Query e dedup esplicite. |
-
-Problemi osservati: [Building](../frontend/src/ui/Building.tsx#L108-L116) e [CSS](../frontend/src/ui/ui.css#L975-L985) nascondono i figli con opacità senza disabilitare i controlli. [SiteScreen](../frontend/src/screens/SiteScreen.tsx#L185-L193) mostra retry solo senza evaluation; errori con dati vecchi possono restare poco evidenti. `useAutoRun` non osserva raggio/passo azimutale; la guardia di `runScenario` non confronta tutti i parametri. Sono evidenze da gestire nell'integrazione, non fix già applicati.
-
-## 7. Vincoli scientifici per i nuovi DTO
-
-Il [dizionario](api-data-dictionary.md#4-requisiti-scientifici-non-espressi-dal-client) associa requisiti e consumatori. Il significato è approvato, la proiezione HTTP finale U02:
-
-- `fSunTerrain`, `fSun` dall'unione delle occultazioni terreno/Terra, `fEarth` geometrica; C3 ≥0,5, non semplice centro sopra orizzonte.
-- Buio completo `fSun=0`, luce ridotta `0<fSun<0,5`, sotto soglia `fSun<0,5` distinti. `longestOffMs` degli intervalli C3 non dimostra notte completa.
-- Eventi raffinati e cause, clipping, dati mancanti, copertura e limiti inferiori; nessun limite scientifico arbitrario di un mese, 365/800 giorni o precisione 1 s.
-- P50 sull'anno UTC completo 365/366 giorni, eclissi incluse; 80% è evidenziazione del team, non idoneità universale.
-- Slope su supporto circolare diametro 100 m, qualità e fasce `[0,5)`, `[5,10)`, `[10,15)`, `≥15`; nessuna esclusione automatica a 10°.
-- B(T) senza filtro slope; A5/A10/A15 cumulative; denominatori, copertura per metrica e componente connessa a quattro vicini. Nessuna rimozione automatica delle regioni.
-- Confronto per metrica esplicita e dati della stessa cella quando combinati in un punto; nessun vincitore universale.
-- T±1/2/3 giorni: alternative regionali e persistenza delle stesse celle separate, senza nascondere buchi o comprimere i versi nel minimo.
-- Horizons è la fonte scelta; quantità globali 14/15/19/20 e adapter da validare. Il campo legacy `kernels` non introduce un requisito SPICE.
-
-## 8. Consegna allo sviluppatore
-
-Prima di chiudere gli schemi scientifici risolvere U01/U02/U03/U06/U09; poi implementare prodotti, protocollo U04 e limiti verificati U05/U07. Collegare i cataloghi con ID/geometrie/provenienza, preservando il formato nativo. Integrare query/trasporto nei 42 punti indicati e sostituire tutti i percorsi mock/locali censiti, compresi orbite ed eclissi.
-
-Dopo modifiche ai file censiti eseguire dalla radice `python3 scripts/verify_api_integration.py`. Il controllo verifica hash, ancore e link; non avvia UI/API e non riscrive il manifest. Aggiornare solo numeri di riga e hash non sostituisce una nuova revisione del comportamento. La verifica scientifica richiede inoltre le evidenze previste dai criteri approvati.
-
-Verifiche di questa revisione: 43 sorgenti frontend e 55 file censiti, 1.000 ancore di codice e 725 link locali validati; controllo negativo con modifica simulata del frontend correttamente rifiutato; tabelle Markdown e frammenti JSON verificati. Lo snippet Query è stato controllato con TypeScript e React Query 5.107.1 in una cartella temporanea, senza aggiungere dipendenze al progetto. Questi controlli attestano la coerenza documentale, non l'accuratezza dell'engine o tutte le combinazioni di runtime.
+The CLI V1 JSON models are a **separate contract**, documented in the [engine guide](../backend/docs/engine-v1.md). HTTP sampling, terrain and event semantics must be validated independently; do not transfer the CLI report to this path.

@@ -1,0 +1,64 @@
+{
+  "title": "Moonrizon pitch: choose the deck structure",
+  "question": "The cover is the lunar horizon simulator in all three. Pick how the rest of the deck is built around it.",
+  "options": [
+    {
+      "id": "annotated-horizon",
+      "kind": "assigned",
+      "label": "The annotated horizon",
+      "kicker": "THE ROLL",
+      "lineage": "technical cutaway diagrams with numbered callouts",
+      "thesis": "One horizon scene, taken apart slide by slide: ridge, Sun, Earth, timeline, ranking.",
+      "palette": ["#12141e", "#eceef4", "#c2964a", "#8aa6d6", "#2b2fa8"],
+      "materials": ["horizon scene in SVG", "hairline callouts", "numbered labels"],
+      "viewport": "Full-bleed horizon at dawn, Sun and Earth at true size, title set in the dark sky, four callouts pinned to the scene.",
+      "risk": "Callouts can crowd the scene if every slide labels too much.",
+      "wireframe": {"cols": 12, "rows": 8, "regions": [
+        {"label": "sky + title", "x": 0, "y": 0, "w": 7, "h": 4},
+        {"label": "Sun + Earth", "x": 7, "y": 1, "w": 5, "h": 3, "accent": true},
+        {"label": "lunar ridge", "x": 0, "y": 4, "w": 12, "h": 2, "accent": true},
+        {"label": "callouts", "x": 1, "y": 6, "w": 10, "h": 2}
+      ]}
+    },
+    {
+      "id": "observatory-log",
+      "kind": "dealt",
+      "label": "The observatory log",
+      "lineage": "astronomers' observing logbooks",
+      "thesis": "Each slide is a log entry: site, UTC time, Sun and Earth readings beside a horizon strip.",
+      "palette": ["#eceef4", "#171a26", "#c2964a", "#8aa6d6"],
+      "materials": ["ruled log columns", "horizon strips", "monospaced readings"],
+      "viewport": "Cover is the horizon scene with a log header: site name, date, Sun 2.1°, Earth 6.4°.",
+      "risk": "Can read as a data sheet instead of a pitch if the readings take over.",
+      "wireframe": {"cols": 12, "rows": 8, "regions": [
+        {"label": "log header", "x": 0, "y": 0, "w": 12, "h": 1},
+        {"label": "horizon scene", "x": 0, "y": 1, "w": 8, "h": 5, "accent": true},
+        {"label": "readings column", "x": 8, "y": 1, "w": 4, "h": 5},
+        {"label": "statement", "x": 0, "y": 6, "w": 12, "h": 2}
+      ]}
+    },
+    {
+      "id": "four-to-one",
+      "kind": "dealt",
+      "label": "Four strips, one ridge",
+      "lineage": "panorama photo stitching",
+      "thesis": "The cover horizon starts as four mismatched strips, the four tools, and locks into one ridge that runs through every slide.",
+      "palette": ["#12141e", "#eceef4", "#c2964a", "#8aa6d6", "#2b2fa8"],
+      "materials": ["stitched panorama strips", "one continuous ridge line", "large statements"],
+      "viewport": "Four offset strips labelled QuickMap, Moon Trek, Horizons, portals align into one horizon with Sun and Earth above it.",
+      "risk": "The stitch move needs motion to land; on a printed PDF it is a still.",
+      "wireframe": {"cols": 12, "rows": 8, "regions": [
+        {"label": "title", "x": 0, "y": 0, "w": 8, "h": 2},
+        {"label": "strip 1", "x": 0, "y": 2, "w": 3, "h": 3, "accent": true},
+        {"label": "strip 2", "x": 3, "y": 2, "w": 3, "h": 3},
+        {"label": "strip 3", "x": 6, "y": 2, "w": 3, "h": 3, "accent": true},
+        {"label": "strip 4", "x": 9, "y": 2, "w": 3, "h": 3},
+        {"label": "ridge spine", "x": 0, "y": 5, "w": 12, "h": 1},
+        {"label": "lead line", "x": 0, "y": 6, "w": 8, "h": 2}
+      ]}
+    }
+  ],
+  "reroll": true,
+  "buildPath": {"value": "code", "toggle": false},
+  "steer": true
+}

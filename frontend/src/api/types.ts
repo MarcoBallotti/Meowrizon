@@ -61,6 +61,7 @@ export interface JobState<T> {
 // ---------------------------------------------------------------- terrain
 
 export interface TerrainAnalysisRequest {
+  priority?: 'interactive' | 'background'
   site: SiteCoordinates
   /** Height of the observer (panel, antenna, camera) above the DEM surface. */
   observerHeightM: number

@@ -89,12 +89,15 @@ class ScientificApiTests(unittest.TestCase):
         terrain = self.client.post("/api/terrain-analyses", json=TERRAIN).json()
         self.assertEqual(self.wait_job("terrain-analyses", terrain["id"])["status"], "completed")
         skipped = {
-            "skipped": True, "origin": "engine", "reason": "sunlight_below_threshold",
-            "terrainAnalysisId": SCENARIO["terrainAnalysisId"], "minSunFraction": .45,
-            "sunFractionUpperBound": .3,
+            "skipped": True,
+            "origin": "engine",
+            "reason": "sunlight_below_threshold",
+            "terrainAnalysisId": SCENARIO["terrainAnalysisId"],
+            "minSunFraction": 0.45,
+            "sunFractionUpperBound": 0.3,
         }
         with patch("app.services.scientific_jobs.calculate_scenario", return_value=skipped) as calc:
-            payload = {**SCENARIO, "includeContext": False, "minSunFraction": .45}
+            payload = {**SCENARIO, "includeContext": False, "minSunFraction": 0.45}
             submitted = self.client.post("/api/scenario-evaluations", json=payload).json()
             job = self.wait_job("scenario-evaluations", submitted["id"])
             self.assertEqual(job["status"], "completed")
@@ -155,6 +158,79 @@ class ScientificApiTests(unittest.TestCase):
         finally:
             service.close()
 
+    def test_interactive_jobs_overtake_queued_background_jobs(self):
+        started, release = Event(), Event()
+        order = []
+
+        def calculate(root, parameters, progress):
+            height = parameters["observerHeightM"]
+            order.append(height)
+            if height == 2:
+                started.set()
+                if not release.wait(5):
+                    raise RuntimeError("Worker not released")
+            return self.result
+
+        self.calculate.side_effect = calculate
+        first = self.client.post("/api/terrain-analyses", json=TERRAIN).json()
+        try:
+            self.assertTrue(started.wait(2))
+            background = self.client.post(
+                "/api/terrain-analyses",
+                json={**TERRAIN, "observerHeightM": 3},
+                headers={"X-Job-Priority": "background"},
+            ).json()
+            interactive = self.client.post(
+                "/api/terrain-analyses",
+                json={**TERRAIN, "observerHeightM": 4},
+            ).json()
+        finally:
+            release.set()
+        for job in (first, background, interactive):
+            self.assertEqual(self.wait_job("terrain-analyses", job["id"])["status"], "completed")
+        self.assertEqual(order, [2, 4, 3])
+
+    def test_cancellation_respects_shared_consumers_and_discards_queued_jobs(self):
+        started, release = Event(), Event()
+
+        def calculate(root, parameters, progress):
+            started.set()
+            if not release.wait(5):
+                raise RuntimeError("Worker not released")
+            progress(0.5, "Cancellation checkpoint")
+            return self.result
+
+        self.calculate.side_effect = calculate
+        route = "/api/terrain-analyses"
+        first = self.client.post(route, json=TERRAIN, headers={"X-Job-Consumer": "first"}).json()
+        try:
+            self.assertTrue(started.wait(2))
+            second = self.client.post(
+                route, json=TERRAIN, headers={"X-Job-Consumer": "second"}
+            ).json()
+            self.assertEqual(first["id"], second["id"])
+            url = f"{route}/{first['id']}"
+            self.assertEqual(self.client.delete(url).status_code, 400)
+            job = self.client.delete(url, headers={"X-Job-Consumer": "first"}).json()
+            self.assertEqual(job["status"], "running")
+            queued = self.client.post(
+                route, json={**TERRAIN, "observerHeightM": 3}, headers={"X-Job-Consumer": "queued"}
+            ).json()
+            cancelled = self.client.delete(
+                f"{route}/{queued['id']}", headers={"X-Job-Consumer": "queued"}
+            ).json()
+            self.assertEqual(cancelled["error"]["code"], "cancelled")
+            self.client.delete(url, headers={"X-Job-Consumer": "second"})
+        finally:
+            release.set()
+        self.assertEqual(
+            self.wait_job("terrain-analyses", first["id"])["error"]["code"], "cancelled"
+        )
+        self.calculate.assert_called_once()
+        retry = self.client.post(route, json=TERRAIN).json()
+        self.assertNotEqual(retry["id"], first["id"])
+        self.assertEqual(self.wait_job("terrain-analyses", retry["id"])["status"], "completed")
+
     def test_obsolete_earth_projection_preview_is_not_served(self):
         self.assertEqual(
             self.client.get("/api/terrain-preview/connecting-ridge.png").status_code, 410
@@ -204,6 +280,7 @@ class ScientificApiTests(unittest.TestCase):
         payload = deepcopy(TERRAIN)
         payload["site"]["lonEastDeg"] = 489.8
         job = self.client.post("/api/terrain-analyses", json=payload).json()
+        self.wait_job("terrain-analyses", job["id"])
         record = json.loads((self.settings.jobs / "scientific" / f"{job['id']}.json").read_text())
         self.assertAlmostEqual(record["parameters"]["site"]["lonEastDeg"], 129.8)
         self.assertEqual(self.client.get(f"/api/data/jobs/{job['id']}").status_code, 404)

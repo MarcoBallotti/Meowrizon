@@ -148,3 +148,43 @@ def test_normal_scenario_and_disabled_filter_still_evaluate_dark_sites(setup):
         result = calculate(setup)
         assert "skipped" not in result and result["intervals"]["sun"] == []
         assert "earth" in result
+
+
+def test_full_measurements_are_reused_across_filters_and_context(setup):
+    _, _, parameters, bodies, observe, fractions, orbit, calendar = setup
+    bodies["sun"]["el"][:] = -5
+    parameters["minSunFraction"] = 0
+    full = calculate(setup)
+    calls = (observe.call_count, fractions.call_count)
+    parameters["minSunFraction"] = 0.9
+    screened = calculate(setup)
+    assert screened["skipped"] and screened["sunFractionUpperBound"] == 0
+    assert (observe.call_count, fractions.call_count) == calls
+    parameters.pop("minSunFraction")
+    parameters["includeContext"] = True
+    orbit.return_value = {"source": "fixture"}
+    calendar.return_value = {"events": []}
+    enriched = calculate(setup)
+    assert enriched["id"] == full["id"]
+    assert enriched["sun"] == full["sun"]
+    assert enriched["orbit"] == {"source": "fixture"}
+    assert (observe.call_count, fractions.call_count) == calls
+    calculate(setup)
+    orbit.assert_called_once()
+    calendar.assert_called_once()
+    parameters["includeContext"] = False
+    assert "orbit" not in calculate(setup)
+
+
+def test_same_horizon_reuses_measurements_across_terrain_receipts(setup):
+    root, terrain, parameters, _, observe, fractions, *_ = setup
+    original = calculate(setup)
+    calls = (observe.call_count, fractions.call_count)
+    other = {**terrain, "id": "terrain-with-local-assessment", "localTerrain": {"status": "ok"}}
+    result = sc.calculate(
+        root, {**parameters, "terrainAnalysisId": other["id"]}, other, lambda *args: None
+    )
+    assert result["terrainAnalysisId"] == other["id"]
+    assert result["id"] == original["id"]
+    assert result["sun"] == original["sun"]
+    assert (observe.call_count, fractions.call_count) == calls

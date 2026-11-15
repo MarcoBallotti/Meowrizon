@@ -1,0 +1,334 @@
+/* Audience homes (S2): planner brief and shortlist, educator experiments,
+   public scorecard. Spacing on the 8px scale only. */
+
+/* ---------------------------------------------------------------- planner */
+
+.moon-page.is-planner {
+  --side-w: 440px;
+}
+
+@media (min-width: 1101px) {
+  .moon-side.is-scroll {
+    overflow-y: auto;
+    padding-right: var(--s-1);
+    scrollbar-gutter: stable;
+  }
+
+  .moon-side.is-scroll .rank-panel {
+    flex: none;
+  }
+
+  .moon-side.is-scroll .rank-list {
+    max-height: none;
+    overflow: visible;
+  }
+}
+
+.brief-head,
+.reco,
+.windows-head,
+.experiments-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+.brief-period {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 120px;
+  gap: var(--s-3);
+  align-items: end;
+}
+
+.brief-reqs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.brief-req {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+.brief-req-head {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s-2);
+  font-size: var(--text-s);
+  color: var(--ink-2);
+}
+
+.brief-req-head b {
+  color: var(--ink);
+  font-weight: 400;
+}
+
+.brief-req input[type='range'] {
+  width: 100%;
+  accent-color: var(--primary);
+}
+
+.reco-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-2) var(--s-3);
+  margin: 0;
+}
+
+.reco-metrics dd {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--s-1);
+}
+
+.reco-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+
+.windows-strips {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: var(--s-1) var(--s-2);
+  align-items: center;
+}
+
+.windows-strips.is-loading span,
+.windows-strips.is-loading i {
+  height: 8px;
+  border-radius: var(--r-pill);
+  background: var(--card-sunk);
+}
+
+.windows-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+.windows-list li {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  gap: var(--s-2);
+  align-items: baseline;
+  font-size: var(--text-s);
+}
+
+.windows-list b {
+  font-weight: 600;
+}
+
+.rank-title {
+  margin-top: var(--s-2);
+}
+
+/* ---------------------------------------------------------------- educator */
+
+.experiments-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.experiment {
+  position: relative;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  padding: var(--s-3) var(--s-7) var(--s-3) var(--s-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-control);
+  background: var(--card);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--t-fast) var(--ease);
+}
+
+.experiment:hover {
+  border-color: var(--primary);
+}
+
+.experiment:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.experiment-title {
+  font-family: var(--font-display);
+  font-size: var(--title-s);
+  font-weight: 600;
+}
+
+.experiment-ask {
+  font-size: var(--text-s);
+  color: var(--ink-2);
+}
+
+.experiment-go {
+  position: absolute;
+  right: var(--s-3);
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--primary);
+}
+
+.experiment-bar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--s-2) var(--s-5);
+  align-items: center;
+}
+
+.experiment-bar-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  min-width: 0;
+}
+
+.experiment-bar-text b {
+  font-weight: 600;
+  font-size: var(--text-l);
+}
+
+.experiment-bar-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.experiment-bar-note {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 900px) {
+  .experiment-bar {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ---------------------------------------------------------------- public */
+
+.score {
+  height: 100%;
+}
+
+.score-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.score-grade {
+  flex: none;
+  width: 64px;
+  height: 64px;
+  border-radius: var(--r-card);
+  display: grid;
+  place-items: center;
+  font-family: var(--font-display);
+  font-size: var(--display-s);
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.score-head-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-width: 0;
+}
+
+.score-index {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--s-1);
+  font-size: var(--title-s);
+  font-weight: 400;
+}
+
+.score-checks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+.score-check {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: var(--s-1) var(--s-2);
+  border-radius: var(--r-small);
+  font-size: var(--text-s);
+  background: var(--card-sunk);
+}
+
+.score-check b {
+  font-weight: 600;
+}
+
+.score-check.is-good b {
+  color: var(--up);
+}
+
+.score-check.is-fair b {
+  color: var(--sun-ink);
+}
+
+.score-check.is-poor {
+  background: var(--danger-soft);
+}
+
+.score-check.is-poor b {
+  color: var(--down);
+}
+
+.score-tip {
+  font-size: var(--text-s);
+}
+
+.score-suggest {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--s-1) var(--s-2);
+  align-items: start;
+  padding: var(--s-2);
+  border-radius: var(--r-small);
+  background: var(--primary-soft);
+  font-size: var(--text-s);
+}
+
+.score-suggest b {
+  font-weight: 600;
+}
+
+.score-suggest .ui-button {
+  grid-column: 2;
+  justify-self: start;
+}
+
+.score-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  margin-top: auto;
+}

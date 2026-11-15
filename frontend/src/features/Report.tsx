@@ -82,7 +82,7 @@ export function NowPanel({ audience }: { audience: Audience }) {
   if (!site) return null
   const { now } = site
   if (audience === 'planner') return <PlannerNow now={now} />
-  const line = (body: 'sun' | 'earth') => (audience === 'student' ? studentLine(body, now[body]) : teacherLine(body, now[body], body === 'sun' ? now.sunSpan : now.earthSpan))
+  const line = (body: 'sun' | 'earth') => (audience === 'public' ? studentLine(body, now[body]) : teacherLine(body, now[body], body === 'sun' ? now.sunSpan : now.earthSpan))
   return (
     <div className="now-panel">
       <StoryCard eyebrow="Power" tone="sun" headline={headline('sun', now.sunSpan, now.t)}>
@@ -107,7 +107,7 @@ export function MonthPanel() {
   return (
     <Card as="article" className="panel-card">
       <header className="panel-head">
-        <h3 className="ui-title">This month in numbers</h3>
+        <h3 className="ui-title">The selected period in numbers</h3>
         <p className="ui-small ui-muted">
           {durationDays} days from the start date · changes vs {month}
         </p>

@@ -1,4 +1,6 @@
 import { useEffect, useRef } from 'react'
+import { ComparePicker } from './features/ComparePicker'
+import { CompareScreen } from './screens/CompareScreen'
 import { KitScreen } from './screens/KitScreen'
 import { MoonScreen } from './screens/MoonScreen'
 import { SiteScreen } from './screens/SiteScreen'
@@ -6,6 +8,7 @@ import { loadCoverage, loadRegionCatalog, loadSiteCatalog, runScenario } from '.
 import { getState, screenFromHash, setState, useStore, type ScenarioKey } from './state/store'
 import './screens/screens.css'
 import './screens/responsive.css'
+import './screens/audiences.css'
 
 /** Re-run a scenario shortly after its inputs settle; superseded runs are aborted. */
 function useAutoRun() {
@@ -17,10 +20,12 @@ function useAutoRun() {
   const screen = useStore((s) => s.screen)
   const azimuthStepDeg = useStore((s) => s.azimuthStepDeg)
   const maxDistanceKm = useStore((s) => s.maxDistanceKm)
+  // The planner's home shows the landing windows of the selected site.
+  const plannerHome = useStore((s) => s.audience === 'planner' && (s.screen === 'moon' || s.screen === 'explore') && s.pointShown)
   const lastKeys = useRef<Partial<Record<ScenarioKey, string>>>({})
 
   useEffect(() => {
-    if (screen !== 'site') return
+    if (screen !== 'site' && !plannerHome) return
     const timer = setTimeout(() => {
       const wanted: [ScenarioKey, typeof A][] = compare ? [['A', A], ['B', B]] : [['A', A]]
       for (const [key, input] of wanted) {
@@ -31,7 +36,7 @@ function useAutoRun() {
       }
     }, 350)
     return () => clearTimeout(timer)
-  }, [A, B, compare, durationDays, stepMinutes, screen, azimuthStepDeg, maxDistanceKm])
+  }, [A, B, compare, durationDays, stepMinutes, screen, azimuthStepDeg, maxDistanceKm, plannerHome])
 }
 
 /** Space toggles playback on the site view, outside form controls. */
@@ -39,7 +44,8 @@ function useKeyboard() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement
-      if (getState().screen !== 'site') return
+      const screen = getState().screen
+      if (screen !== 'site' && screen !== 'compare') return
       if (t.closest('input, select, textarea, button, a, [role="slider"]')) return
       if (e.code === 'Space') {
         e.preventDefault()
@@ -82,7 +88,9 @@ export default function App() {
     <div className="app" data-screen={screen}>
       {(screen === 'moon' || screen === 'explore') && <MoonScreen mode={screen} />}
       {screen === 'site' && <SiteScreen />}
+      {screen === 'compare' && <CompareScreen />}
       {screen === 'kit' && <KitScreen />}
+      <ComparePicker />
     </div>
   )
 }

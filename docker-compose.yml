@@ -15,8 +15,9 @@ services:
     environment:
       MEOWRIZON_DATA_DIR: /app/data
       # Su Windows le modifiche ai file montati non arrivano come eventi:
-      # il ricaricamento automatico controlla i file a intervalli.
-      WATCHFILES_FORCE_POLLING: "true"
+      # il ricaricamento automatico controlla i file a intervalli. Su macOS e Linux
+      # si può spegnere con WATCH_POLLING=false in .env.
+      WATCHFILES_FORCE_POLLING: ${WATCH_POLLING:-true}
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     volumes:
@@ -36,7 +37,7 @@ services:
       # Vite inoltra /api al backend dentro la rete Docker (vite.config.ts).
       MEOWRIZON_API_ORIGIN: http://backend:8000
       # Come per il backend: su Windows Vite deve controllare i file a intervalli.
-      MEOWRIZON_WATCH_POLLING: "true"
+      MEOWRIZON_WATCH_POLLING: ${WATCH_POLLING:-true}
       # demo = dati dimostrativi; api = motore Python. Si cambia in .env.
       VITE_DATA_SOURCE: ${VITE_DATA_SOURCE:-api}
       VITE_API_BASE_URL: /api

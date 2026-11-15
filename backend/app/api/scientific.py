@@ -96,7 +96,11 @@ class ScientificJob(BaseModel):
 
 def _submit(kind, body, request):
     try:
-        return request.app.state.scientific_jobs.submit(kind, body.model_dump(exclude_none=True))
+        priority = request.headers.get("X-Job-Priority", "interactive")
+        consumer = request.headers.get("X-Job-Consumer")
+        return request.app.state.scientific_jobs.submit(
+            kind, body.model_dump(exclude_none=True), priority=priority, consumer=consumer
+        )
     except ValueError as exc:
         raise HTTPException(429, str(exc)) from exc
 
@@ -142,3 +146,23 @@ def terrain_job(jobId: str, request: Request):
 )
 def scenario_job(jobId: str, request: Request):
     return _job(request, "scenario", jobId)
+
+
+@router.delete("/terrain-analyses/{jobId}", response_model=ScientificJob)
+def cancel_terrain(jobId: str, request: Request):
+    return _cancel(request, "terrain", jobId)
+
+
+@router.delete("/scenario-evaluations/{jobId}", response_model=ScientificJob)
+def cancel_scenario(jobId: str, request: Request):
+    return _cancel(request, "scenario", jobId)
+
+
+def _cancel(request, kind, job_id):
+    consumer = request.headers.get("X-Job-Consumer")
+    if not consumer:
+        raise HTTPException(400, "A job consumer token is required")
+    try:
+        return request.app.state.scientific_jobs.cancel(kind, job_id, consumer)
+    except KeyError as exc:
+        raise HTTPException(404, "Scientific job not found") from exc

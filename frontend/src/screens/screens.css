@@ -468,11 +468,11 @@
   color: var(--ink-2);
 }
 
-/* By date / by site / by both */
+/* Public: by date or date + site. */
 .plan-modes {
   flex: none;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   padding: 4px;
   border-radius: var(--r-control);
   background: var(--card-sunk);
@@ -738,8 +738,8 @@
   gap: 6px;
 }
 
-.results-metrics.is-teacher,
-.results-metrics.is-student {
+.results-metrics.is-educator,
+.results-metrics.is-public {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
@@ -1646,7 +1646,7 @@
   font-weight: 600;
 }
 
-[data-audience='teacher'] .scene-bubble text {
+[data-audience='educator'] .scene-bubble text {
   font-size: 18px;
 }
 

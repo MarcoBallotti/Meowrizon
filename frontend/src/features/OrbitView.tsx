@@ -136,7 +136,7 @@ export function OrbitView({ cursorMs, audience, compact = false }: { cursorMs: n
             <text x={cx + s.x} y={cy + s.y - 18} textAnchor="middle">
               Sun
             </text>
-            {audience !== 'student' && (
+            {audience !== 'public' && (
               <text x={cx + s.x} y={cy + s.y + 26} textAnchor="middle" className="is-dim">
                 150 million km
               </text>
@@ -148,7 +148,7 @@ export function OrbitView({ cursorMs, audience, compact = false }: { cursorMs: n
               Moon
             </text>
             <text x={cx + shadow.x} y={cy + shadow.y + 16} textAnchor="middle" className="is-dim">
-              {audience === 'student' ? "Earth's shadow" : "Earth's shadow axis"}
+              {audience === 'public' ? "Earth's shadow" : "Earth's shadow axis"}
             </text>
           </g>
         </>
@@ -187,7 +187,7 @@ export function OrbitView({ cursorMs, audience, compact = false }: { cursorMs: n
   const status =
     magnitude > 0
       ? `Eclipse: Earth covers ${magnitude >= 1 ? 'all' : `${Math.round(magnitude * 100)}%`} of the Sun`
-      : audience === 'student'
+      : audience === 'public'
         ? Math.abs(moonLat) > 1.5
           ? `The Moon is ${moonLat > 0 ? 'above' : 'below'} Earth's orbit, so Earth's shadow misses it`
           : 'The Moon is close to the plane of Earth\'s orbit'

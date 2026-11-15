@@ -1,52 +1,52 @@
-# Revisione della validazione V1 — 15 novembre 2026
+# V1 validation review — 2026-11-15
 
-**Esito: validazione V1 incompleta.** Le verifiche numeriche della configurazione raffinata sono superate; il riferimento osservativo indipendente luce/ombra resta da completare. Nessuna tolleranza è stata allargata e nessuna approvazione NASA è implicata.
+**Outcome: V1 validation incomplete.** Numerical checks passed for the refined configuration; an independent observational light/shadow reference remains incomplete. No tolerance was relaxed, and no NASA approval is implied.
 
-Questo rapporto integra, senza cancellarlo, il [rapporto storico](validazione-engine-v1.md). I campioni PGDA e le sei scene LROC preesistenti sono mantenuti; non sono stati selezionati campioni in base agli errori per migliorare gli esiti.
+This supplements the [initial report](validazione-engine-v1.md) without erasing it. Existing PGDA samples and six LROC scenes were retained; samples were not selected by model error to improve outcomes. The numbers below are the recorded review evidence, not checks rerun during documentation translation.
 
-## 1. Riproducibilità e stato del repository
+## Reproducibility and repository state
 
-Commit di base `234cd7838f069627289e05d3b7de0403ca5b6f8c`, checkout con modifiche non committate e conflitti di merge già presenti prima della revisione. Il commit da solo **non** identifica il codice eseguito: le impronte dei file sono negli artefatti della revisione.
+Base commit: `234cd7838f069627289e05d3b7de0403ca5b6f8c`, with pre-existing uncommitted changes and merge conflicts during the review. The commit alone does **not** identify the executed code; file fingerprints are in the review artifacts.
 
-Il file `backend/config/analysis.tolerances.json` conserva SHA-256:
+`backend/config/analysis.tolerances.json` retained SHA-256:
 
 ```text
 e1292735b88228a833b5ca4401618ae59c54e8633ab4b6ebbb719615aabe3e2a
 ```
 
-Le evidenze sono sotto `backend/data/analysis/validation/`, ignorate da Git; per rigenerarle usare gli script versionati. Copie dei precedenti JSON e delle griglie LROC sono in `review-20261115/previous-*`. I nuovi rapporti JSON hanno nomi UTC distinti e non sovrascrivono quelli esistenti.
+Evidence is under ignored `backend/data/analysis/validation/`. Versioned scripts reproduce it. Previous JSON/LROC grids are copied to `review-20261115/previous-*`. New evidence filenames include unique UTC timestamps and do not overwrite earlier runs.
 
-### Suite e filesystem
+### Test suites and filesystem behavior
 
-- Esecuzione iniziale sul bind mount macOS: **177/178** test superati, fallimento del test di lock già segnalato nel rapporto storico.
-- Codice e test dello storage corrispondono a HEAD: nessuna modifica dell'engine in quei file. Il test di lock su HEAD estratto nel filesystem nativo Docker passa.
-- Diagnostica del lock: sul filesystem nativo due descrittori nello stesso processo e un secondo processo vengono bloccati; sul bind mount si osservano semantiche differenti. Anche un tentativo di rendere il test esplicitamente multiprocesso non risolve uniformemente il comportamento sul mount. Quel tentativo è stato **ritirato**, conservando il test originale.
-- Una corsa intermedia sul mount ha inoltre mostrato un `FileNotFoundError` leggendo un job mentre veniva aggiornato. Non viene nascosto né attribuito senza prova all'engine.
-- Suite finale sul filesystem nativo del container, con sorgenti copiati e test originali invariati dove non aggiunti per questa revisione: **184/184** superati, un test di rete escluso dalla configurazione preesistente. Include **99 test dell'engine**.
-- Non è dimostrata l'affidabilità della concorrenza sul bind mount macOS. Non eseguire più scrittori concorrenti su quel volume assumendo che il successo nativo certifichi il mount; un approfondimento del deployment/filesystem rimane separato dalla validazione scientifica.
+- Initial macOS bind mount: **177/178** passed, including the already reported lock-test failure.
+- Storage source/tests matched HEAD; the baseline lock test passed when HEAD was extracted into the native Docker filesystem.
+- Native filesystem lock diagnostics blocked both a second descriptor in-process and a separate process. The bind mount exhibited different semantics. An experimental explicitly multiprocess test did not resolve this consistently and was withdrawn, retaining the original test.
+- An intermediate mounted run also raised `FileNotFoundError` while reading a job during an update. It was neither hidden nor attributed to the engine without proof.
+- Final native-container suite, using copied source and the original tests except review additions: **184/184 passed**, with one network test excluded by existing configuration. This includes **99 engine tests**.
+- Concurrency reliability on the macOS bind mount was not established. Native success does not certify that mounted deployment/filesystem.
 
-Artefatti: `review-20261115/tests-native.xml`, `tests-native.txt`, `tests-final.xml` (corsa intermedia con fallimenti), `baseline-lock-test.txt`. Il lint dei file della revisione è superato; non viene dichiarato pulito l'intero repository in conflitto.
+Artifacts: `review-20261115/tests-native.xml`, `tests-native.txt`, `tests-final.xml` (intermediate failures), `baseline-lock-test.txt`. Review-file lint passed; the entire conflicted repository was not declared lint-clean.
 
 ### Cache
 
-Due esecuzioni reali offline con HTTP esplicitamente proibito producono lo stesso SHA-256 del risultato:
+Two real offline runs with HTTP explicitly forbidden produced the same result SHA-256:
 
 ```text
 f85cd8033f3a9292352fe801be83f8320cdd13ebe37d80ba34393e8915bee38d
 ```
 
-Prima corsa: terreno già in cache, sei serie ricalcolate in circa 11,3 s. Seconda: tutte le serie in cache, circa 0,9 s. Nessun download. Sono misure locali, non una garanzia di prestazioni. I test verificano invalidazione per DEM, parametri e versione dell'algoritmo, oltre a cache mancante/corrotta e offline. Non è stata ripetuta la misura di 340 s con tutti i download da zero.
+First: terrain cached, six series recomputed in about **11.3 s**. Second: all series cached, about **0.9 s**. No downloads. These are local timings. Tests cover invalidation by DEM, parameters and algorithm version, missing/corrupt cache and offline behavior. The 340 s cold-download measurement was not repeated.
 
-## 2. Classificazione della pendenza
+## Slope classification
 
-Le regole restano `[0,5)`, `[5,10)`, `[10,15)`, `≥15°`, senza esclusione a 10°. Il fit sintetico e i confini esatti sono coperti dai test. Il confronto reale conserva 121 nodi PGDA per regione, scala e supporto dichiarati nel rapporto storico.
+Rules remain `[0,5)`, `[5,10)`, `[10,15)`, `≥15°`, without automatic 10° exclusion. Tests cover synthetic fits and exact boundaries. The real comparison retains **121 PGDA nodes per region**, with the initial report's scale/support.
 
-| Regione | Accordo di fascia | Errori adiacenti | Errori non adiacenti | Scarto mediano / P95 |
-|---|---:|---:|---:|---:|
-| de Gerlache Rim 2 | 105/121 = 86,78% | 16 | 0 | 0,754° / 2,688° |
-| Malapert Massif | 118/121 = 97,52% | 3 | 0 | 0,089° / 0,320° |
+| Region | Band agreement | Adjacent errors | Nonadjacent errors | Median / P95 error |
+|---|---:|---:|---:|---|
+| de Gerlache Rim 2 | 105/121 = 86.78% | 16 | 0 | 0.754° / 2.688° |
+| Malapert Massif | 118/121 = 97.52% | 3 | 0 | 0.089° / 0.320° |
 
-Matrici: righe = fascia PGDA, colonne = fascia engine, nell'ordine 0–5 / 5–10 / 10–15 / ≥15°.
+Matrices: rows are PGDA reference bands, columns engine bands, ordered 0–5 / 5–10 / 10–15 / ≥15°.
 
 ```text
 de Gerlache                 Malapert
@@ -56,53 +56,50 @@ de Gerlache                 Malapert
  0   0   8   5               0   0   0   0
 ```
 
-**Limiti rilevanti:** a de Gerlache la fascia PGDA ≥15° viene riconosciuta in soli 5/13 casi (38,46%); la fascia <5° è assente. A Malapert ≥15° è assente e 10–15° ha solo quattro campioni. Non si può estendere l'accordo globale a tutte le classi o a tutta la regione. Il vicinato spaziale non costituisce 121 osservazioni indipendenti.
+**Limits:** de Gerlache's ≥15° band is recognized in only **5/13 cases (38.46%)**; <5° is absent. Malapert has no ≥15° samples and only four 10–15° samples. Overall agreement cannot be extended to every band or the whole region. Spatially adjacent nodes are not 121 independent observations.
 
-Le tre discordie di Malapert sono entro 0,018° dalla soglia di 5° nel riferimento. A de Gerlache alcune discordie sono lontane oltre 2° dalla soglia: non sono tutte semplici arrotondamenti. Le distanze di ogni discordanza sono conservate nel JSON, senza introdurre una nuova soglia arbitraria di “vicinanza”.
+The three Malapert disagreements are within **0.018°** of the reference 5° threshold. Some de Gerlache disagreements are more than 2° from a threshold, so they are not all rounding effects. Per-disagreement distances remain in JSON without a new arbitrary “near threshold” criterion.
 
-Il gate in gradi resta superato con le tolleranze originali, ma la matrice rende visibile ciò che quel gate non dimostra. PGDA e engine usano prodotti diversi a de Gerlache e dati in parte condivisi a Malapert: questo confronto non isola l'errore dell'algoritmo e non è una verità al suolo indipendente. La sensibilità numerica dei due punti demo, già presente, non equivale all'incertezza fisica del DEM né a intervalli di confidenza delle classi.
+Degree-error gates passed under original tolerances, but the matrices expose their limitations. Different DEMs at de Gerlache and partly shared inputs at Malapert mean this does not isolate algorithm error or provide independent ground truth. Point numerical sensitivity is not physical DEM uncertainty or a band confidence interval.
 
-[NASA PGDA prodotto 90](https://pgda.gsfc.nasa.gov/products/90) distribuisce layer di errore per i propri DEM adjusted e slope. Non è corretto trasferirli al DEM Moon Trek v04 usato qui o al fit su supporto 100 m senza dimostrarne la corrispondenza. L'incertezza fisica dei risultati correnti rimane non quantificata; non si conclude che NASA non offra dati di incertezza in generale.
+[NASA PGDA product 90](https://pgda.gsfc.nasa.gov/products/90) supplies error layers for its own adjusted DEM/slope products. They cannot be transferred to the Moon Trek v04 DEM or a 100 m fit without demonstrating correspondence. Physical uncertainty of the current outputs remains unquantified; this does not mean NASA offers no uncertainty products in general.
 
-## 3. Luce/ombra osservata
+## Observed light/shadow
 
-Il benchmark Otsu v1 resta **fallito in tutte e sei le scene**: accordo 79,6–87,2%, inferiore a 90%. Nuove diagnostiche sullo stesso riferimento danno balanced accuracy circa 0,503–0,519: l'accordo globale nasconde un forte sbilanciamento. Questi valori descrivono l'accordo con le etichette Otsu, **non** l'accuratezza rispetto a ombre indipendentemente accertate.
+The Otsu v1 benchmark remains **failed for all six scenes**: agreement **79.6–87.2%**, below 90%. New diagnostics on the same reference give balanced accuracy about **0.503–0.519**: overall agreement hides severe imbalance. These measure agreement with Otsu labels, not accuracy against independently established shadows.
 
-È stato redatto il [protocollo LROC v2](protocollo-validazione-lroc-v2.md), mantenendo ≥0,90 e separando sviluppo da verifica. In `review-20261115/annotation/` sono disponibili sei CSV georeferenziati e viste SVG delle sole osservazioni, senza previsioni, con tutte le etichette inizialmente non annotate. Le classi 0/1 non sono state inventate. Le griglie sparse non sono maschere dense sufficienti a misurare bordi d'ombra in metri.
+The [LROC v2 protocol](protocollo-validazione-lroc-v2.md) retains ≥0.90 and separates development from verification. `review-20261115/annotation/` contains six georeferenced CSVs and observed-data-only SVGs, without predictions. Initial labels are all unannotated; 0/1 classes were not invented. Sparse grids cannot support dense shadow-edge distances in metres.
 
-La ricerca di ulteriori scene e le esclusioni sono nel protocollo. Il mosaico de Gerlache combina molte epoche e non può essere confrontato usando un solo istante; Malapert A è fuori regione; il prodotto ESALL_MP1 ha elaborazione DLR e non è stato assunto equivalente a un prodotto di fonte USA. Questi risultati non dimostrano che altri dati adatti non esistano.
+Candidate search/exclusions remain in the protocol: the de Gerlache mosaic combines epochs; Malapert A lies outside the development regions; ESALL_MP1 was processed by DLR and was not treated as a US-produced substitute. This search does not establish that no suitable scenes exist.
 
-**Blocco residuo concreto:** mancano una nuova scena georeferenziata idonea con ombre estese e un riferimento luce/ombra rivisto indipendentemente. Servono identificazione dei segmenti/ortorettifica e annotazione controllata prima di misurare i nuovi accordi e bordi. Le sei scene già analizzate restano sviluppo. Un risultato su una sola regione non validerebbe automaticamente l'altra. Nessun gate nuovo viene dichiarato superato.
+**Remaining blocker:** a suitable new georeferenced acquisition with extensive shadows and independently reviewed labels is missing. Segment identification/orthorectification and controlled annotation must precede new agreement/edge measurements. Existing six scenes remain development data. Success in one region would not automatically validate the other. No new observational gate was declared passed.
 
-## 4. Transizione radente e convergenza
+## Grazing transition and convergence
 
-Caso: Malapert, finestra di 30 giorni dal 1 febbraio 2027, stessa effemeride, integrazione del disco e terreno; varia solo il passo azimutale.
+Case: Malapert, 30 days from **2027-02-01**, with identical ephemerides, disc integration and terrain; only azimuth spacing changes.
 
-| Passo azimutale | Spostamento massimo rispetto al passo precedente | Numero transizioni confrontate |
+| Azimuth spacing | Maximum shift from previous spacing | Compared transitions |
 |---|---:|---:|
-| 0,125° | riferimento storico | 18 |
-| 0,0625° | 337,500 s | 18 |
-| 0,03125° | 45,937 s | 18 |
-| 0,015625° | 22,500 s | 18 |
+| 0.125° | Historical reference | 18 |
+| 0.0625° | 337.500 s | 18 |
+| 0.03125° | 45.937 s | 18 |
+| 0.015625° | 22.500 s | 18 |
 
-Il massimo della tabella è preso su tutte le 18 transizioni, non necessariamente sullo stesso evento. L’evento originariamente fuori tolleranza è l’inizio del sesto intervallo di buio, il **10 febbraio 2027**: 05:36:03,281 UTC a 0,125°; 05:30:25,781 UTC a 0,0625° e 0,03125°; 05:30:24,844 UTC a 0,015625°. Gli ulteriori massimi di 45,937 e 22,500 s riguardano altri confini.
+Each maximum is over all 18 transitions and need not concern the same event. The originally failing event is the sixth darkness start on **2027-02-10**: **05:36:03.281 UTC** at 0.125°, **05:30:25.781** at 0.0625°/0.03125°, and **05:30:24.844** at 0.015625°. Later maxima of 45.937/22.500 s concern other boundaries.
 
-La scala è in `review-20261115/azimuth-ladder.json`, con tutti gli intervalli di buio e i tempi di calcolo. Non è stato modificato il limite di **60 s**. La demo usa ora **0,03125°** e il confronto di raffinamento usa **0,015625°**. La configurazione è più precisa, non più permissiva. Il default generico del modello rimane 0,125°: questi esiti riguardano la configurazione demo esplicita.
+`review-20261115/azimuth-ladder.json` contains the ladder, all darkness intervals and computation times. The **60 s** criterion did not change. Demo spacing is now **0.03125°**, refined against **0.015625°**. The generic model default remains **0.125°**; these outcomes apply to the explicit demo configuration.
 
-Su sei scenari, cinque varianti per scenario (azimut, passo radiale, strisce del disco, scansione temporale, passo delle effemeridi), lo spostamento massimo riscontrato è **26,25 s**. Sono controllati anche numero e tipo dei confini degli intervalli: un numero uguale di transizioni con diversa topologia non conta come convergenza. Le frazioni restano entro 0,01. Le eclissi di marzo 2025 rimangono geometricamente coerenti ai due punti; non è una verifica indipendente completa degli orari di contatto NASA.
+Across six scenarios and five variants each (azimuth, radial spacing, disc strips, time scan, ephemeris spacing), maximum event shift was **26.25 s**. Boundary counts **and types** were checked: equal counts with different topology are not convergence. Fraction differences stayed within **0.01**. March 2025 eclipse geometry remained consistent at both points, without a complete independent NASA contact-time validation.
 
-La convergenza rispetto a un DEM fissato non garantisce precisione fisica di 26 s. L'errore del terreno, la risoluzione effettiva e i passaggi radenti restano limiti. Il confronto del raggio esterno 300/225 km verifica solo quei raggi: non dimostra da solo l'assenza di ostacoli oltre 300 km.
+Convergence on a fixed DEM does not establish 26 s physical accuracy. Terrain error, effective resolution and grazing transitions remain limitations. The 300/225 km radius comparison tests those radii only and cannot alone exclude obstacles beyond 300 km.
 
-## 5. Modifiche e riproduzione
+## Changes and reproduction
 
-- Configurazione demo: passo azimutale 0,125° → 0,03125°.
-- Validazione: matrici per fascia, campioni PGDA e distanze dalle soglie, lettura mascherata dei NoData; metriche luce/ombra per classe.
-- Gate completi: un controllo omesso/incompleto non è un successo, eclissi e allineamento partecipano all'esito; confronto degli eventi controlla anche i tipi di confine.
-- Evidenze JSON con nomi distinti, rifiuto di sovrascrittura e rifiuto di NaN/Infinity.
-- Test aggiunti per queste proprietà e per l'invalidazione delle cache al cambio di versione; nessuna modifica della soglia di classificazione o del file di tolleranze.
-- Script riproducibili e pacchetto di revisione osservativa. Nessuna modifica frontend, nessun test UI/E2E, nessun commit/push.
+The review refined demo azimuth spacing from 0.125° to 0.03125°, added band matrices/PGDA threshold distances and masked NoData handling, and added class-specific light/shadow diagnostics. Full gates include eclipse/alignment, preserve omitted/incomplete states and compare boundary topology. Evidence uses unique filenames, rejects overwrites and NaN/Infinity. Added tests cover these properties and cache-version invalidation. Classification thresholds and the tolerance file were unchanged.
 
-Dalla radice del repository:
+No frontend changes, UI/E2E tests, commits or pushes were part of that scientific review.
+
+From the repository root:
 
 ```sh
 docker compose run --rm --no-deps backend python -m scripts.review_validation
@@ -110,28 +107,27 @@ docker compose run --rm --no-deps backend python -m scripts.review_tests_native
 docker compose run --rm --no-deps backend python -m scripts.review_cache
 ```
 
-Il primo comando registra manifest, hash del codice, configurazione e versioni dei pacchetti, e verifica l'invarianza dei sorgenti durante l'esecuzione. La CLI `validate-engine` restituisce 4 se la validazione completa non è superata, anche se un sottoinsieme richiesto con `--check` passa. Lo script di revisione salva le evidenze e il loro esito: l'assenza di eccezioni di esecuzione non è una certificazione scientifica.
+The first saves manifest/code/config/package fingerprints and checks source invariance during execution. `validate-engine` exits **4** unless complete validation passes, even if a requested `--check` subset passes. Review-script execution without an exception is not scientific certification.
 
-## 6. Esito conclusivo e ambito
+## Final recorded outcome and scope
 
-Esecuzione conclusiva: `20261115T051605-067665Z`, durata 385,5 s. Evidenza: `backend/data/analysis/validation/evidence-review-20261115T051605-067665Z.json`. `code_unchanged_during_run=true`: gli hash dei sorgenti/configurazioni/test sono identici a inizio e fine. Manifest iniziale in `review-20261115/manifest-20261115T051605-067665Z.json`; ambiente completo in `review-20261115/environment.json`.
+Run **`20261115T051605-067665Z`**, elapsed **385.5 s**. Evidence: `backend/data/analysis/validation/evidence-review-20261115T051605-067665Z.json`. `code_unchanged_during_run=true` records equal start/end source/config/test hashes. Initial manifest: `review-20261115/manifest-20261115T051605-067665Z.json`; environment: `review-20261115/environment.json`.
 
-| Gate | Esito finale | Evidenza |
+| Gate | Final recorded outcome | Evidence |
 |---|---|---|
-| Suite backend nel filesystem nativo | superato | 184 test, di cui 99 engine |
-| Suite sul bind mount macOS | non superato | anomalie di lock e, in una corsa, lettura job |
-| Effemeridi/interpolazione | superato | confronto con campioni Horizons intermedi |
-| Pendenza, scarti in gradi | superato | tolleranze originali; matrici e limiti per fascia conservati |
-| Orizzonte e convergenza degli scenari | superato | nessuna variazione di topologia; eventi ≤26,25 s contro 60 s |
-| Allineamento DEM | superato | differenze nulle nei blocchi confrontati |
-| Eclissi, coerenza geometrica interna | superato | entrambi i punti; non validazione indipendente degli orari |
-| LROC Otsu v1 | fallito | 0/6 scene sopra il criterio ≥0,90 |
-| Nuovo benchmark LROC indipendente | incompleto | nuove scene e annotazioni controllate mancanti |
-| Incertezza fisica del terreno | incompleto | non quantificata per i prodotti/metriche correnti |
+| Native-container backend suite | Passed | 184 tests, including 99 engine tests |
+| macOS bind-mount suite | Not passed | Lock and intermediate job-read anomalies |
+| Ephemerides/interpolation | Passed | Independent intermediate Horizons samples |
+| Slope degree errors | Passed | Original tolerances; band matrices/limits retained |
+| Horizon/scenario convergence | Passed | Stable topology; events ≤26.25 s versus 60 s |
+| DEM alignment | Passed | Zero differences in compared blocks |
+| Internal eclipse geometry | Passed | Both points; not independent contact-time validation |
+| LROC Otsu v1 | Failed | 0/6 scenes above ≥0.90 |
+| New independent LROC benchmark | Incomplete | New scenes/reviewed labels missing |
+| Physical terrain uncertainty | Incomplete | Not quantified for these products/metrics |
 
-Il JSON finale riporta **100 controlli numerici superati su 100**, e separatamente il fallimento LROC; `summary.status` è **incomplete**. Le diagnostiche di classificazione non introducono nuove tolleranze e non certificano tutte le fasce.
+Final JSON reports **100/100 numerical checks passed** and a separate LROC failure; `summary.status` is **`incomplete`**. Classification diagnostics add no tolerances and do not certify every slope band.
 
+Scope: the two demo points; epochs December 1/4, 2026 and February 1, 2027; 30-day windows; declared products/configuration; March 2025 eclipse comparison. This does not establish universal validity for all coordinates, dates, DEMs or the separate HTTP implementation.
 
-La configurazione verificata riguarda i due punti demo, tre date (1 e 4 dicembre 2026, 1 febbraio 2027), finestre di 30 giorni e i prodotti dichiarati; il confronto eclissi usa marzo 2025. Non prova una validità universale per qualsiasi punto, data o DEM.
-
-**Formulazione sostenibile:** engine V1 implementato e riproducibile, con controlli numerici superati nella configurazione documentata e limiti di classificazione misurati. Validazione osservativa indipendente ancora incompleta; incertezza fisica del terreno non quantificata. L'origine NASA dei dati non costituisce approvazione del risultato.
+**Supported claim:** implemented, reproducible V1 engine with numerical checks passed in the documented configuration and measured classification limitations. Independent observational validation remains incomplete, physical terrain uncertainty remains unquantified, and NASA source provenance is not NASA approval.

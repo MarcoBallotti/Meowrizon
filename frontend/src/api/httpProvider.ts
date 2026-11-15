@@ -50,6 +50,47 @@ export class HttpProvider implements DataProvider {
     return (await res.json()) as T
   }
 
+  private async submitJob<T>(path: string, body: unknown, priority: string, signal?: AbortSignal): Promise<JobState<T>> {
+    signal?.throwIfAborted()
+    const consumer = crypto.randomUUID()
+    // Keep the submission alive until its ID arrives so an abort can release its lease.
+    const job = await this.request<JobState<T>>(path, {
+      method: 'POST', body: JSON.stringify(body),
+      headers: { 'X-Job-Consumer': consumer, 'X-Job-Priority': priority },
+    })
+    if (job.status === 'queued' || job.status === 'running') {
+      const cancel = () => {
+        const remaining = this.cleanups.get(job.id)?.filter(fn => fn !== cleanup) ?? []
+        if (remaining.length) this.cleanups.set(job.id, remaining)
+        else this.cleanups.delete(job.id)
+        void this.request(`${path}/${encodeURIComponent(job.id)}`, {
+          method: 'DELETE', headers: { 'X-Job-Consumer': consumer },
+        }).catch(() => undefined)
+      }
+      const cleanup = () => signal?.removeEventListener('abort', cancel)
+      if (signal?.aborted) cancel()
+      else if (signal) {
+        signal.addEventListener('abort', cancel, { once: true })
+        const cleanups = this.cleanups.get(job.id) ?? []
+        cleanups.push(cleanup)
+        this.cleanups.set(job.id, cleanups)
+      }
+    }
+    signal?.throwIfAborted()
+    return job
+  }
+
+  private cleanups = new Map<string, (() => void)[]>()
+
+  private async pollJob<T>(path: string, id: string, signal?: AbortSignal): Promise<JobState<T>> {
+    const job = await this.request<JobState<T>>(`${path}/${encodeURIComponent(id)}`, { signal })
+    if (job.status === 'completed' || job.status === 'failed') {
+      this.cleanups.get(id)?.forEach(cleanup => cleanup())
+      this.cleanups.delete(id)
+    }
+    return job
+  }
+
   getCoverage(signal?: AbortSignal): Promise<CoverageCatalog> {
     return this.request('/coverage', { signal })
   }
@@ -80,30 +121,31 @@ export class HttpProvider implements DataProvider {
   getRegionsData(id: string): Promise<unknown> { return this.request(`/data/datasets/${encodeURIComponent(id)}/regions`) }
 
   submitTerrainAnalysis(req: TerrainAnalysisRequest, signal?: AbortSignal): Promise<JobState<TerrainAnalysis>> {
-    return this.request('/terrain-analyses', { method: 'POST', body: JSON.stringify(req), signal })
+    const { priority = 'interactive', ...body } = req
+    return this.submitJob('/terrain-analyses', body, priority, signal)
   }
 
   getTerrainAnalysis(id: string, signal?: AbortSignal): Promise<JobState<TerrainAnalysis>> {
-    return this.request(`/terrain-analyses/${encodeURIComponent(id)}`, { signal })
+    return this.pollJob('/terrain-analyses', id, signal)
   }
 
   submitScenarioEvaluation(
     req: ScenarioEvaluationRequest,
     signal?: AbortSignal,
   ): Promise<JobState<ScenarioEvaluation>> {
-    return this.request('/scenario-evaluations', { method: 'POST', body: JSON.stringify(req), signal })
+    return this.submitJob('/scenario-evaluations', req, req.includeContext === false ? 'background' : 'interactive', signal)
   }
 
   getScenarioEvaluation(id: string, signal?: AbortSignal): Promise<JobState<ScenarioEvaluation>> {
-    return this.request(`/scenario-evaluations/${encodeURIComponent(id)}`, { signal })
+    return this.pollJob('/scenario-evaluations', id, signal)
   }
 
   submitRankingEvaluation(req: ScenarioEvaluationRequest & { minSunFraction: number }, signal?: AbortSignal): Promise<JobState<RankingEvaluation>> {
-    return this.request('/scenario-evaluations', { method: 'POST', body: JSON.stringify({ ...req, includeContext: false }), signal })
+    return this.submitJob('/scenario-evaluations', { ...req, includeContext: false }, 'background', signal)
   }
 
   getRankingEvaluation(id: string, signal?: AbortSignal): Promise<JobState<RankingEvaluation>> {
-    return this.request(`/scenario-evaluations/${encodeURIComponent(id)}`, { signal })
+    return this.pollJob('/scenario-evaluations', id, signal)
   }
 }
 

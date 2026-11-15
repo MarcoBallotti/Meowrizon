@@ -1,6 +1,6 @@
 # Siti di Meowrizon: punti mostrati sulla mappa all'apertura dell'app e valutati come una cella
 # di 100 × 100 m (precisione di atterraggio richiesta da Artemis III [F1, slide 28]).
-# Fonti tra parentesi quadre: elenco in docs/piano-logica.md.
+# Fonti tra parentesi quadre: elenco in docs/criteri-algoritmo.md.
 #
 # Scelta del team (14/11/2026):
 #   - "atterrato": atterraggi RIUSCITI tra i più conosciuti dal pubblico, cioè tutti quelli con

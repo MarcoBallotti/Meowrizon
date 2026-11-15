@@ -37,7 +37,7 @@ test('mission edits reuse measurements, cutoff changes rescreen, and terrain evi
     }
     setState({ ranking: null, regions: { locations: [], regions: [] }, sitesLoaded: true,
       sites: [{ id: 'site:a', name: 'A', latDeg: 0, lonEastDeg: 0 }], durationDays: 1 / 24,
-      stepMinutes: 30, mission: structuredClone(DEFAULT_MISSION),
+      audience: 'planner', stepMinutes: 30, mission: structuredClone(DEFAULT_MISSION),
       scenarios: { ...getState().scenarios, A: { ...getState().scenarios.A, input: { ...getState().scenarios.A.input, startMs: start } } },
     })
     await runRegionRanking()
@@ -56,6 +56,25 @@ test('mission edits reuse measurements, cutoff changes rescreen, and terrain evi
     assert.equal(getState().ranking.regions.length, 0)
     assert.equal(getState().ranking.busy, false)
     assert.deepEqual(getState().ranking.failed, [])
+
+    // Switching to Educator must replace the screened result with full evidence.
+    setState({ audience: 'educator' })
+    await runRegionRanking()
+    assert.equal(evaluationCalls, 3)
+    assert.deepEqual(getState().ranking.skipped, [])
+    assert.equal(getState().ranking.regions.length, 1)
+    assert.equal(getState().ranking.regions[0].earthFraction, 1)
+    assert.equal(getState().ranking.regions[0].bothFraction, .5)
+    assert.equal(rank(getState().ranking.regions, 'all', getState().mission).length, 0)
+
+    // Requirements still apply, but changing them needs no new educator measurements.
+    setMission({ ...getState().mission, minSunFraction: .7 })
+    await runRegionRanking()
+    assert.equal(evaluationCalls, 3)
+    setState({ audience: 'planner' })
+    await runRegionRanking()
+    assert.equal(evaluationCalls, 4)
+    assert.equal(getState().ranking.skipped.length, 1)
   } finally {
     await server.close()
   }

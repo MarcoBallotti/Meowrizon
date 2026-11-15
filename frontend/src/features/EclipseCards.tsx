@@ -37,16 +37,13 @@ export function NextEclipseCard({ audience }: { audience: Audience }) {
   if (!next) return null
 
   const inProgress = current !== undefined
-  const hours = formatDuration(next.endMs - next.startMs)
   const headline = inProgress ? 'Eclipse now' : `Solar eclipse in ${formatFriendlyDuration(next.maxMs - t)}`
   const body =
-    audience === 'student'
+    audience === 'public'
       ? inProgress
         ? `Earth is passing in front of the Sun. ${next.visible ? 'From here you can see it.' : 'A hill hides it from here.'}`
         : `Earth will hide the Sun for about ${formatFriendlyDuration(next.endMs - next.startMs)}. ${next.visible ? 'You will see it from here.' : 'A hill will hide it from here.'}`
-      : audience === 'teacher'
-        ? `On Earth this is a lunar eclipse: the red Moon you can see from home. From here Earth covers ${next.kind === 'total' ? 'the whole Sun' : `${Math.round(Math.min(1, next.magnitude) * 100)}% of the Sun`} for ${hours}.`
-        : `Greatest ${formatUtc(next.maxMs)} UTC · contacts ${formatUtcShort(next.startMs)}–${formatUtcShort(next.endMs)} · magnitude ${next.magnitude.toFixed(2)}${next.totalStartMs !== null && next.totalEndMs !== null ? ` · total ${formatDuration(next.totalEndMs - next.totalStartMs)}` : ''}`
+      : `Greatest ${formatUtc(next.maxMs)} UTC · contacts ${formatUtcShort(next.startMs)}–${formatUtcShort(next.endMs)} · magnitude ${next.magnitude.toFixed(2)}${next.totalStartMs !== null && next.totalEndMs !== null ? ` · total ${formatDuration(next.totalEndMs - next.totalStartMs)}` : ''}`
 
   return (
     <Card tone="dark" as="article" className="eclipse-card">
@@ -84,7 +81,7 @@ export function EclipseStrip({ audience }: { audience: Audience }) {
   return (
     <Card as="article" className="eclipse-strip">
       <div className="report-head">
-        <h2 className="ui-title">{audience === 'student' ? 'Eclipses here' : 'Eclipses from this site'}</h2>
+        <h2 className="ui-title">{audience === 'public' ? 'Eclipses here' : 'Eclipses from this site'}</h2>
         <span className="ui-small ui-muted">next 2 years · {real ? 'JPL Horizons · sampled contacts' : 'approx. model'}</span>
       </div>
       <div className="strip" role="list" aria-label="Eclipses in the next two years">

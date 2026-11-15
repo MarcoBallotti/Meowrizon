@@ -54,13 +54,11 @@ export function Timeline({ audience }: { audience: Audience }) {
   }
 
   const subtitle =
-    audience === 'student'
+    audience === 'public'
       ? playing
         ? 'Watch the Sun crawl along the hills'
         : 'Press play to watch the Sun crawl along the hills'
-      : audience === 'teacher'
-        ? formatUtcLong(t)
-        : `${formatUtc(t)} UTC · +${formatDuration(offset)}`
+      : `${formatUtc(t)} UTC · +${formatDuration(offset)}`
 
   const rows = (key: ScenarioKey, sc: typeof A) => {
     const ev = sc.run.evaluation
@@ -70,8 +68,8 @@ export function Timeline({ audience }: { audience: Audience }) {
       { id: 'sun', label: 'Sunlight', icon: <SunIcon size={16} /> },
       { id: 'earth', label: 'Earth in view', icon: <EarthIcon size={16} /> },
     ]
-    if (audience !== 'student') items.push({ id: 'both', label: 'Sun + Earth', icon: <BothIcon size={16} /> })
-    if (audience !== 'student' || eclipses.length) items.push({ id: 'eclipse', label: 'Eclipse', icon: <EclipseIcon size={16} /> })
+    if (audience !== 'public') items.push({ id: 'both', label: 'Sun + Earth', icon: <BothIcon size={16} /> })
+    if (audience !== 'public' || eclipses.length) items.push({ id: 'eclipse', label: 'Eclipse', icon: <EclipseIcon size={16} /> })
     return items.map((r) => (
       <div key={`${key}-${r.id}`} className="timeline-row">
         <span className={`timeline-row-label is-${r.id}`}>
@@ -113,7 +111,7 @@ export function Timeline({ audience }: { audience: Audience }) {
           </span>
           <span className={`timeline-sub${audience === 'planner' ? ' mono' : ''}`}>{subtitle}</span>
         </div>
-        {audience !== 'student' && (
+        {audience !== 'public' && (
           <label className="timeline-speed">
             <span className="sr-only">Playback speed</span>
             <Select inputSize="s" value={speed} onChange={(e) => setState({ speed: Number(e.target.value) })}>
@@ -150,7 +148,7 @@ export function Timeline({ audience }: { audience: Audience }) {
           }}
         >
           {groups.map(([k, sc]) => rows(k, sc))}
-          {audience !== 'student' && (
+          {audience !== 'public' && (
             <div className="timeline-axis" aria-hidden="true">
               {ticks.map((d) => (
                 <span key={d} style={{ left: `${(d / days) * 100}%` }}>

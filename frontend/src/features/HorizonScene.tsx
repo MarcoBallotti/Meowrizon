@@ -228,7 +228,7 @@ export function HorizonScene({ profile, evaluation, cursorMs, audience }: Props)
   const litAngle = (Math.atan2(sy - ey, sx - ex) * 180) / Math.PI
   const eclipse = sun.occultedFraction ?? coverage(elongation)
 
-  const grid = audience !== 'student'
+  const grid = audience !== 'public'
   const yStep = niceStep(spanEl)
   const yTicks: number[] = []
   if (grid) for (let v = Math.ceil((elTop - spanEl) / yStep) * yStep; v <= elTop; v += yStep) yTicks.push(v)
@@ -357,7 +357,7 @@ export function HorizonScene({ profile, evaluation, cursorMs, audience }: Props)
               const norm = ((a % 360) + 360) % 360
               const cardinal = norm % 90 === 0
               const label =
-                audience === 'planner' ? (cardinal ? `${compass(norm)} ${norm}°` : `${norm}°`) : audience === 'teacher' ? compassWord(norm) : cardinal ? compassWord(norm) : ''
+                audience === 'planner' ? (cardinal ? `${compass(norm)} ${norm}°` : `${norm}°`) : audience === 'public' ? compassWord(norm) : cardinal ? compassWord(norm) : ''
               return (
                 <g key={a}>
                   <line x1={px} x2={px} y1={h - 26} y2={h - (cardinal ? 12 : 18)} />
@@ -398,7 +398,7 @@ export function HorizonScene({ profile, evaluation, cursorMs, audience }: Props)
             { value: 'panorama', label: '360°', title: 'All around, heights stretched' },
           ]}
         />
-        {audience !== 'student' && (
+        {audience !== 'public' && (
           <span className="scene-toggle">
             <Toggle checked={showPaths} onChange={setShowPaths} onDark>
               Paths
@@ -418,12 +418,12 @@ export function HorizonScene({ profile, evaluation, cursorMs, audience }: Props)
           >
             {e.side === 'left' ? <ArrowLeft {...EDGE_ICON} /> : e.side === 'up' ? <ArrowUp {...EDGE_ICON} /> : null}
             {e.body === 'sun' ? 'Sun' : 'Earth'}
-            {audience !== 'student' && <span className="mono">{formatAngle(e.el)}</span>}
+            {audience !== 'public' && <span className="mono">{formatAngle(e.el)}</span>}
             {e.side === 'right' && <ArrowRight {...EDGE_ICON} />}
           </button>
         ))}
-      <span className="scene-legend" title={audience === 'student' ? 'Sun and Earth are drawn at their real size in the sky' : undefined}>
-        {audience === 'student' && !panorama ? (
+      <span className="scene-legend" title={audience === 'public' ? 'Sun and Earth are drawn at their real size in the sky' : undefined}>
+        {audience === 'public' && !panorama ? (
           <>
             <Info size={16} strokeWidth={1.75} aria-hidden="true" />
             Real size
@@ -467,17 +467,17 @@ function labelSpec(body: 'sun' | 'earth', at: BodyAtTime, audience: Audience, li
   }
   const label =
     eclipse > 0
-      ? audience === 'student'
+      ? audience === 'public'
         ? 'Eclipse! Earth hides the Sun'
         : `Eclipse · Earth covers ${eclipse >= 1 ? 'all' : `${Math.round(eclipse * 100)}%`} of the Sun`
-      : audience === 'student'
+      : audience === 'public'
         ? hidden
           ? `${name} · behind the hills`
           : name
         : hidden
           ? `${name} · hidden, ${formatAngle(Math.abs(margin))} below the hills`
           : `${name} · ${formatAngle(margin)} above the hills`
-  return { body, lines: [label], state: '', w: Math.ceil((label.length * (audience === 'student' ? 12.5 : 10.4) + 32) / 8) * 8, h: 48 }
+  return { body, lines: [label], state: '', w: Math.ceil((label.length * (audience === 'public' ? 12.5 : 10.4) + 32) / 8) * 8, h: 48 }
 }
 
 function overlapArea(a: Rect, b: Rect, pad = 8): number {

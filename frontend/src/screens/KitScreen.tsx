@@ -251,8 +251,8 @@ export function KitScreen() {
             <thead>
               <tr>
                 <th scope="col">What changes</th>
-                <th scope="col">Student</th>
-                <th scope="col">Teacher</th>
+                <th scope="col">General Public</th>
+                <th scope="col">Educator</th>
                 <th scope="col">Planner</th>
               </tr>
             </thead>
