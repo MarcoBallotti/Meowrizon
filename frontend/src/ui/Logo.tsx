@@ -35,10 +35,10 @@ export function Logo({ size = 44, tone = 'light', markOnly = false, href }: Logo
     <>
       <DomeCatMark size={size} tone={tone} />
       {markOnly ? (
-        <span className="sr-only">Meowrizon</span>
+        <span className="sr-only">Moonrizon</span>
       ) : (
         <span className="ui-logo-word" style={{ fontSize: size * 0.64 }}>
-          Meowrizon
+          Moonrizon
         </span>
       )}
     </>

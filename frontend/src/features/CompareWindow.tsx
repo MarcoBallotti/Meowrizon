@@ -181,16 +181,10 @@ export function CompareWindow({ profile, evaluation, cursorMs, audience, view, s
             })}
           </g>
 
+          {/* Above the frame: a small marker on the top edge; the chip under the window gives the height. */}
           {above.map((b) => {
-            const x = Math.max(48, Math.min(w - 48, b.x))
-            return (
-              <g key={b.body} className="hc-above">
-                <path d={`M${x} 6 L${x - 5} 14 L${x + 5} 14 Z`} fill={b.fill} />
-                <text x={x} y={30} textAnchor="middle">
-                  {b.body} {Math.round(b.el)}° up
-                </text>
-              </g>
-            )
+            const x = Math.max(8, Math.min(w - 8, b.x))
+            return <path key={b.body} d={`M${x} 2 L${x - 6} 10 L${x + 6} 10 Z`} fill={b.fill} />
           })}
         </svg>
       )}

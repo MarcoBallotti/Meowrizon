@@ -2,7 +2,7 @@
  * Up to four horizons side by side on one clock. Every window shows the same
  * UTC instant; the shared timeline below moves all of them together.
  */
-import { Maximize2, Pencil, X } from 'lucide-react'
+import { ArrowUp, Maximize2, Pencil, X } from 'lucide-react'
 import { useEffect, useMemo, type KeyboardEvent, type PointerEvent } from 'react'
 import { currentCompareSite, openComparePicker, SLOT_LETTERS } from '../features/compareSlots'
 import { CompareWindow } from '../features/CompareWindow'
@@ -111,75 +111,89 @@ export function CompareScreen() {
     )
   }
 
+  const pixelSizes = [...new Set(sites.map((c) => runs[c.key]?.terrain?.profile.dem.effectivePixelSizeM).filter((v): v is number => v !== undefined))]
+
   return (
-    <div className="site-page hc-page">
+    <div className="site-page hc-page" data-n={sites.length}>
       <TopBar start={<CompareTitle count={sites.length} startMs={startMs} days={durationDays} />}>
         <Button variant="secondary" size="s" icon={<Pencil {...ICON} />} onClick={() => paired ? goTo('moon') : openComparePicker()}>
           {paired ? 'Change the selected site' : 'Edit sites'}
         </Button>
       </TopBar>
 
-      <section className="ui-card is-tight hc-controls" aria-label="Clock">
-        <IconButton aria-label={playing ? 'Pause' : 'Play'} onClick={() => setState({ playing: !playing })}>
-          {playing ? <PauseIcon /> : <PlayIcon />}
-        </IconButton>
-        <div className="hc-when">
-          <b className="mono">{paired && mode === 'dates' ? `Day ${Math.floor(offset / 86400000) + 1} · ${Math.floor(offset / 3600000) % 24}:00 elapsed` : `${formatUtc(startMs + offset)} UTC`}</b>
-          <span className="ui-small ui-muted">{paired && mode === 'dates' ? 'Same elapsed time in both periods; UTC dates differ' : 'Same instant at every site'}</span>
-        </div>
-        <div className="hc-controls-end">
-          {audience === 'planner' && (
-            <label>
-              <span className="sr-only">Playback speed</span>
-              <Select inputSize="s" value={speed} onChange={(e) => setState({ speed: Number(e.target.value) })}>
-                {SPEEDS.map((v) => (
-                  <option key={v} value={v}>
-                    {v} h per second
-                  </option>
-                ))}
-              </Select>
-            </label>
-          )}
-          <Segmented<CompareView>
-            label="View"
-            size="s"
-            value={view}
-            onChange={(v) => setState({ compareView: v })}
-            options={[
-              { value: 'circle', label: 'Full circle', title: 'All around, same scale in every window' },
-              { value: 'sun', label: 'Follow the Sun', title: 'Each window faces its own Sun, true proportions' },
-            ]}
-          />
-        </div>
-      </section>
-
       {audience === 'educator' && <ExperimentBar />}
 
-      <div className="hc-grid" data-n={sites.length}>
-        {sites.map((c, i) => (
-          <ComparePanel
-            key={c.key}
-            letter={SLOT_LETTERS[i]}
-            entry={c}
-            run={runs[c.key]}
-            cursorMs={slotCursor(c, startMs, offset)}
-            audience={audience}
-            view={view}
-            scale={scale}
-            facingAz={facingAz}
-            startMs={slotStart(c, startMs)}
-            spanMs={span}
-          />
-        ))}
-      </div>
-      <p className="hc-scale-note ui-small ui-muted">
-        {view === 'circle'
-          ? `Full circle, facing ${facingAz === 0 ? 'north' : 'south'} in the middle. Every window uses the same scale; heights are stretched so low ridges read, and the Sun and Earth are drawn larger than life.${audience === 'planner' ? ' Dots trace the Sun’s path over the period.' : ''}`
-          : 'Each window turns to face its own Sun, at true proportions.'}
-      </p>
+      <div className="hc-stage">
+        <div className="hc-grid" data-n={sites.length}>
+          {sites.map((c, i) => (
+            <ComparePanel
+              key={c.key}
+              letter={SLOT_LETTERS[i]}
+              entry={c}
+              run={runs[c.key]}
+              cursorMs={slotCursor(c, startMs, offset)}
+              audience={audience}
+              view={view}
+              scale={scale}
+              facingAz={facingAz}
+              startMs={slotStart(c, startMs)}
+              spanMs={span}
+              paired={paired}
+              datesMode={paired && mode === 'dates'}
+            />
+          ))}
+        </div>
+        <p className="hc-scale-note ui-muted">
+          {view === 'circle'
+            ? `Full circle, ${facingAz === 0 ? 'north' : 'south'} in the middle, one height scale for every window. Heights are stretched; the Sun and Earth are drawn larger than life.`
+            : 'Each window faces its own Sun. Sun, Earth and hills at true proportions.'}
+        </p>
 
+        <section className="ui-card is-tight hc-player" aria-label="Clock and period">
+          <div className="hc-controls">
+            <IconButton size="s" aria-label={playing ? 'Pause' : 'Play'} onClick={() => setState({ playing: !playing })}>
+              {playing ? <PauseIcon /> : <PlayIcon />}
+            </IconButton>
+            <div className="hc-when">
+              <b className="mono">{paired && mode === 'dates' ? `Day ${Math.floor(offset / 86400000) + 1} · ${Math.floor(offset / 3600000) % 24}:00 elapsed` : `${formatUtc(startMs + offset)} UTC`}</b>
+              <span className="ui-muted">{paired && mode === 'dates' ? 'Same elapsed time in both periods · drag the bars to move' : 'Same instant at every site · drag the bars to move'}</span>
+            </div>
+            <div className="hc-controls-end">
+              {audience === 'planner' && (
+                <label>
+                  <span className="sr-only">Playback speed</span>
+                  <Select inputSize="s" value={speed} onChange={(e) => setState({ speed: Number(e.target.value) })}>
+                    {SPEEDS.map((v) => (
+                      <option key={v} value={v}>
+                        {v} h per second
+                      </option>
+                    ))}
+                  </Select>
+                </label>
+              )}
+              <Segmented<CompareView>
+                label="View"
+                size="s"
+                value={view}
+                onChange={(v) => setState({ compareView: v })}
+                options={[
+                  { value: 'circle', label: 'Full circle', title: 'All around, same scale in every window' },
+                  { value: 'sun', label: 'Follow the Sun', title: 'Each window faces its own Sun, true proportions' },
+                ]}
+              />
+            </div>
+          </div>
+          <SharedTimeline sites={sites} runs={runs} startMs={startMs} spanMs={span} offset={offset} audience={audience} />
+        </section>
+      </div>
+
+      {audience !== 'public' && <NumbersTable sites={sites} runs={runs} startMs={startMs} spanMs={span} />}
       {audience === 'educator' && <LearningSummary sites={sites} runs={runs} startMs={startMs} spanMs={span} />}
-      <SharedTimeline sites={sites} runs={runs} startMs={startMs} spanMs={span} offset={offset} audience={audience} />
+      {pixelSizes.length > 0 && (
+        <p className="hc-footnote ui-muted">
+          Terrain sampled every {pixelSizes.map((m) => `${Math.round(m)} m`).join(' or ')}. Narrow ridges and small obstacles may be missing.
+        </p>
+      )}
     </div>
   )
 }
@@ -212,13 +226,14 @@ interface PanelProps {
   facingAz: number
   startMs: number
   spanMs: number
+  paired: boolean
+  datesMode: boolean
 }
 
-function ComparePanel({ letter, entry, run, cursorMs, audience, view, scale, facingAz, startMs, spanMs }: PanelProps) {
-  const experiment = useStore((s) => s.experiment)
+function ComparePanel({ letter, entry, run, cursorMs, audience, view, scale, facingAz, startMs, spanMs, paired, datesMode }: PanelProps) {
+  const experimentTrails = useStore((s) => s.experiment.trails)
   const flat = entry.horizonMode === 'ideal'
-  const paired = audience === 'educator' && experiment.mode !== undefined && experiment.mode !== 'sites'
-  const trails = audience === 'planner' || (audience === 'educator' && experiment.trails)
+  const trails = audience === 'planner' || (audience === 'educator' && experimentTrails)
   const phase = run?.phase ?? 'idle'
   const terrain = run?.terrain
   const evaluation = run?.phase === 'ready' && !run.stale ? run.evaluation : undefined
@@ -233,111 +248,201 @@ function ComparePanel({ letter, entry, run, cursorMs, audience, view, scale, fac
     setScenarioInput('A', { site: entry.site, siteName: entry.name, startMs })
     goTo('site')
   }
+  const detail = datesMode
+    ? `${formatUtc(cursorMs)} UTC`
+    : flat
+      ? 'Ideal 0° horizon'
+      : terrain?.origin === 'demo'
+        ? 'Practice terrain'
+        : `${formatLat(entry.site.latDeg, 2)} ${formatLon(entry.site.lonEastDeg, 2)}`
 
   return (
-    <article className="hc-panel" aria-label={`${letter}: ${entry.name}`}>
-      <header className="hc-panel-head">
-        <span className="hc-badge">{letter}</span>
-        <div className="hc-panel-name">
-          <b title={entry.name}>{entry.name}</b>
-          <span className="mono ui-muted">
-            {formatLat(entry.site.latDeg, 2)} · {formatLon(entry.site.lonEastDeg, 2)}
-          </span>
-        </div>
-        {!flat && <button type="button" className="hc-icon-btn" onClick={open} title="Open this site" aria-label={`Open ${entry.name}`}>
-          <Maximize2 {...ICON} />
-        </button>}
-        {!paired && <button type="button" className="hc-icon-btn" onClick={remove} title="Remove from comparison" aria-label={`Remove ${entry.name}`}>
-          <X {...ICON} />
-        </button>}
-      </header>
-
-      <p className="ui-small ui-muted">{formatUtc(cursorMs)} UTC · {spanMs / 86400000} days{flat ? ' · ideal zero-degree horizon' : terrain?.origin === 'demo' ? ' · synthetic terrain horizon' : ' · real terrain horizon'}</p>
-      <SpaceWindow className="hc-window">
-        {phase === 'error' && !evaluation ? (
-          <div className="hc-window-error">
-            <Notice tone="danger">
-              <strong>We could not calculate this site.</strong> {run?.error}{' '}
-              <Button size="s" variant="inverse" onClick={() => retryCompareSite(entry)}>
-                Try again
-              </Button>
-            </Notice>
+    <article className="hc-tile" aria-label={`${letter}: ${entry.name}`}>
+      <div className="hc-tile-in">
+        <SpaceWindow className="hc-window">
+          {phase === 'error' && !evaluation ? (
+            <div className="hc-window-error">
+              <Notice tone="danger">
+                <strong>We could not calculate this site.</strong> {run?.error}{' '}
+                <Button size="s" variant="inverse" onClick={() => retryCompareSite(entry)}>
+                  Try again
+                </Button>
+              </Notice>
+            </div>
+          ) : (
+            <Building
+              busy={busy}
+              progress={overall(phase, run?.progress)}
+              phase={run?.message ?? (phase === 'ephemeris' ? 'Tracking the Sun and Earth…' : 'Tracing the hills around the site…')}
+              tone="dark"
+              minHeight={0}
+              className="hc-building"
+            >
+              {terrain && evaluation && (
+                <CompareWindow profile={flat ? flatProfile(terrain.profile) : terrain.profile} evaluation={evaluation} cursorMs={cursorMs} audience={audience} view={view} scale={scale} facingAz={facingAz} trails={trails} />
+              )}
+            </Building>
+          )}
+          <div className="hc-tag" title={entry.name}>
+            <span className="hc-badge">{letter}</span>
+            <b>{shortName(entry.name)}</b>
+            <span className="hc-tag-detail">{detail}</span>
           </div>
-        ) : (
-          <Building
-            busy={busy}
-            progress={overall(phase, run?.progress)}
-            phase={run?.message ?? (phase === 'ephemeris' ? 'Tracking the Sun and Earth…' : 'Tracing the hills around the site…')}
-            tone="dark"
-            minHeight={0}
-            className="hc-building"
-          >
-            {terrain && evaluation && (
-              <CompareWindow profile={flat ? flatProfile(terrain.profile) : terrain.profile} evaluation={evaluation} cursorMs={cursorMs} audience={audience} view={view} scale={scale} facingAz={facingAz} trails={trails} />
+          <div className="hc-tools">
+            {!flat && (
+              <button type="button" className="hc-dark-btn" onClick={open} title="Open this site" aria-label={`Open ${entry.name}`}>
+                <Maximize2 {...ICON} />
+              </button>
             )}
-          </Building>
-        )}
-      </SpaceWindow>
+            {!paired && (
+              <button type="button" className="hc-dark-btn" onClick={remove} title="Remove from comparison" aria-label={`Remove ${entry.name}`}>
+                <X {...ICON} />
+              </button>
+            )}
+          </div>
+        </SpaceWindow>
 
-      {evaluation && <PanelStatus evaluation={evaluation} cursorMs={cursorMs} audience={audience} />}
-      {now && <PanelMetrics now={now} prev={prev} audience={audience} startMs={startMs} />}
-      {terrain && <p className="ui-small ui-muted">Terrain sampling: {terrain.profile.dem.effectivePixelSizeM} m. Narrow ridges and small obstacles may be unresolved.</p>}
+        <div className="hc-side">
+          <PanelStatus evaluation={evaluation} cursorMs={cursorMs} audience={audience} aboveEl={view === 'circle' ? scale.hi : Infinity} />
+          <PanelMetrics now={now} prev={prev} startMs={startMs} />
+        </div>
+      </div>
     </article>
   )
 }
 
-function PanelStatus({ evaluation, cursorMs, audience }: { evaluation: NonNullable<ScenarioRun['evaluation']>; cursorMs: number; audience: Audience }) {
+function PanelStatus({ evaluation, cursorMs, audience, aboveEl }: { evaluation: ScenarioRun['evaluation'] | undefined; cursorMs: number; audience: Audience; aboveEl: number }) {
+  if (!evaluation) {
+    return (
+      <div className="hc-status" aria-hidden="true">
+        <Chip tone="off">Waiting for the result</Chip>
+      </div>
+    )
+  }
   const sun = bodyAt(evaluation, evaluation.sun, evaluation.intervals.sun, cursorMs)
   const earth = bodyAt(evaluation, evaluation.earth, evaluation.intervals.earth, cursorMs)
-  const word = (name: string, b: typeof sun) => (b.visible ? `${name} in view` : b.elevationDeg > 0 ? `${name} behind the hills` : `${name} below the horizon`)
+  const planner = audience === 'planner'
+  const chip = (name: string, b: typeof sun, tone: 'sun' | 'earth') => {
+    const word = b.visible ? `${name} in view` : b.elevationDeg > 0 ? `${name} behind hills` : `${name} below horizon`
+    const above = b.visible && b.elevationDeg > aboveEl
+    const extra = planner ? ` · ${formatAngle(b.elevationDeg, 2)}` : above ? ` · ${Math.round(b.elevationDeg)}° up` : ''
+    return (
+      <Chip tone={b.visible ? tone : 'off'} dot title={planner ? `Elevation ${formatAngle(b.elevationDeg, 2)}, azimuth ${Math.round(b.azimuthDeg)}°, ridge ${formatAngle(b.horizonDeg, 2)}` : undefined}>
+        {word}
+        {extra && <span className={planner && !above ? 'hc-chip-val' : undefined}>{extra}</span>}
+        {above && <ArrowUp size={16} strokeWidth={1.75} aria-label="above this view" />}
+      </Chip>
+    )
+  }
   return (
-    <>
-      <div className="hc-status" aria-live="off">
-        <Chip tone={sun.visible ? 'sun' : 'off'} dot>
-          {word('Sun', sun)}
-        </Chip>
-        <Chip tone={earth.visible ? 'earth' : 'off'} dot>
-          {word('Earth', earth)}
-        </Chip>
-      </div>
-      {audience === 'planner' && (
-        <p className="hc-readout mono ui-muted">
-          Sun el {formatAngle(sun.elevationDeg, 2)} az {Math.round(sun.azimuthDeg)}° · ridge {formatAngle(sun.horizonDeg, 2)} · Earth el {formatAngle(earth.elevationDeg, 2)}
-        </p>
-      )}
-    </>
+    <div className="hc-status">
+      {chip('Sun', sun, 'sun')}
+      {chip('Earth', earth, 'earth')}
+    </div>
   )
 }
 
-function PanelMetrics({ now, prev, audience, startMs }: { now: SiteSummary; prev: SiteSummary | null; audience: Audience; startMs: number }) {
+interface Row {
+  label: string
+  get: (s: SiteSummary) => number | undefined
+  format: (v: number) => string
+  unit: string
+  better: 'higher' | 'lower'
+}
+
+const pct = (v: number) => Math.round(v * 100)
+const ROWS: Record<string, Row> = {
+  sun: { label: 'Sunlit', get: (s) => pct(s.sun), format: (v) => `${v}%`, unit: '', better: 'higher' },
+  earth: { label: 'Earth in view', get: (s) => pct(s.earth), format: (v) => `${v}%`, unit: '', better: 'higher' },
+  both: { label: 'Sun and Earth', get: (s) => pct(s.both), format: (v) => `${v}%`, unit: '', better: 'higher' },
+  night: { label: 'Longest night', get: (s) => Math.round(s.nightH), format: (v) => `${v} h`, unit: ' h', better: 'lower' },
+  outage: { label: 'Longest time without Earth', get: (s) => s.earthOutageH, format: (v) => `${v.toFixed(1)} h`, unit: ' h', better: 'lower' },
+  joint: { label: 'Longest shared window', get: (s) => s.jointWindowH, format: (v) => `${v.toFixed(1)} h`, unit: ' h', better: 'higher' },
+}
+
+function PanelMetrics({ now, prev, startMs }: { now: SiteSummary | null; prev: SiteSummary | null; startMs: number }) {
   const vs = `vs ${previousMonthName(startMs)}`
-  const pct = (v: number) => Math.round(v * 100)
-  const items: { label: string; value: string; delta: number | null; unit: string; better: 'higher' | 'lower' }[] = [
-    { label: 'Sunlit', value: `${pct(now.sun)}%`, delta: prev ? pct(now.sun) - pct(prev.sun) : null, unit: '', better: 'higher' },
-  ]
-  if (audience !== 'public') {
-    items.push(
-      { label: 'Earth in view', value: `${pct(now.earth)}%`, delta: prev ? pct(now.earth) - pct(prev.earth) : null, unit: '', better: 'higher' },
-      { label: 'Sun and Earth', value: `${pct(now.both)}%`, delta: prev ? pct(now.both) - pct(prev.both) : null, unit: '', better: 'higher' },
-      { label: 'Longest night', value: `${Math.round(now.nightH)} h`, delta: prev ? Math.round(now.nightH) - Math.round(prev.nightH) : null, unit: ' h', better: 'lower' },
-      { label: 'Longest time without Earth', value: now.earthOutageH === undefined ? 'Unknown' : `${now.earthOutageH.toFixed(1)} h`, delta: null, unit: ' h', better: 'lower' },
-      { label: 'Longest shared window', value: now.jointWindowH === undefined ? 'Unknown' : `${now.jointWindowH.toFixed(1)} h`, delta: null, unit: ' h', better: 'higher' },
-    )
-  } else {
-    items.push({ label: 'Earth in view', value: `${pct(now.earth)}%`, delta: prev ? pct(now.earth) - pct(prev.earth) : null, unit: '', better: 'higher' })
-  }
+  const rows = [ROWS.sun, ROWS.earth]
   return (
-    <dl className="hc-metrics">
-      {items.map((m) => (
-        <div key={m.label} className="hc-metric">
-          <dt>{m.label}</dt>
-          <dd className="mono">
-            {m.value}
-            {m.delta !== null && <Delta value={m.delta} unit={m.unit} better={m.better} suffix={vs} />}
-          </dd>
-        </div>
-      ))}
+    <dl className="hc-nums" data-count={rows.length}>
+      {rows.map((r) => {
+        const v = now ? r.get(now) : undefined
+        const p = prev ? r.get(prev) : undefined
+        return (
+          <div key={r.label} className="ui-metric">
+            <dt className="ui-metric-label">{r.label}</dt>
+            <dd className="ui-metric-value">
+              {v === undefined ? <span className="ui-muted">–</span> : r.format(v)}
+              {v !== undefined && p !== undefined && <Delta value={v - p} unit={r.unit} better={r.better} suffix={vs} />}
+            </dd>
+          </div>
+        )
+      })}
     </dl>
+  )
+}
+
+/** Every number, one column per site, the best one in bold. */
+function NumbersTable({ sites, runs, startMs, spanMs }: { sites: CompareSite[]; runs: Record<string, ScenarioRun>; startMs: number; spanMs: number }) {
+  const audience = useStore((s) => s.audience)
+  const summaries = sites.map((c) => {
+    const run = runs[c.key]
+    const from = slotStart(c, startMs)
+    const ev = run?.phase === 'ready' && !run.stale ? run.evaluation : undefined
+    return {
+      now: ev ? summarize(ev, from, from + spanMs) : null,
+      prev: run?.previous ? summarize(run.previous, from - spanMs, from) : null,
+    }
+  })
+  const rows = Object.values(ROWS)
+  const vs = `vs ${previousMonthName(startMs)}`
+  return (
+    <section className="ui-card hc-table-card" aria-labelledby="hc-table-title">
+      <h2 className="ui-title" id="hc-table-title">
+        All numbers for the period
+      </h2>
+      <div className="hc-table-wrap">
+        <table className="hc-table">
+          <thead>
+            <tr>
+              <th scope="col">
+                <span className="sr-only">Measure</span>
+              </th>
+              {sites.map((c, i) => (
+                <th key={c.key} scope="col">
+                  <span className="hc-badge is-light">{SLOT_LETTERS[i]}</span>
+                  <span className="hc-table-site" title={c.name}>
+                    {shortName(c.name)}
+                  </span>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => {
+              const values = summaries.map((s) => (s.now ? r.get(s.now) : undefined))
+              const known = values.filter((v): v is number => v !== undefined)
+              const best = known.length > 1 && new Set(known).size > 1 ? (r.better === 'higher' ? Math.max(...known) : Math.min(...known)) : undefined
+              return (
+                <tr key={r.label}>
+                  <th scope="row">{r.label}</th>
+                  {values.map((v, i) => {
+                    const p = summaries[i].prev ? r.get(summaries[i].prev!) : undefined
+                    return (
+                      <td key={sites[i].key} className={v !== undefined && v === best ? 'is-best' : undefined}>
+                        {v === undefined ? <span className="ui-muted">{summaries[i].now ? 'Unknown' : '–'}</span> : r.format(v)}
+                        {v !== undefined && p !== undefined && <Delta value={v - p} unit={r.unit} better={r.better} suffix={audience === 'planner' ? vs : undefined} />}
+                      </td>
+                    )
+                  })}
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+      <p className="ui-muted hc-table-note">Bold marks the best site on each line. The small number is the change {vs}.</p>
+    </section>
   )
 }
 
@@ -376,25 +481,18 @@ function SharedTimeline({ sites, runs, startMs, spanMs, offset, audience }: Time
   }
 
   return (
-    <section className="ui-card hc-timeline" aria-labelledby="hc-tl-title">
-      <div className="hc-timeline-head">
-        <h2 className="ui-title" id="hc-tl-title">
-          The period at a glance
-        </h2>
-        <div className="hc-legend ui-small ui-muted">
-          <span><i className="is-sun" />Sun in view</span>
-          <span><i className="is-earth" />Earth in view</span>
-          <span>Drag to move the clock</span>
-        </div>
-      </div>
-      <div className="hc-timeline-body">
+    <div className="hc-timeline-body">
         <div className="hc-timeline-labels" aria-hidden="true">
           {sites.map((c, i) => (
             <span key={c.key} className="hc-timeline-label">
-              <span className="hc-badge">{SLOT_LETTERS[i]}</span>
-              <span className="hc-timeline-name">{shortName(c.name)}{!runs[c.key]?.evaluation ? ' · awaiting result' : ''}</span>
+              <span className="hc-badge is-light">{SLOT_LETTERS[i]}</span>
+              <span className="hc-timeline-name">{shortName(c.name)}</span>
             </span>
           ))}
+          <span className="hc-legend">
+            <span><i className="is-sun" />Sun</span>
+            <span><i className="is-earth" />Earth</span>
+          </span>
         </div>
         <div
           className="hc-timeline-bars"
@@ -435,7 +533,6 @@ function SharedTimeline({ sites, runs, startMs, spanMs, offset, audience }: Time
           <span className="timeline-cursor" style={{ left: `${(offset / spanMs) * 100}%` }} aria-hidden="true" />
         </div>
       </div>
-    </section>
   )
 }
 

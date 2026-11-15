@@ -10,12 +10,13 @@
   width: 24px;
   height: 24px;
   flex: none;
-  border-radius: 6px;
+  border-radius: var(--r-pill);
   background: var(--ink);
   color: var(--card);
-  font-family: var(--font-data);
+  font-family: var(--font-text);
   font-size: 13px;
   font-weight: 600;
+  line-height: 1;
 }
 
 .hc-icon-btn {
@@ -319,7 +320,12 @@
   font-size: 12px;
 }
 
-/* ---------------------------------------------------------------- screen */
+/* ---------------------------------------------------------------- screen
+   One stage fills the viewport: clock, windows, timeline. Four sites sit in
+   a 2 × 2 grid; two or three run full width, one above the other, so the
+   same compass direction lines up from window to window. Everything else
+   (all the numbers, the notes) follows below the stage.
+   ------------------------------------------------------------------------ */
 
 .site-page .topbar-middle {
   display: flex;
@@ -331,11 +337,29 @@
   flex: none;
 }
 
+.hc-page {
+  gap: var(--s-4);
+  padding-bottom: var(--s-6);
+}
+
 .hc-empty {
   max-width: 560px;
 }
 
+.hc-stage {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+/* ---- player: clock, view and the period's bars in one card */
+
+.hc-player.ui-card {
+  gap: var(--s-3);
+}
+
 .hc-controls {
+  display: flex;
   flex-direction: row;
   flex-wrap: wrap;
   align-items: center;
@@ -346,9 +370,11 @@
   display: flex;
   flex-direction: column;
   min-width: 200px;
+  font-size: var(--text-s);
 }
 
 .hc-when b {
+  font-size: var(--text-m);
   font-weight: 600;
 }
 
@@ -360,84 +386,39 @@
   margin-left: auto;
 }
 
+/* ---- grid of windows */
+
 .hc-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: var(--s-4);
+  gap: var(--s-3);
 }
 
-@media (min-width: 720px) {
-  .hc-grid[data-n='2'],
+@media (min-width: 1024px) {
   .hc-grid[data-n='4'] {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-@media (min-width: 900px) {
-  .hc-grid[data-n='3'] {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-
-.hc-panel {
-  display: flex;
-  flex-direction: column;
+.hc-tile {
+  container-type: inline-size;
   min-width: 0;
+  padding: var(--s-2);
   border-radius: var(--r-card);
   background: var(--card);
-  overflow: hidden;
 }
 
-.hc-panel-head {
+.hc-tile-in {
   display: flex;
-  align-items: center;
-  gap: var(--s-2);
-  padding: var(--s-2) var(--s-2) var(--s-2) var(--s-3);
-}
-
-.hc-panel-name {
-  display: flex;
-  flex: 1;
   flex-direction: column;
-  min-width: 0;
-  line-height: 1.3;
-}
-
-.hc-panel-name b {
-  font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.hc-panel-name .mono {
-  font-size: 12px;
+  gap: var(--s-2);
+  height: 100%;
 }
 
 .hc-window.ui-space {
   position: relative;
-  aspect-ratio: 16 / 8;
-  max-width: 100%;
-  border-radius: 0;
-}
-
-/* One column (phones, or three sites on a narrow screen): keep windows short. */
-@media (max-width: 719px) {
-  .hc-window.ui-space {
-    aspect-ratio: 16 / 7;
-  }
-}
-
-@media (min-width: 900px) {
-  .hc-grid[data-n='3'] .hc-window.ui-space {
-    aspect-ratio: 16 / 11;
-  }
-}
-
-@media (min-width: 720px) and (max-width: 899px) {
-  .hc-grid[data-n='3'] .hc-window.ui-space {
-    aspect-ratio: 16 / 6;
-  }
+  aspect-ratio: 16 / 7;
+  border-radius: var(--r-control);
 }
 
 .hc-building,
@@ -450,13 +431,196 @@
   display: block;
 }
 
+/* The loading label sits at the bottom, so the site name stays readable. */
+.hc-window .ui-building-phase {
+  top: auto;
+  bottom: var(--s-2);
+  left: var(--s-2);
+  font-size: 13px;
+}
+
 .hc-window-error {
   position: absolute;
   inset: 0;
+  z-index: 2;
   display: grid;
   place-items: center;
   padding: var(--s-3);
 }
+
+/* Name and tools float on the window, as translucent pills. */
+.hc-tag {
+  position: absolute;
+  top: var(--s-2);
+  left: var(--s-2);
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  max-width: calc(100% - 112px);
+  height: 40px;
+  padding: 0 var(--s-3) 0 var(--s-2);
+  border-radius: var(--r-pill);
+  background: var(--space-2);
+  color: var(--space-ink);
+  font-size: var(--text-s);
+  white-space: nowrap;
+}
+
+.hc-tag b {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hc-tag .hc-badge {
+  background: var(--space-ink);
+  color: var(--space);
+}
+
+.hc-tag-detail {
+  color: var(--space-ink-2);
+  font-family: var(--font-data);
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hc-tools {
+  position: absolute;
+  top: var(--s-2);
+  right: var(--s-2);
+  z-index: 4;
+  display: flex;
+  gap: var(--s-2);
+}
+
+.hc-dark-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--space-2);
+  color: var(--space-ink);
+  cursor: pointer;
+  transition: background var(--t-fast) var(--ease);
+}
+
+.hc-dark-btn:hover {
+  background: var(--space-line);
+}
+
+.hc-dark-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--space), 0 0 0 4px var(--space-ink);
+}
+
+/* Live state and the period's numbers under (or beside) the window. */
+.hc-side {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2) var(--s-3);
+  padding: 0 var(--s-2) var(--s-1);
+}
+
+.hc-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+
+.hc-status .ui-chip {
+  font-size: var(--text-s);
+}
+
+.hc-nums {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2) var(--s-5);
+  margin: 0 0 0 auto;
+}
+
+.hc-nums .ui-metric {
+  gap: 0;
+}
+
+.hc-nums dd {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  margin: 0;
+}
+
+.hc-nums .ui-delta {
+  font-size: 13px;
+}
+
+/* A wide tile (two or three sites on a big screen): numbers to the right. */
+@container (min-width: 880px) {
+  .hc-tile-in {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 304px;
+  }
+  .hc-side {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    justify-content: center;
+    gap: var(--s-3);
+    padding: var(--s-2) var(--s-2) var(--s-2) var(--s-1);
+  }
+  .hc-nums {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--s-3);
+    margin: 0;
+  }
+}
+
+@container (max-width: 520px) {
+  .hc-tag-detail {
+    display: none;
+  }
+}
+
+@container (max-width: 680px) {
+  .hc-chip-val {
+    display: none;
+  }
+}
+
+.hc-scale-note {
+  margin: calc(var(--s-2) * -1) 0 0;
+  font-size: var(--text-s);
+}
+
+/* ---- the stage fills the screen when there is room */
+
+@media (min-width: 720px) and (min-height: 600px) {
+  .hc-stage {
+    min-height: calc(100dvh - 112px);
+  }
+  .hc-grid {
+    flex: 1 1 0;
+    grid-auto-rows: minmax(176px, 1fr);
+  }
+  .hc-grid[data-n='3'] {
+    grid-auto-rows: minmax(144px, 1fr);
+  }
+  .hc-grid[data-n='4'] {
+    grid-auto-rows: minmax(224px, 1fr);
+  }
+  .hc-window.ui-space {
+    flex: 1 1 0;
+    min-height: 112px;
+    aspect-ratio: auto;
+  }
+}
+
+/* ---- window drawing */
 
 .hc-sun-path {
   stroke: var(--sun);
@@ -487,92 +651,14 @@
   stroke: var(--earth-sky);
 }
 
-.hc-compass text,
-.hc-above text {
-  fill: var(--space-ink);
-  font-family: var(--font-data);
-  font-size: 11px;
-}
-
 .hc-compass text {
-  opacity: 0.8;
-}
-
-.hc-status {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--s-2);
-  padding: var(--s-3) var(--s-3) 0;
-}
-
-.hc-readout {
-  margin: 0;
-  padding: var(--s-2) var(--s-3) 0;
-  font-size: 12px;
-}
-
-.hc-metrics {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(136px, 1fr));
-  gap: var(--s-2) var(--s-3);
-  margin: 0;
-  padding: var(--s-2) var(--s-3) var(--s-3);
-}
-
-.hc-metric dt {
-  color: var(--ink-2);
+  fill: var(--space-ink-2);
+  font-family: var(--font-text);
   font-size: 13px;
-}
-
-.hc-metric dd {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0 var(--s-2);
-  margin: 0;
-  font-size: var(--text-m);
   font-weight: 600;
-  font-variant-numeric: tabular-nums;
 }
 
-.hc-metric .ui-delta {
-  font-size: 12px;
-  font-weight: 400;
-}
-
-.hc-scale-note {
-  margin: calc(var(--s-3) * -1) 0 0;
-}
-
-.hc-timeline-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--s-2) var(--s-4);
-}
-
-.hc-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--s-3);
-}
-
-.hc-legend i {
-  display: inline-block;
-  width: 16px;
-  height: 8px;
-  margin-right: var(--s-2);
-  border-radius: 2px;
-  vertical-align: middle;
-}
-
-.hc-legend i.is-sun {
-  background: var(--sun);
-}
-
-.hc-legend i.is-earth {
-  background: var(--earth);
-}
+/* ---- shared timeline */
 
 .hc-timeline-body {
   display: grid;
@@ -583,30 +669,58 @@
 .hc-timeline-labels {
   display: flex;
   flex-direction: column;
-  gap: var(--s-3);
+  gap: var(--s-2);
 }
 
 .hc-timeline-label {
   display: flex;
   align-items: center;
   gap: var(--s-2);
-  height: 32px;
+  height: 24px;
   font-size: var(--text-s);
   font-weight: 600;
 }
 
 .hc-timeline-name {
-  max-width: 160px;
+  max-width: 176px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.hc-legend {
+  display: flex;
+  gap: var(--s-3);
+  height: 20px;
+  margin-top: var(--s-1);
+  align-items: center;
+  color: var(--ink-2);
+  font-size: 13px;
+}
+
+.hc-legend i {
+  display: inline-block;
+  width: 16px;
+  height: 8px;
+  margin-right: var(--s-1);
+  border-radius: var(--r-pill);
+  vertical-align: middle;
+}
+
+.hc-legend i.is-sun {
+  background: var(--sun);
+}
+
+.hc-legend i.is-earth {
+  height: 4px;
+  background: var(--earth);
 }
 
 .hc-timeline-bars {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: var(--s-3);
+  gap: var(--s-2);
   cursor: ew-resize;
   touch-action: none;
 }
@@ -622,12 +736,87 @@
   flex-direction: column;
   justify-content: center;
   gap: var(--s-1);
-  height: 32px;
+  height: 24px;
+}
+
+.hc-timeline-row .ui-track.is-s {
+  height: 8px;
 }
 
 .hc-timeline-row .ui-track.is-earth {
   height: 4px;
 }
+
+/* ---- all numbers */
+
+.hc-table-wrap {
+  overflow-x: auto;
+}
+
+.hc-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-m);
+}
+
+.hc-table th,
+.hc-table td {
+  padding: var(--s-2) var(--s-3);
+  border-bottom: 1px solid var(--line-soft);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.hc-table tr > :first-child {
+  padding-left: 0;
+}
+
+.hc-table thead th {
+  font-size: var(--text-s);
+  font-weight: 600;
+}
+
+.hc-table thead th > * {
+  vertical-align: middle;
+}
+
+.hc-table-site {
+  display: inline-block;
+  max-width: 200px;
+  margin-left: var(--s-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hc-table tbody th {
+  color: var(--ink-2);
+  font-size: var(--text-s);
+  font-weight: 400;
+}
+
+.hc-table td {
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+  font-weight: 400;
+}
+
+.hc-table td.is-best {
+  font-weight: 600;
+}
+
+.hc-table td .ui-delta {
+  margin-left: var(--s-2);
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.hc-table-note,
+.hc-footnote {
+  margin: 0;
+  font-size: var(--text-s);
+}
+
+/* ---- phones */
 
 @media (max-width: 560px) {
   .hc-row {
@@ -649,5 +838,11 @@
   }
   .hc-timeline-name {
     display: none;
+  }
+  .hc-window.ui-space {
+    aspect-ratio: 16 / 9;
+  }
+  .hc-nums {
+    margin-left: 0;
   }
 }
