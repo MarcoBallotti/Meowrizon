@@ -1,12 +1,6 @@
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
-import { stripTypeScriptTypes } from 'node:module'
 import { test } from 'node:test'
-
-async function load(path) {
-  const source = stripTypeScriptTypes(readFileSync(new URL(path, import.meta.url), 'utf8'))
-  return import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`)
-}
+import { load } from './load-ts.mjs'
 const { regionCatalog, siteCatalog, comparisonCandidates } = await load('../src/domain/catalogs.ts')
 const { bestProductFor } = await load('../src/domain/coverage.ts')
 const featureCollection = (features) => ({ type: 'FeatureCollection', features })
@@ -96,10 +90,95 @@ test('genuine zero visibility is valid, missing samples and incomplete time cove
   }
 })
 
-const { rank } = await load('../src/domain/ranking.ts')
-test('equal visibility uses stable identity instead of a hidden composite score', () => {
-  const base = { area: 'equatorial', sunFraction: .5, bothFraction: 0, earthFraction: 0, longestNightH: 354 }
-  const rows = [{ ...base, id: 'b', earthFraction: 1 }, { ...base, id: 'a' }]
-  assert.deepEqual(rank(rows, 'sun', 'all').map(r => r.id), ['a', 'b'])
-  assert.deepEqual(rank(rows, 'earth', 'all').map(r => r.id), ['b', 'a'])
+const { rank, overallScore, MIN_SUN_FRACTION } = await load('../src/domain/ranking.ts')
+const candidate = (overrides = {}) => ({
+  id: 'site', name: 'Candidate', area: 'equatorial', center: { latDeg: 0, lonEastDeg: 0 },
+  sunFraction: .8, earthFraction: .8, bothFraction: .65, periodHours: 100,
+  longestNightH: 10, longestNoLinkH: 10, longestBothH: 20, ...overrides,
+})
+
+test('balanced sunlight, Earth and overlap outrank a sun-heavy site', () => {
+  const balanced = candidate({ id: 'balanced', sunFraction: .9, earthFraction: .9, bothFraction: .85, longestNightH: 5, longestNoLinkH: 5 })
+  const sunny = candidate({ id: 'sunny', sunFraction: .95, earthFraction: .3, bothFraction: .25, longestNightH: 5, longestNoLinkH: 70 })
+  assert.deepEqual(rank([sunny, balanced], 'all').map(r => r.id), ['balanced', 'sunny'])
+  assert.equal(overallScore(balanced).toFixed(1), '83.9')
+  assert.ok(overallScore(sunny) < 20)
+})
+
+test('equal averages favor balanced visibility and retain the real overlap', () => {
+  const balanced = candidate({ sunFraction: .6, earthFraction: .6, bothFraction: .4 })
+  const uneven = candidate({ sunFraction: .9, earthFraction: .4, bothFraction: .3 })
+  assert.ok(overallScore(balanced) > overallScore(uneven))
+  assert.ok(overallScore(candidate({ bothFraction: .7 })) > overallScore(candidate()))
+  assert.equal(overallScore(uneven), overallScore({ ...uneven, sunFraction: .4, earthFraction: .9 }))
+})
+
+test('long sunlight and radio outages reduce the score for otherwise identical sites', () => {
+  const base = candidate()
+  assert.ok(overallScore(base) > overallScore({ ...base, longestNightH: 20 }))
+  assert.ok(overallScore(base) > overallScore({ ...base, longestNoLinkH: 20 }))
+  assert.equal(overallScore(base), overallScore({ ...base, periodHours: 200, longestNightH: 20, longestNoLinkH: 20 }))
+  assert.equal(overallScore(base), overallScore({ ...base, longestBothH: 30 }))
+  const practice = { ...base, longestNoLinkH: undefined }
+  assert.equal(overallScore(base), overallScore(practice))
+})
+
+test('45 percent sunlight is inclusive and rejected sites skip all remaining scoring reads', () => {
+  const rejected = { id: 'rejected', sunFraction: MIN_SUN_FRACTION - .000001,
+    get earthFraction() { throw new Error('Earth must not be checked') },
+    get area() { throw new Error('No other filtering is needed') },
+  }
+  const boundary = candidate({ id: 'boundary', sunFraction: MIN_SUN_FRACTION, earthFraction: .7, bothFraction: .4 })
+  assert.deepEqual(rank([rejected, boundary], 'all').map(r => r.id), ['boundary'])
+})
+
+test('zero visibility scores zero and full visibility scores 100', () => {
+  for (const field of ['sunFraction', 'earthFraction', 'bothFraction']) {
+    assert.equal(overallScore(candidate({ [field]: 0 })), 0)
+  }
+  assert.equal(overallScore(candidate({ sunFraction: 1, earthFraction: 1, bothFraction: 1, longestNightH: 0, longestNoLinkH: 0 })), 100)
+  assert.equal(overallScore(candidate({ longestNightH: 100 })), 0)
+})
+
+test('improving any visibility metric cannot lower a score', () => {
+  for (const field of ['sunFraction', 'earthFraction', 'bothFraction']) {
+    assert.ok(overallScore(candidate({ [field]: .85 })) > overallScore(candidate()))
+  }
+})
+
+test('rounding for display does not change the order of close scores', () => {
+  const lower = candidate({ id: 'a' })
+  const higher = candidate({ id: 'z', sunFraction: .80001 })
+  assert.equal(overallScore(lower).toFixed(1), overallScore(higher).toFixed(1))
+  assert.deepEqual(rank([lower, higher], 'all').map(r => r.id), ['z', 'a'])
+})
+
+test('exact ties use stable identity, area filters rerank, and input is not mutated', () => {
+  const rows = [candidate({ id: 'b' }), candidate({ id: 'c', area: 'south-pole' }), candidate({ id: 'a' })]
+  const before = structuredClone(rows)
+  assert.deepEqual(rank(rows, 'all').map(r => r.id), ['a', 'b', 'c'])
+  assert.deepEqual(rank([...rows].reverse(), 'all').map(r => r.id), ['a', 'b', 'c'])
+  assert.deepEqual(rank(rows, 'south-pole').map(r => [r.id, r.rank]), [['c', 1]])
+  assert.deepEqual(rows, before)
+  assert.deepEqual(rank(rows, 'other'), [])
+  assert.deepEqual(rank([], 'all'), [])
+})
+
+const { HttpProvider } = await load('../src/api/httpProvider.ts')
+test('only ranking requests enable sunlight screening and disable expensive context', async (t) => {
+  const requests = []
+  const result = { skipped: true, minSunFraction: .45, sunFractionUpperBound: .3 }
+  t.mock.method(globalThis, 'fetch', async (path, init) => {
+    requests.push({ path, body: init.body ? JSON.parse(init.body) : null })
+    return { ok: true, json: async () => ({ id: 'job', status: 'completed', result }) }
+  })
+  const api = new HttpProvider('/api')
+  const input = { terrainAnalysisId: 'terrain', startUtc: '2026-01-01T00:00:00Z', stopUtc: '2026-02-01T00:00:00Z', stepMinutes: 30 }
+  const job = await api.submitRankingEvaluation({ ...input, minSunFraction: .45, includeContext: true })
+  assert.deepEqual(requests[0], { path: '/api/scenario-evaluations', body: { ...input, minSunFraction: .45, includeContext: false } })
+  assert.deepEqual(job.result, result)
+  assert.deepEqual((await api.getRankingEvaluation('job')).result, result)
+  assert.equal(requests[1].path, '/api/scenario-evaluations/job')
+  await api.submitScenarioEvaluation(input)
+  assert.deepEqual(requests[2].body, input)
 })

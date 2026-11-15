@@ -1,10 +1,7 @@
 # Moonrizon
 
-<<<<<<< Updated upstream
 > **Engine V1 implementato:** libreria Python, CLI e verifiche numeriche. Validazione osservativa ancora incompleta: vedere [rapporto corrente](docs/validazione-engine-v1-revisione.md) e [comandi engine](backend/docs/engine-v1.md). Le sezioni progettuali successive descrivono anche funzionalità rinviate.
 
-=======
->>>>>>> Stashed changes
 **Priorità approvata V1 (15/11/2026):** engine puntuale Python per 2–3 punti e date esplicite, con CLI/JSON e validazione; aggregazioni regionali, P50 e robustezza sono V2. HTTP scientifico e frontend seguono il nucleo. I dettagli estesi sotto non ampliano questo incarico: vedere il [piano V1](docs/piano-logica.md).
 
 Strumento per valutare rapidamente siti e date di allunaggio, sviluppato per il NASA Space Apps

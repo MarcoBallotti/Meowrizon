@@ -1,9 +1,10 @@
 import { useSyncExternalStore } from 'react'
 import type { CoverageCatalog, ScenarioEvaluation, SiteCoordinates, TerrainAnalysis } from '../api/types'
-import type { AreaFilter, RankBy, Region, RegionCatalog } from '../domain/ranking'
+import type { AreaFilter, Region, RegionCatalog } from '../domain/ranking'
 import { EXAMPLE_SITES } from '../domain/sites'
 import type { ExampleSite } from '../domain/sites'
 import { provider } from '../api'
+import { DEFAULT_MISSION, missionIssue, type MissionProfile } from '../domain/mission'
 
 export type ScenarioKey = 'A' | 'B'
 
@@ -45,8 +46,12 @@ export interface RegionRanking {
   regions: Region[]
   /** Catalog points that could not be evaluated, with an explicit reason. */
   failed: { id: string; name: string; reason: string; center: SiteCoordinates }[]
+  /** Valid points rejected by the minimum sunlight requirement, not data failures. */
+  skipped: { id: string; name: string; sunFractionUpperBound: number; center: SiteCoordinates }[]
   /** Name of the region being measured now. */
   current: string | null
+  /** Current engine stage, including the early sunlight screen. */
+  message?: string | null
 }
 
 export interface ScenarioInput {
@@ -103,9 +108,9 @@ export interface AppState {
   comparison: Comparison | null
   /** Candidate regions measured for scenario A's period (engine only). */
   ranking: RegionRanking | null
+  mission: MissionProfile
   /** Whether a point is chosen on the Moon. False at start and after it is removed. */
   pointShown: boolean
-  rankBy: RankBy
   area: AreaFilter
   /** Incremented to ask the globe to fly to a scenario. */
   flyRequest: { key: ScenarioKey; nonce: number } | null
@@ -127,6 +132,14 @@ function storedAudience(): Audience {
     // Storage unavailable (private mode, blocked site data): use the default.
   }
   return 'student'
+}
+
+function storedMission(): MissionProfile {
+  try {
+    const saved = JSON.parse(localStorage.getItem('meowrizon.mission.v1') ?? 'null')
+    if (saved && !missionIssue(saved)) return saved
+  } catch { /* Storage is optional; malformed profiles never become requirements. */ }
+  return structuredClone(DEFAULT_MISSION)
 }
 
 export function screenFromHash(hash: string): Screen {
@@ -166,8 +179,8 @@ const initialState: AppState = {
   siteError: null,
   comparison: null,
   ranking: null,
+  mission: storedMission(),
   pointShown: false,
-  rankBy: provider.kind === 'api' ? 'sun' : 'overall',
   area: 'all',
   flyRequest: null,
 }
@@ -185,6 +198,13 @@ export function setState(update: Partial<AppState> | ((s: AppState) => Partial<A
   const patch = typeof update === 'function' ? update(state) : update
   state = { ...state, ...patch }
   for (const l of listeners) l()
+}
+
+export function setMission(mission: MissionProfile): void {
+  const issue = missionIssue(mission)
+  if (issue) throw new Error(issue)
+  try { localStorage.setItem('meowrizon.mission.v1', JSON.stringify(mission)) } catch { /* Optional persistence. */ }
+  setState({ mission })
 }
 
 export function updateScenario(key: ScenarioKey, fn: (s: Scenario) => Scenario): void {

@@ -2,6 +2,7 @@ import type {
   CoverageCatalog,
   DataProvider,
   JobState,
+  RankingEvaluation,
   ScenarioEvaluation,
   ScenarioEvaluationRequest,
   TerrainAnalysis,
@@ -94,6 +95,14 @@ export class HttpProvider implements DataProvider {
   }
 
   getScenarioEvaluation(id: string, signal?: AbortSignal): Promise<JobState<ScenarioEvaluation>> {
+    return this.request(`/scenario-evaluations/${encodeURIComponent(id)}`, { signal })
+  }
+
+  submitRankingEvaluation(req: ScenarioEvaluationRequest & { minSunFraction: number }, signal?: AbortSignal): Promise<JobState<RankingEvaluation>> {
+    return this.request('/scenario-evaluations', { method: 'POST', body: JSON.stringify({ ...req, includeContext: false }), signal })
+  }
+
+  getRankingEvaluation(id: string, signal?: AbortSignal): Promise<JobState<RankingEvaluation>> {
     return this.request(`/scenario-evaluations/${encodeURIComponent(id)}`, { signal })
   }
 }

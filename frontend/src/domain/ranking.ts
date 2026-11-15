@@ -1,12 +1,13 @@
 /**
- * Ranking of candidate regions. Reads practice data from
- * public/mock/regions.json until the engine serves the same shape.
+ * Ranking of evaluated candidate regions and practice data using the same
+ * balance of sunlight, Earth visibility and simultaneous visibility.
  */
-import type { DataOrigin, SiteCoordinates } from '../api/types'
+import type { DataOrigin, LocalTerrain, SiteCoordinates } from '../api/types'
+import { assessMission, DEFAULT_MISSION, paretoFronts, type MissionAssessment, type MissionProfile, type PowerSeries } from './mission'
 
 export type Area = 'south-pole' | 'equatorial' | 'other'
 export type AreaFilter = Area | 'all'
-export type RankBy = 'overall' | 'sun' | 'earth' | 'both'
+export const MIN_SUN_FRACTION = 0.45
 
 export interface Region {
   id: string
@@ -19,6 +20,15 @@ export interface Region {
   warnings?: string[]
   pointKind?: 'region-center' | 'site'
   longestNightH: number
+  /** Duration of the evaluated period, used to normalize outages. */
+  periodHours: number
+  /** Not supplied by the static practice catalog. */
+  longestNoLinkH?: number
+  longestBothH?: number
+  localTerrain?: LocalTerrain
+  demPixelM?: number
+  powerSeries?: PowerSeries
+  provenance?: { terrainId: string; evaluationId: string; startMs: number; stopMs: number; ephemeris: string; productIds: string[] }
   /** Same days one month earlier, for the comparison next to every number. */
   previous?: Pick<Region, 'sunFraction' | 'earthFraction' | 'bothFraction' | 'longestNightH'>
 }
@@ -42,33 +52,48 @@ export interface RegionLocation {
   properties: Record<string, unknown>
 }
 
-/** Weights of the overall score. Shorter nights score higher. */
-export const WEIGHTS = { sun: 0.4, both: 0.3, earth: 0.15, night: 0.15 }
-const NIGHT_CAP_H = 354
-
+/**
+ * Equal-weight harmonic mean of the three visibility fractions, on a 0–100
+ * scale. Weak visibility pulls the score down; zero in any component gives
+ * zero overall. Multiply by continuity: the geometric mean of the fractions
+ * of the period outside the longest sunlight/radio outages. Static practice
+ * data supplies only the sunlight outage. Keep full precision until display.
+ */
 export function overallScore(r: Region): number {
-  const night = 1 - Math.min(r.longestNightH, NIGHT_CAP_H) / NIGHT_CAP_H
-  return Math.round(100 * (WEIGHTS.sun * r.sunFraction + WEIGHTS.both * r.bothFraction + WEIGHTS.earth * r.earthFraction + WEIGHTS.night * night))
-}
-
-export function metric(r: Region, by: RankBy): number {
-  if (by === 'sun') return r.sunFraction
-  if (by === 'earth') return r.earthFraction
-  if (by === 'both') return r.bothFraction
-  return overallScore(r) / 100
+  const { sunFraction: sun, earthFraction: earth, bothFraction: both } = r
+  if (sun === 0 || earth === 0 || both === 0) return 0
+  const availability = 300 / (1 / sun + 1 / earth + 1 / both)
+  const sunlightContinuity = Math.max(0, 1 - r.longestNightH / r.periodHours)
+  const continuity = r.longestNoLinkH === undefined
+    ? sunlightContinuity
+    : Math.sqrt(sunlightContinuity * Math.max(0, 1 - r.longestNoLinkH / r.periodHours))
+  return availability * continuity
 }
 
 export interface Ranked extends Region {
   rank: number
+  /** Secondary visibility index; never overrides a failed requirement or Pareto front. */
   score: number
-  value: number
+  paretoFront: number
+  assessment: MissionAssessment
 }
 
-export function rank(regions: Region[], by: RankBy, area: AreaFilter): Ranked[] {
-  return regions
-    .filter((r) => area === 'all' || r.area === area)
-    .map((r) => ({ ...r, score: overallScore(r), value: metric(r, by) }))
-    .sort((a, b) => b.value - a.value || a.id.localeCompare(b.id))
+export function assessRegions(regions: Region[], area: AreaFilter, mission: MissionProfile = DEFAULT_MISSION) {
+  return regions.filter(r => area === 'all' || r.area === area).map(region => ({ region, assessment: assessMission(region, mission) }))
+}
+
+export function rank(regions: Region[], area: AreaFilter, mission: MissionProfile = DEFAULT_MISSION): Ranked[] {
+  const eligible = assessRegions(regions, area, mission).filter(r => r.assessment.status === 'eligible')
+    .map(({ region, assessment }) => ({ ...region, score: overallScore(region), assessment }))
+  const fronts = paretoFronts(eligible, [
+    r => r.sunFraction, r => r.earthFraction, r => r.bothFraction,
+    r => -r.longestNightH, r => -(r.longestNoLinkH ?? NaN), r => r.longestBothH ?? NaN,
+    ...(mission.maxSlopeDeg !== null ? [(r: Region) => -(r.localTerrain?.slopeDeg ?? NaN)] : []),
+    ...(mission.maxRoughnessM !== null ? [(r: Region) => -(r.localTerrain?.roughnessRmsM ?? NaN)] : []),
+    ...(mission.power.enabled ? [(r: typeof eligible[number]) => r.assessment.power?.minBatteryWh ?? NaN] : []),
+  ])
+  return eligible.map(r => ({ ...r, paretoFront: fronts.get(r)! }))
+    .sort((a, b) => a.paretoFront - b.paretoFront || b.score - a.score || a.id.localeCompare(b.id))
     .map((r, i) => ({ ...r, rank: i + 1 }))
 }
 
@@ -85,19 +110,14 @@ export function rankColor(rank: number, total: number): string {
   return RANK_COLORS[Math.min(RANK_COLORS.length - 1, Math.max(0, i))]
 }
 
-export const RANK_LABELS: Record<RankBy, { student: string; other: string }> = {
-  overall: { student: 'Best overall', other: 'Overall score' },
-  sun: { student: 'Sunniest', other: 'Sunlight' },
-  earth: { student: 'Best for calling home', other: 'Earth in view' },
-  both: { student: 'Light and radio together', other: 'Sun + Earth' },
-}
-
 let pending: Promise<RegionCatalog> | null = null
 
 export function loadRegions(): Promise<RegionCatalog> {
   pending ??= fetch(`${import.meta.env.BASE_URL}mock/regions.json`).then((r) => {
     if (!r.ok) throw new Error(`Could not load the practice regions (${r.status}).`)
     return r.json() as Promise<RegionCatalog>
+  }).then((catalog) => {
+    return { ...catalog, regions: catalog.regions.map((r) => ({ ...r, periodHours: catalog.period.days * 24 })) }
   })
   return pending
 }

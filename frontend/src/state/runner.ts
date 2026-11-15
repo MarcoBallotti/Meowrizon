@@ -130,7 +130,7 @@ export async function runComparison(): Promise<void> {
   if (!catalog) return
   const own = catalog.regions.find((r) => r.name === A.input.siteName)
   const area = own ? own.area : s.area
-  const picks = rank(catalog.regions, s.rankBy, area).filter((r) => r.name !== A.input.siteName).slice(0, 3)
+  const picks = rank(catalog.regions, area, s.mission).filter((r) => r.name !== A.input.siteName).slice(0, 3)
   const key = JSON.stringify([picks.map((p) => p.id), A.input.startMs, A.input.observerHeightM, s.durationDays, s.stepMinutes])
   if (s.comparison?.key === key) return
 
@@ -188,11 +188,12 @@ export async function runRegionRanking(force = false): Promise<void> {
   const locations = comparisonCandidates(s.regions, s.sites)
   if (!locations.length) {
     rankingController?.abort()
-    setState({ ranking: { key: 'empty', busy: false, total: 0, regions: [], failed: [], current: null } })
+    setState({ ranking: { key: 'empty', busy: false, total: 0, regions: [], failed: [], skipped: [], current: null } })
     return
   }
   const A = s.scenarios.A.input
-  const key = JSON.stringify([locations.map((l) => [l.id, l.center.latDeg, l.center.lonEastDeg]), A.startMs, A.observerHeightM, s.durationDays, s.stepMinutes, s.azimuthStepDeg, s.maxDistanceKm])
+  const minSunFraction = s.mission.minSunFraction
+  const key = JSON.stringify([locations.map((l) => [l.id, l.center.latDeg, l.center.lonEastDeg]), A.startMs, A.observerHeightM, s.durationDays, s.stepMinutes, s.azimuthStepDeg, s.maxDistanceKm, minSunFraction, 'local-terrain-v1'])
   if (!force && s.ranking?.key === key) return
 
   rankingController?.abort()
@@ -205,37 +206,63 @@ export async function runRegionRanking(force = false): Promise<void> {
     const now = getState().ranking
     if (!signal.aborted && now?.key === key) setState({ ranking: { ...now, ...patch } })
   }
-  setState({ ranking: { key, busy: true, total: locations.length, regions: [], failed: [], current: locations[0].name } })
+  setState({ ranking: { key, busy: true, total: locations.length, regions: [], failed: [], skipped: [], current: locations[0].name } })
 
   for (const loc of locations) {
     if (signal.aborted) return
-    update({ current: loc.name })
+    update({ current: loc.name, message: 'Checking terrain' })
     try {
       const terrain = await runJob(
-        () => provider.submitTerrainAnalysis({ site: loc.center, observerHeightM: A.observerHeightM, config: { azimuthStepDeg: s.azimuthStepDeg, maxDistanceKm: s.maxDistanceKm } }, signal),
+        () => provider.submitTerrainAnalysis({ site: loc.center, observerHeightM: A.observerHeightM, includeLocalTerrain: true, config: { azimuthStepDeg: s.azimuthStepDeg, maxDistanceKm: s.maxDistanceKm } }, signal),
         (id) => provider.getTerrainAnalysis(id, signal),
-        () => undefined,
+        (job) => update({ message: job.message ?? 'Checking terrain' }),
         signal,
       )
       const terrainProblem = terrainIssue(terrain)
       if (terrainProblem) throw new Error(terrainProblem)
       const evaluation = await runJob(
-        () => provider.submitScenarioEvaluation({ terrainAnalysisId: terrain.id, startUtc: new Date(start).toISOString(), stopUtc: new Date(stop).toISOString(), stepMinutes: s.stepMinutes, includeContext: false }, signal),
-        (id) => provider.getScenarioEvaluation(id, signal),
-        () => undefined,
+        () => catalogApi.submitRankingEvaluation({ terrainAnalysisId: terrain.id, startUtc: new Date(start).toISOString(), stopUtc: new Date(stop).toISOString(), stepMinutes: s.stepMinutes, minSunFraction }, signal),
+        (id) => catalogApi.getRankingEvaluation(id, signal),
+        (job) => update({ message: job.message ?? 'Checking sunlight and visibility' }),
         signal,
       )
+      if ('skipped' in evaluation) {
+        if (evaluation.skipped !== true || evaluation.origin !== 'engine' || evaluation.reason !== 'sunlight_below_threshold'
+          || evaluation.terrainAnalysisId !== terrain.id || evaluation.startMs !== start || evaluation.stopMs !== stop
+          || evaluation.minSunFraction !== minSunFraction || !Number.isFinite(evaluation.sunFractionUpperBound)
+          || evaluation.sunFractionUpperBound < 0 || evaluation.sunFractionUpperBound >= minSunFraction) {
+          throw new Error('The sunlight screening result does not match the requested comparison.')
+        }
+        update({ skipped: [...(getState().ranking?.skipped ?? []), { id: loc.id, name: loc.name, center: loc.center, sunFractionUpperBound: evaluation.sunFractionUpperBound }] })
+        continue
+      }
       const scenarioProblem = scenarioIssue(evaluation, terrain.id, start, stop, s.stepMinutes * 60_000)
       if (scenarioProblem) throw new Error(scenarioProblem)
       const m = summarize(evaluation, start, stop)
-      const region: Region = { id: loc.id, name: loc.name, area: loc.area, center: loc.center, pointKind: loc.pointKind, warnings: [`DEM sampling: ${terrain.profile.dem.effectivePixelSizeM} m`, ...terrain.profile.warnings, ...evaluation.approximations], sunFraction: m.sun, earthFraction: m.earth, bothFraction: m.both, longestNightH: Math.round(m.nightH) }
+      if (m.sun < minSunFraction) {
+        update({ skipped: [...(getState().ranking?.skipped ?? []), { id: loc.id, name: loc.name, center: loc.center, sunFractionUpperBound: m.sun }] })
+        continue
+      }
+      const region: Region = {
+        id: loc.id, name: loc.name, area: loc.area, center: loc.center, pointKind: loc.pointKind,
+        warnings: [`DEM sampling: ${terrain.profile.dem.effectivePixelSizeM} m`, ...terrain.profile.warnings, ...evaluation.approximations],
+        sunFraction: m.sun, earthFraction: m.earth, bothFraction: m.both,
+        periodHours: (stop - start) / 3_600_000,
+        longestNightH: m.nightH,
+        longestNoLinkH: intervalStats(evaluation.intervals.earth, start, stop).longestOffMs / 3_600_000,
+        longestBothH: intervalStats(evaluation.intervals.both, start, stop).longestOnMs / 3_600_000,
+        localTerrain: terrain.localTerrain,
+        demPixelM: terrain.profile.dem.effectivePixelSizeM,
+        powerSeries: evaluation.sun.visibleFraction && evaluation.sun.distanceKm ? { timesMs: evaluation.timesMs, visibleFraction: evaluation.sun.visibleFraction, distanceKm: evaluation.sun.distanceKm } : undefined,
+        provenance: { terrainId: terrain.id, evaluationId: evaluation.id, startMs: start, stopMs: stop, ephemeris: evaluation.ephemeris.source, productIds: terrain.profile.dem.productIds },
+      }
       update({ regions: [...(getState().ranking?.regions ?? []), region] })
     } catch (err) {
       if (signal.aborted) return
       update({ failed: [...(getState().ranking?.failed ?? []), { id: loc.id, name: loc.name, center: loc.center, reason: describe(err) }] })
     }
   }
-  update({ busy: false, current: null })
+  update({ busy: false, current: null, message: null })
 }
 
 let regionRequest: ReturnType<typeof catalogApi.getRegions> | null = null

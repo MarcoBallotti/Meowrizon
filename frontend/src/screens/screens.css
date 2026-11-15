@@ -274,6 +274,31 @@
   display: none;
 }
 
+.mission-settings form {
+  display: grid;
+  gap: var(--s-3);
+  max-height: 45vh;
+  overflow-y: auto;
+  padding: var(--s-2) 2px;
+}
+
+.rank-head:has(.mission-settings[open]) { max-height: 65vh; overflow-y: auto; }
+
+.mission-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-2);
+}
+
+.mission-actions { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+.mission-checks { overflow-wrap: anywhere; }
+.mission-rejected[open] { max-height: 30vh; overflow-y: auto; flex-shrink: 0; }
+.mission-rejected li { margin-bottom: var(--s-2); }
+
+@media (max-width: 420px) {
+  .mission-fields { grid-template-columns: 1fr; }
+}
+
 .rank-card {
   width: 100%;
   display: flex;
@@ -713,12 +738,9 @@
   gap: 6px;
 }
 
-.results-metrics.is-teacher {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
+.results-metrics.is-teacher,
 .results-metrics.is-student {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .results-metric {

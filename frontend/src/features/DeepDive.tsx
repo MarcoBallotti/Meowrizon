@@ -490,13 +490,13 @@ export function WindowsCard({ audience }: { audience: Audience }) {
 export function CompareCard({ audience }: { audience: Audience }) {
   const d = useDeep()
   const regions = useStore((s) => s.regions)
-  const rankBy = useStore((s) => s.rankBy)
   const area = useStore((s) => s.area)
+  const mission = useStore((s) => s.mission)
   const evaluation = d?.evaluation
-  // The comparison follows the site, the period and the ranking criterion.
+  // The comparison follows the site, the period and the selected area.
   useEffect(() => {
     if (evaluation && regions) void runComparison()
-  }, [evaluation, regions, rankBy, area])
+  }, [evaluation, regions, area, mission])
   if (!d) return null
   const own = {
     name: d.A.input.siteName ?? 'This point',
@@ -505,7 +505,7 @@ export function CompareCard({ audience }: { audience: Audience }) {
   }
   return (
     <ChartCard
-      title={audience === 'student' ? 'Which place gets more sun?' : 'Compared with the best sites'}
+      title={audience === 'student' ? 'How does this place compare?' : 'Compared with the best sites'}
       question={audience === 'student' ? 'This place next to the top three of the ranking.' : 'This site next to the top three of the ranking, same days.'}
     >
       <CompareBars audience={audience} own={own} />

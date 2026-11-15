@@ -9,10 +9,11 @@ import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState }
 import { provider } from '../api'
 import { formatLat, formatLon, formatUtcDate, formatUtcLong } from '../domain/format'
 import { areaOfLatitude, comparisonCandidates } from '../domain/catalogs'
-import { rank, rankColor, type AreaFilter, type Ranked, type RankBy } from '../domain/ranking'
+import { assessRegions, rank, rankColor, type AreaFilter, type Ranked } from '../domain/ranking'
 import { CUSTOM_SITE_NAME, normalizeLon, validateSite } from '../domain/sites'
 import type { GlobeFocus, GlobeMarker, MarkerSymbol, RegionBands, RegionShape } from '../features/MoonGlobe'
 import { TopBar } from '../features/TopBar'
+import { MissionControls } from '../features/MissionControls'
 import { loadRegionCatalog, loadSiteCatalog, runRegionRanking } from '../state/runner'
 import { clearPoint, goTo, setScenarioInput, setState, useStore, type Audience, type ScenarioInput } from '../state/store'
 import { ArrowIcon, Button, Card, DateDial, Field, Input, MonthCalendar, Segmented, Select, SpaceWindow, Toggle } from '../ui'
@@ -414,26 +415,14 @@ function PlanCard({ plan, onPlan, onResults, onHorizon }: PlanCardProps) {
 
 type Pick = (site: { latDeg: number; lonEastDeg: number; name: string; id?: string }) => void
 
-const RANK_SHORT: Record<Audience, Record<RankBy, string>> = {
-  student: { overall: 'Best', sun: 'Sunniest', earth: 'Radio', both: 'Both' },
-  teacher: { overall: 'Overall', sun: 'Sunlight', earth: 'Earth', both: 'Sun + Earth' },
-  planner: { overall: 'Overall', sun: 'Sunlight', earth: 'Earth', both: 'Sun + Earth' },
-}
-
-function why(r: Ranked, by: RankBy, audience: Audience): string {
-  if (audience === 'student') {
-    if (by === 'earth') return 'Earth stays in the sky almost all the time, so you can always call home.'
-    if (by === 'sun') return 'The Sun shines here more than anywhere else nearby.'
-    return 'Lots of sunlight, and Earth is often in the sky to call home.'
-  }
-  if (by === 'sun') return `Most sunlight in the period: ${pct(r.sunFraction)} of the time, longest night ${r.longestNightH} h.`
-  if (by === 'earth') return `Earth above the horizon ${pct(r.earthFraction)} of the time: the most time to talk to Earth.`
-  if (by === 'both') return `Sun and Earth in view together ${pct(r.bothFraction)} of the time: power and contact at once.`
-  return `Best mix of light and contact: Sun ${pct(r.sunFraction)} of the time, Earth ${pct(r.earthFraction)}, longest night ${r.longestNightH} h.`
+function why(r: Ranked, audience: Audience): string {
+  return r.paretoFront === 1
+    ? audience === 'student' ? 'A leading trade-off: another place may be better for one need and worse for another.' : 'Pareto shortlist: no eligible candidate is at least as good on every compared metric and better on one.'
+    : `Trade-off group ${r.paretoFront}: another eligible candidate performs at least as well on every compared metric.`
 }
 
 function nightText(h: number, audience: Audience): string {
-  return audience === 'planner' ? `${h} h` : `${Math.max(1, Math.round(h / 24))} d`
+  return audience === 'planner' ? `${h.toFixed(1)} h` : h < 24 ? `${h.toFixed(1)} h` : `${(h / 24).toFixed(1)} d`
 }
 
 /** The period of the results, on the left of the sky, with the way back to change it. */
@@ -462,7 +451,6 @@ function ResultsWhen() {
 function RankedSitesPanel({ ranked, onPick, onHorizon }: { ranked: Ranked[]; onPick: Pick; onHorizon: () => void }) {
   const audience = useStore((s) => s.audience)
   const input = useStore((s) => s.scenarios.A.input)
-  const rankBy = useStore((s) => s.rankBy)
   const area = useStore((s) => s.area)
   const catalog = useStore((s) => s.regions)
   const error = useStore((s) => s.regionError)
@@ -470,6 +458,9 @@ function RankedSitesPanel({ ranked, onPick, onHorizon }: { ranked: Ranked[]; onP
   const sites = useStore((s) => s.sites)
   const sitesLoaded = useStore((s) => s.sitesLoaded)
   const progress = useStore((s) => s.ranking)
+  const mission = useStore(s => s.mission)
+  const assessments = useMemo(() => assessRegions(API ? progress?.regions ?? [] : catalog?.regions ?? [], area, mission), [progress, catalog, area, mission])
+  const notEligible = assessments.filter(r => r.assessment.status !== 'eligible')
   const student = audience === 'student'
   const planner = audience === 'planner'
   const shown = API ? ranked : ranked.slice(0, TOP_N[audience])
@@ -477,39 +468,44 @@ function RankedSitesPanel({ ranked, onPick, onHorizon }: { ranked: Ranked[]; onP
   const chosen = shown.find((r) => isChosen(input, r))
   const place = chosen?.name.split(' · ')[0]
   const measuring = API && !!progress?.busy
-  const done = progress ? progress.regions.length + progress.failed.length : 0
-  const completed = new Set([...(progress?.regions ?? []), ...(progress?.failed ?? [])].map(p => p.id))
+  const done = progress ? progress.regions.length + progress.failed.length + progress.skipped.length : 0
+  const completed = new Set([...(progress?.regions ?? []), ...(progress?.failed ?? []), ...(progress?.skipped ?? [])].map(p => p.id))
   const pending = comparisonCandidates(catalog, sites).filter(p => !completed.has(p.id) && (area === 'all' || p.area === area))
 
   return (
     <section className="rank-panel" aria-label="Sites from best to worst">
       <Card className="rank-head">
         <div className="results-rank">
-          <span className="ui-field-label">{catalog?.origin === 'demo' ? 'Rank by · practice data' : 'Rank by'}</span>
-          <Segmented<RankBy>
-            label="Rank by"
-            size="s"
-            tone="sunk"
-            value={rankBy}
-            onChange={(v) => setState({ rankBy: v })}
-            options={(API ? ['sun', 'earth', 'both'] as const : ['overall', 'sun', 'earth', 'both'] as const).map((v) => ({ value: v, label: RANK_SHORT[audience][v] }))}
-          />
+          <span className="ui-field-label">{catalog?.origin === 'demo' ? 'Mission trade study · practice data' : 'Mission trade study'}</span>
+          <span className="ui-small ui-muted">Requirements first · Pareto groups</span>
         </div>
+        <MissionControls />
+        <p className="ui-small ui-muted">Sunlight screen: {pct(mission.minSunFraction)} minimum. Only candidates meeting all configured requirements enter the comparison.</p>
+        <details className="ui-small ui-muted">
+          <summary>How candidates are assessed</summary>
+          <p>Failed requirements exclude a candidate. Missing required measurements produce “Insufficient data”. Among the rest, group 1 contains the best trade-offs across visibility, outages and shared windows; enabled terrain and energy criteria also participate. A metric is compared only when all eligible candidates have it. Later groups are dominated by earlier candidates.</p>
+          <p>The visibility index orders candidates within each group: a harmonic mean of Sun, Earth and simultaneous visibility, penalized for long outages. It does not override requirements or prove mission suitability. Candidates in one group remain alternative trade-offs.</p>
+          <p>This assessment uses one point and one time window. Landing-footprint hazards, trajectory access, science targets, thermal survival and RF link performance need additional models and data. Missing optional metrics never become zero-valued measurements.</p>
+          {!API && <p>Practice data supplies only the longest night. Requirements needing other measurements report insufficient data.</p>}
+          <p>Method references: <a href="https://www.nasa.gov/reference/6-8-decision-analysis/" target="_blank" rel="noreferrer">NASA decision analysis</a> and <a href="https://ntrs.nasa.gov/citations/20250011660" target="_blank" rel="noreferrer">lunar site selection</a>. This implementation is independent and has not been validated or endorsed by NASA.</p>
+        </details>
         {measuring && progress && (
           <p className="rank-progress ui-small" role="status">
             <span className="rank-progress-bar" aria-hidden="true">
               <span style={{ width: `${(done / progress.total) * 100}%` }} />
             </span>
-            Measuring {progress.current} · {done} of {progress.total}. The first time takes about a minute per site.
+            Measuring {progress.current} · {done} of {progress.total}. {progress.message}
           </p>
         )}
+        {API && <p className="ui-small ui-muted">All catalog locations are considered. Region results describe their centre point, not the whole region. Comparisons use geometric visibility only; terrain resolution and model limitations apply.</p>}
+        {API && progress && <p role="status" className="ui-small">{ranked.length} meet configured limits · {notEligible.length} excluded or insufficient data · {progress.skipped.length} below sunlight minimum · {progress.failed.length} calculation failures · {progress.total - done} pending</p>}
         {API && (error || siteError) && <p role="alert">Catalog incomplete: {[error, siteError].filter(Boolean).join(' ')} <Button size="s" onClick={() => { void loadRegionCatalog(); void loadSiteCatalog() }}>Reload catalogs</Button></p>}
       </Card>
 
       {API && ((!catalog && !error) || !sitesLoaded) ? (
         <p role="status" className="ui-muted">Loading catalog points…</p>
       ) : shown.length === 0 && !measuring ? (
-        <p className="ui-muted">No evaluable results in this area for the requested period.</p>
+        <p className="ui-muted">No evaluated candidates meet all configured requirements in this area. Review the reasons or edit the mission requirements.</p>
       ) : (
         <ol className="rank-list" aria-label="Ranking">
           {shown.map((r) => (
@@ -520,12 +516,9 @@ function RankedSitesPanel({ ranked, onPick, onHorizon }: { ranked: Ranked[]; onP
                     {r.rank}
                   </span>
                   <span className="rank-card-name">{r.name.split(' · ')[0]}</span>
-                  {!API && r.rank === 1 && <span className="results-tag">Recommended</span>}
-                  {planner && !API && (
-                    <span className="rank-card-score mono" title="Overall score">
-                      {r.score}
-                    </span>
-                  )}
+                  <span className="rank-card-score mono" title="Pareto trade-off group">
+                    Group {r.paretoFront}
+                  </span>
                 </span>
                 <span className={`results-metrics is-${audience}`}>
                   <span className="results-metric is-sun">
@@ -536,12 +529,10 @@ function RankedSitesPanel({ ranked, onPick, onHorizon }: { ranked: Ranked[]; onP
                     <small>{student ? 'Earth in the sky' : 'Earth in view'}</small>
                     <b>{pct(r.earthFraction)}</b>
                   </span>
-                  {!student && (
-                    <span className="results-metric">
-                      <small>Sun + Earth</small>
-                      <b>{pct(r.bothFraction)}</b>
-                    </span>
-                  )}
+                  <span className="results-metric">
+                    <small>{student ? 'Both together' : 'Sun + Earth'}</small>
+                    <b>{pct(r.bothFraction)}</b>
+                  </span>
                   {planner && (
                     <span className="results-metric">
                       <small>{API ? 'Longest below C3' : 'Longest night'}</small>
@@ -549,9 +540,20 @@ function RankedSitesPanel({ ranked, onPick, onHorizon }: { ranked: Ranked[]; onP
                     </span>
                   )}
                 </span>
+                {API && <span className="ui-small ui-muted">
+                  Longest sunlight outage: {nightText(r.longestNightH, audience)} · Longest radio outage: {r.longestNoLinkH === undefined ? 'Unknown' : nightText(r.longestNoLinkH, audience)} · Longest shared window: {r.longestBothH === undefined ? 'Unknown' : nightText(r.longestBothH, audience)}
+                </span>}
                 {API && <span className="ui-small ui-muted">{r.pointKind === 'region-center' ? 'Region centre · point estimate' : 'Catalog site'}</span>}
-                {!API && r.rank === 1 && <span className="results-why">{why(r, rankBy, audience)}</span>}
+                <span className="results-why">{why(r, audience)}</span>
+                <span className="ui-small ui-muted">Visibility index: {r.score.toFixed(1)}/100 · Configured requirements met</span>
               </button>
+              <details className="mission-checks ui-small">
+                <summary>Requirements and evidence</summary>
+                <ul>{r.assessment.checks.map(c => <li key={c.id}>{c.label}: {c.value?.toFixed(2) ?? 'Unknown'} {c.unit} · {c.direction === 'min' ? 'minimum' : 'maximum'} {c.limit} {c.unit} · {c.status}</li>)}</ul>
+                {r.localTerrain && <p>Local terrain: {r.localTerrain.status === 'ok' ? `${r.localTerrain.slopeDeg?.toFixed(2)}° slope, ${r.localTerrain.roughnessRmsM?.toFixed(2)} m residual RMS` : r.localTerrain.reason}. Support {r.localTerrain.supportDiameterM} m · native pixels {r.localTerrain.sourcePixelSizeM} m · {r.localTerrain.sampleCount} samples.</p>}
+                {r.assessment.power && <p>Battery minimum: {r.assessment.power.minBatteryWh.toFixed(1)} Wh · end: {r.assessment.power.endBatteryWh.toFixed(1)} Wh · generated: {r.assessment.power.generatedWh.toFixed(1)} Wh.</p>}
+                {r.provenance && <p>Terrain: {r.provenance.productIds.join(', ')}. Ephemerides: {r.provenance.ephemeris}. Evaluation {r.provenance.evaluationId}.</p>}
+              </details>
               {API && r.warnings?.length ? <details className="ui-small"><summary>Data resolution and limitations</summary>{r.warnings.map((w, i) => <p key={i}>{w}</p>)}</details> : null}
             </li>
           ))}
@@ -565,6 +567,21 @@ function RankedSitesPanel({ ranked, onPick, onHorizon }: { ranked: Ranked[]; onP
             ))}
         </ol>
       )}
+
+      {notEligible.length > 0 && <details className="mission-rejected ui-small">
+        <summary>Excluded or insufficient data ({notEligible.length})</summary>
+        <ul>{notEligible.map(({ region, assessment }) => <li key={region.id}>
+          <strong>{region.name} · {assessment.status === 'excluded' ? 'Excluded' : 'Insufficient data'}</strong>
+          <ul>{assessment.checks.filter(c => c.status !== 'pass').map(c => <li key={c.id}>{c.label}: {c.status === 'unknown' ? c.reason : `${c.value?.toFixed(2)} ${c.unit}; requires ${c.direction === 'min' ? 'at least' : 'at most'} ${c.limit} ${c.unit}`}</li>)}</ul>
+        </li>)}</ul>
+      </details>}
+
+      {API && progress && progress.skipped.length > 0 && <details className="mission-rejected ui-small">
+        <summary>Skipped: below {pct(mission.minSunFraction)} sunlight ({progress.skipped.filter(p => area === 'all' || areaOfLatitude(p.center.latDeg) === area).length})</summary>
+        <ul>{progress.skipped.filter(p => area === 'all' || areaOfLatitude(p.center.latDeg) === area).map(p => <li key={p.id}>
+          {p.name} · sunlight at most {(Math.ceil(p.sunFractionUpperBound * 10000) / 100).toFixed(2)}% over the selected period
+        </li>)}</ul>
+      </details>}
 
       {API && progress && progress.failed.length > 0 && <section aria-label="Not evaluable points">
         <h2>Not evaluable for this period</h2>
@@ -643,9 +660,10 @@ export function MoonScreen({ mode }: { mode: 'moon' | 'explore' }) {
   const stepMinutes = useStore((s) => s.stepMinutes)
   const azimuthStepDeg = useStore((s) => s.azimuthStepDeg)
   const maxDistanceKm = useStore((s) => s.maxDistanceKm)
-  const rankBy = useStore((s) => s.rankBy)
   const area = useStore((s) => s.area)
   const places = usePlaces()
+  const mission = useStore(s => s.mission)
+  const minSunFraction = mission.minSunFraction
   const [plan, setPlan] = useState<Plan>('date')
   const [realLight, setRealLight] = useState(true)
   const [showRegions, setShowRegions] = useState(true)
@@ -665,12 +683,12 @@ export function MoonScreen({ mode }: { mode: 'moon' | 'explore' }) {
   // With the engine the regions are measured for the chosen period; practice data carries its own numbers.
   const measured = useStore((s) => s.ranking)
   const ranked = useMemo(
-    () => (API ? rank(measured?.regions ?? [], rankBy, area) : catalog ? rank(catalog.regions, rankBy, area) : []),
-    [catalog, measured, rankBy, area],
+    () => (API ? rank(measured?.regions ?? [], area, mission) : catalog ? rank(catalog.regions, area, mission) : []),
+    [catalog, measured, area, mission],
   )
   useEffect(() => {
     if (results && (catalog || regionError) && sitesLoaded) void runRegionRanking()
-  }, [results, catalog, regionError, sites, sitesLoaded, input.startMs, input.observerHeightM, durationDays, stepMinutes, azimuthStepDeg, maxDistanceKm])
+  }, [results, catalog, regionError, sites, sitesLoaded, input.startMs, input.observerHeightM, durationDays, stepMinutes, azimuthStepDeg, maxDistanceKm, minSunFraction])
 
   const markers = useMemo<GlobeMarker[]>(() => {
     // Results: a numbered badge per site, coloured by its place from best (green) to worst (red).
@@ -678,11 +696,11 @@ export function MoonScreen({ mode }: { mode: 'moon' | 'explore' }) {
     if (ranking) {
       const top = API ? ranked : ranked.slice(0, TOP_N[audience])
       const badges: GlobeMarker[] = top.map((r) => ({ id: r.id, label: r.name.split(' · ')[0], rank: r.rank, color: rankColor(r.rank, top.length), ...r.center }))
-      const waiting = API ? comparisonCandidates(catalog, sites).filter(l => (area === 'all' || l.area === area) && !top.some(r => r.id === l.id)) : []
+      const waiting = API ? comparisonCandidates(catalog, sites).filter(l => (area === 'all' || l.area === area) && !measured?.regions.some(r => r.id === l.id) && !measured?.failed.some(r => r.id === l.id) && !measured?.skipped.some(r => r.id === l.id)) : []
       return [...badges, ...waiting.map((l) => ({ id: l.id, label: l.name, ...l.center, symbol: l.pointKind === 'region-center' ? 'artemis' as const : 'site' as const }))]
     }
     return places.map((p) => ({ id: p.id, label: p.short, latDeg: p.latDeg, lonEastDeg: p.lonEastDeg, symbol: p.symbol }))
-  }, [ranking, ranked, audience, places, catalog, sites, area])
+  }, [ranking, ranked, audience, places, catalog, sites, area, measured])
 
   const selectedId = API
     ? (input.selectionId ?? null)
