@@ -431,7 +431,28 @@ export default function MoonGlobe({ markers, selected, focus, lightMs, regions, 
       const round = (v: number) => Math.round(v * 1e4) / 1e4
       handlers.current.onPickPoint({ latDeg: round(p.latDeg), lonEastDeg: round(p.lonEastDeg) })
     }, ScreenSpaceEventType.LEFT_CLICK)
+    // Dragging turns the Moon freely about its own centre: the camera orbits
+    // the centre at a fixed distance, so the sphere turns but never moves on screen.
+    const controller0 = viewer.scene.screenSpaceCameraController
+    controller0.enableRotate = false
+    controller0.enableTilt = false
+    controller0.enableLook = false
+    controller0.enableTranslate = false
+    let drag: Cartesian2 | null = null
+    handler.setInputAction((e: ScreenSpaceEventHandler.PositionedEvent) => { drag = Cartesian2.clone(e.position) }, ScreenSpaceEventType.LEFT_DOWN)
+    handler.setInputAction(() => { drag = null }, ScreenSpaceEventType.LEFT_UP)
     handler.setInputAction((e: ScreenSpaceEventHandler.MotionEvent) => {
+      if (drag) {
+        const dx = e.endPosition.x - drag.x
+        const dy = e.endPosition.y - drag.y
+        drag = Cartesian2.clone(e.endPosition)
+        // Half a turn across the whole window; the surface follows the pointer.
+        const k = Math.PI / Math.max(1, viewer.scene.canvas.clientWidth)
+        const camera = viewer.camera
+        camera.rotate(Cartesian3.clone(camera.up), dx * k)
+        camera.rotate(Cartesian3.clone(camera.right), dy * k)
+        viewer.scene.requestRender()
+      }
       const p = pick(e.endPosition)
       handlers.current.onHover?.(p ? `${formatLat(p.latDeg, 2)}  ${formatLon(p.lonEastDeg, 2)}` : '')
     }, ScreenSpaceEventType.MOUSE_MOVE)
