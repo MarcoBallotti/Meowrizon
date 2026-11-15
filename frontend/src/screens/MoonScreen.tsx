@@ -5,21 +5,20 @@
  * Keeping both in one component keeps the Cesium viewer alive between them.
  */
 import { Info, Minimize2, RotateCcw } from 'lucide-react'
-import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { provider } from '../api'
-import { formatLat, formatLon, formatUtcDate } from '../domain/format'
+import { formatLat, formatLon, formatUtcDate, formatUtcLong } from '../domain/format'
 import { areaOfLatitude, comparisonCandidates } from '../domain/catalogs'
 import { rankingRequest } from '../domain/rankingRequest'
 import { assessRegions, publicExplanation, rank, rankColor, type AreaFilter, type Ranked } from '../domain/ranking'
 import { ExperimentCard } from '../features/Experiment'
-import { LandingWindows, MissionBrief, Recommendation } from '../features/MissionBrief'
 import { AttemptHistory } from '../features/Scorecard'
 import { sameDecisionConfig } from '../domain/publicDecision'
 import { gradeColor } from '../domain/grade'
 import { CUSTOM_SITE_NAME, normalizeLon, validateSite } from '../domain/sites'
 import type { GlobeFocus, GlobeMarker, MarkerSymbol, RegionBands, RegionShape } from '../features/MoonGlobe'
 import { TopBar } from '../features/TopBar'
-import { MissionControls } from '../features/MissionControls'
 import { loadRegionCatalog, loadSiteCatalog, runRegionRanking } from '../state/runner'
 import { clearPoint, getState, goTo, reopenAttempt, setScenarioInput, setState, useStore, type Audience, type ScenarioInput } from '../state/store'
 import { ArrowIcon, Button, Card, DateDial, Field, Input, MonthCalendar, Segmented, Select, SpaceWindow, Toggle } from '../ui'
@@ -28,6 +27,8 @@ const MoonGlobe = lazy(() => import('../features/MoonGlobe'))
 
 /** Above this width the results float over a full-screen sky (screens.css, .is-results). */
 const WIDE = '(min-width: 1101px)'
+/** Where the Moon sits on the results screen, -1..1 from the centre: left of the panel. */
+const RESULTS_SCREEN_X = -0.32
 
 function useWide(): boolean {
   const [wide, setWide] = useState(() => matchMedia(WIDE).matches)
@@ -53,7 +54,6 @@ function ringsOf(geometry: unknown): [number, number][][] {
 const API = provider.kind === 'api'
 
 const DURATIONS = [7, 14, 30, 60, 90]
-const STEPS = [10, 30, 60, 120]
 const TOP_N: Record<Audience, number> = { public: 99, educator: 99, planner: 99 }
 
 /** What the plan card lets you change. */
@@ -130,10 +130,9 @@ function StartDial({ label, minutes, strip }: { label: string; minutes: boolean;
   return <DateDial label={label} value={startMs} minutes={minutes} strip={strip} onChange={(ms) => setScenarioInput('A', { startMs: ms })} />
 }
 
+/** The planner sets only the period: every other parameter keeps its default. */
 function PlannerExtras() {
   const durationDays = useStore((s) => s.durationDays)
-  const stepMinutes = useStore((s) => s.stepMinutes)
-  const height = useStore((s) => s.scenarios.A.input.observerHeightM)
   return (
     <div className="moon-period">
       <Field label="Duration" htmlFor="duration">
@@ -144,32 +143,6 @@ function PlannerExtras() {
             </option>
           ))}
         </Select>
-      </Field>
-      <Field label="Step" htmlFor="step">
-        <Select id="step" inputSize="s" value={stepMinutes} onChange={(e) => setState({ stepMinutes: Number(e.target.value) })}>
-          {STEPS.map((m) => (
-            <option key={m} value={m}>
-              {m < 60 ? `${m} min` : `${m / 60} h`}
-            </option>
-          ))}
-        </Select>
-      </Field>
-      <Field label="Eye height" htmlFor="height">
-        <Input
-          id="height"
-          type="number"
-          data
-          inputSize="s"
-          unit="m"
-          min={0}
-          max={500}
-          step={0.5}
-          value={height}
-          onChange={(e) => {
-            const v = Number(e.target.value)
-            if (Number.isFinite(v) && v >= 0 && v <= 500) setScenarioInput('A', { observerHeightM: v })
-          }}
-        />
       </Field>
     </div>
   )
@@ -349,7 +322,7 @@ function PlanCard({ plan, onPlan, onResults }: PlanCardProps) {
 
   return (
     <Card as="section" className="plan-card" aria-label="Landing plan">
-      {planner ? <p className="ui-field-hint">By date · compare candidate sites for your mission period.</p> : student ? <p className="ui-field-hint">Choose a site and a date to explore sunlight, Earth visibility and the local horizon.</p> : <><p className="ui-field-hint">Compare sites, then use the horizon and timeline to explain what makes conditions favorable.</p><PlanModes value={plan} onChange={onPlan} /></>}
+      {planner ? <p className="ui-field-hint">Choose the mission start and duration, then compare candidate sites.</p> : student ? <p className="ui-field-hint">Choose a site and a date to explore sunlight, Earth visibility and the local horizon.</p> : <><p className="ui-field-hint">Compare sites, then use the horizon and timeline to explain what makes conditions favorable.</p><PlanModes value={plan} onChange={onPlan} /></>}
 
       {plan === 'date' && (
         <>
@@ -360,7 +333,7 @@ function PlanCard({ plan, onPlan, onResults }: PlanCardProps) {
             {planner ? <PlannerExtras /> : <p className="ui-field-hint">Times are UTC. The light on the Moon follows the day you pick.</p>}
           </div>
           <Button size="l" block icon={<ArrowIcon />} onClick={onResults} className="plan-go">
-            {API ? 'Candidate regions' : student ? `Best places for ${formatUtcDate(input.startMs)}` : `Best sites for ${formatUtcDate(input.startMs)}`}
+            {planner ? `Compare sites for ${formatUtcDate(input.startMs)}` : API ? 'Candidate regions' : student ? `Best places for ${formatUtcDate(input.startMs)}` : `Best sites for ${formatUtcDate(input.startMs)}`}
           </Button>
         </>
       )}
@@ -388,14 +361,51 @@ function PlanCard({ plan, onPlan, onResults }: PlanCardProps) {
 
 type Pick = (site: { latDeg: number; lonEastDeg: number; name: string; id?: string }) => void
 
-function why(r: Ranked, audience: Audience): string {
-  return r.paretoFront === 1
-    ? audience === 'public' ? 'A leading trade-off: another place may be better for one need and worse for another.' : 'Pareto shortlist: no eligible candidate is at least as good on every compared metric and better on one.'
-    : `Trade-off group ${r.paretoFront}: another eligible candidate performs at least as well on every compared metric.`
-}
-
 function nightText(h: number, audience: Audience): string {
   return audience === 'planner' ? `${h.toFixed(1)} h` : h < 24 ? `${h.toFixed(1)} h` : `${(h / 24).toFixed(1)} d`
+}
+
+/** The explanatory notes of the shortlist, behind an info button. */
+function RankInfo({ slot, children }: { slot: HTMLElement | null; children: ReactNode }) {
+  const [open, setOpen] = useState(false)
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [open])
+  if (!slot) return null
+  return createPortal(
+    <>
+      <button type="button" className="rank-info" aria-label="About this comparison" aria-expanded={open} aria-controls="rank-info" onClick={() => setOpen((o) => !o)}>
+        <Info size={20} strokeWidth={1.75} aria-hidden="true" />
+      </button>
+      {open && (
+        <div id="rank-info" className="ui-card rank-info-pop ui-small" role="dialog" aria-label="About this comparison">
+          {children}
+          <Button size="s" variant="secondary" className="rank-info-close" onClick={() => setOpen(false)}>Close</Button>
+        </div>
+      )}
+    </>,
+    slot,
+  )
+}
+
+/** The period of the comparison, with the way back to change it on the home. */
+function ResultsWhen() {
+  const startMs = useStore((s) => s.scenarios.A.input.startMs)
+  const durationDays = useStore((s) => s.durationDays)
+  return (
+    <div className="results-when plan-fixed" role="group" aria-label="Mission period">
+      <span>
+        {formatUtcLong(startMs)} UTC
+        <span className="ui-muted"> · {durationDays} days</span>
+      </span>
+      <button type="button" className="ui-dial-link" onClick={() => goTo('moon')}>
+        Change
+      </button>
+    </div>
+  )
 }
 
 /**
@@ -403,7 +413,7 @@ function nightText(h: number, audience: Audience): string {
  * best to the worst. With the engine the regions are measured one at a time:
  * cards join the list in their place as each result arrives.
  */
-function RankedSitesPanel({ ranked, onPick, onHorizon }: { ranked: Ranked[]; onPick: Pick; onHorizon: () => void }) {
+function RankedSitesPanel({ ranked, onPick, onHorizon, infoSlot }: { ranked: Ranked[]; onPick: Pick; onHorizon: () => void; infoSlot: HTMLElement | null }) {
   const audience = useStore((s) => s.audience)
   const input = useStore((s) => s.scenarios.A.input)
   const area = useStore((s) => s.area)
@@ -429,58 +439,58 @@ function RankedSitesPanel({ ranked, onPick, onHorizon }: { ranked: Ranked[]; onP
   const done = progress ? progress.regions.length + progress.failed.length + progress.skipped.length : 0
   const completed = new Set([...(progress?.regions ?? []), ...(progress?.failed ?? []), ...(progress?.skipped ?? [])].map(p => p.id))
   const pending = comparisonCandidates(catalog, sites).filter(p => !completed.has(p.id) && (area === 'all' || p.area === area))
+  const total = progress?.total ?? pending.length
+  // The horizon opens only for a site whose card was clicked in this list.
+  const [cardId, setCardId] = useState<string | null>(null)
+  const canOpen = planner ? !!chosen && chosen.id === cardId : pointShown
 
   return (
     <section className="rank-panel" aria-label="Sites from best to worst">
-      <MissionBrief />
-      <Recommendation ranked={shown} chosen={chosen} candidates={(API ? progress?.regions ?? [] : catalog?.regions ?? []).filter(r => area === 'all' || r.area === area)} onOpen={onHorizon} onPick={(r) => onPick({ ...r.center, name: r.name, id: r.id })} />
-      <LandingWindows name={chosen?.name.split(' · ')[0] ?? (pointShown && !input.siteName ? CUSTOM_SITE_NAME : undefined)} />
-      <h2 className="ui-title rank-title">Shortlist</h2>
-      <Card className="rank-head">
-        <div className="results-rank">
-          <span className="ui-field-label">{catalog?.origin === 'demo' ? 'Mission trade study · practice data' : 'Mission trade study'}</span>
-          <span className="ui-small ui-muted">Requirements first · Pareto groups</span>
+      {/* The boxes and cards scroll on their own; the horizon button stays below them. */}
+      <div className="rank-scroll">
+      {API && <div className="ui-card rank-loader" role="status" aria-live="polite">
+        <div className="rank-loader-head">
+          <span className="ui-field-label">{measuring ? 'Evaluating sites…' : 'Evaluation complete'}</span>
+          <span className="mono">{done} / {total}</span>
         </div>
-        <MissionControls />
-        <p className="ui-small ui-muted">Sunlight screen: {pct(mission.minSunFraction)} minimum. Only candidates meeting all configured requirements enter the comparison.</p>
-        <details className="ui-small ui-muted">
-          <summary>How candidates are assessed</summary>
+        <span className="rank-progress-bar" aria-hidden="true">
+          <span style={{ width: `${total ? (done / total) * 100 : 0}%` }} />
+        </span>
+        <p className="ui-small ui-muted">
+          {!progress ? 'Preparing the comparison…'
+            : measuring ? `${done} processed · ${total - done} remaining${progress.current ? ` · now measuring ${progress.current}` : ''}`
+            : `All ${total} sites processed${progress.failed.length ? ` · ${progress.failed.length} could not be calculated` : ''}`}
+        </p>
+      </div>}
+      <RankInfo slot={infoSlot}>
+          <p><strong>{catalog?.origin === 'demo' ? 'Mission trade study · practice data' : 'Mission trade study'}</strong> · requirements first, then Pareto groups.</p>
+          <p>General test defaults: no minimum sunlight, Earth visibility or outage limits.</p>
+          {API && progress && <p>{ranked.length} meet configured limits · {notEligible.length} excluded or insufficient data · {progress.skipped.length} below sunlight minimum · {progress.failed.length} calculation failures · {total - done} pending.</p>}
+          {API && progress?.message && measuring && <p>Current step: {progress.message}</p>}
+          {API && <p>All catalog locations are considered. Region results describe their centre point, not the whole region. Comparisons use geometric visibility only; terrain resolution and model limitations apply.</p>}
+          <h3 className="ui-field-label">How candidates are assessed</h3>
           <p>Failed requirements exclude a candidate. Missing required measurements produce “Insufficient data”. Among the rest, group 1 contains the best trade-offs across visibility, outages and shared windows; enabled terrain and energy criteria also participate. A metric is compared only when all eligible candidates have it. Later groups are dominated by earlier candidates.</p>
           <p>The visibility index orders candidates within each group: a harmonic mean of Sun, Earth and simultaneous visibility, penalized for long outages. It does not override requirements or prove mission suitability. Candidates in one group remain alternative trade-offs.</p>
           <p>This assessment uses one point and one time window. Landing-footprint hazards, trajectory access, science targets, thermal survival and RF link performance need additional models and data. Missing optional metrics never become zero-valued measurements.</p>
           {!API && <p>Practice data supplies only the longest night. Requirements needing other measurements report insufficient data.</p>}
           <p>Method references: <a href="https://www.nasa.gov/reference/6-8-decision-analysis/" target="_blank" rel="noreferrer">NASA decision analysis</a> and <a href="https://ntrs.nasa.gov/citations/20250011660" target="_blank" rel="noreferrer">lunar site selection</a>. This implementation is independent and has not been validated or endorsed by NASA.</p>
-        </details>
-        {measuring && progress && (
-          <p className="rank-progress ui-small" role="status">
-            <span className="rank-progress-bar" aria-hidden="true">
-              <span style={{ width: `${(done / progress.total) * 100}%` }} />
-            </span>
-            Measuring {progress.current} · {done} of {progress.total}. {progress.message}
-          </p>
-        )}
-        {API && <p className="ui-small ui-muted">All catalog locations are considered. Region results describe their centre point, not the whole region. Comparisons use geometric visibility only; terrain resolution and model limitations apply.</p>}
-        {API && progress && <p role="status" className="ui-small">{ranked.length} meet configured limits · {notEligible.length} excluded or insufficient data · {progress.skipped.length} below sunlight minimum · {progress.failed.length} calculation failures · {progress.total - done} pending</p>}
-        {API && (error || siteError) && <p role="alert">Catalog incomplete: {[error, siteError].filter(Boolean).join(' ')} <Button size="s" onClick={() => { void loadRegionCatalog(); void loadSiteCatalog() }}>Reload catalogs</Button></p>}
-      </Card>
+      </RankInfo>
+      {API && (error || siteError) && <p role="alert">Catalog incomplete: {[error, siteError].filter(Boolean).join(' ')} <Button size="s" onClick={() => { void loadRegionCatalog(); void loadSiteCatalog() }}>Reload catalogs</Button></p>}
 
       {API && ((!catalog && !error) || !sitesLoaded) ? (
         <p role="status" className="ui-muted">Loading catalog points…</p>
       ) : shown.length === 0 && !measuring ? (
-        <p className="ui-muted">No evaluated candidates meet all configured requirements in this area. Review the reasons or edit the mission requirements.</p>
+        <p className="ui-muted">No evaluated candidates meet all configured requirements in this area. Try a different date or duration.</p>
       ) : (
         <ol className="rank-list" aria-label="Ranking">
           {shown.map((r) => (
             <li key={r.id}>
-              <button type="button" className="rank-card" aria-pressed={isChosen(input, r)} onClick={() => onPick({ ...r.center, name: r.name, id: r.id })}>
+              <button type="button" className={r.rank === 1 ? 'rank-card is-best' : 'rank-card'} aria-pressed={isChosen(input, r)} onClick={() => { setCardId(r.id); onPick({ ...r.center, name: r.name, id: r.id }) }}>
                 <span className="rank-card-head">
                   <span className="rank-badge" style={{ background: rankColor(r.rank, shown.length) }}>
                     {r.rank}
                   </span>
                   <span className="rank-card-name">{r.name.split(' · ')[0]}{isChosen(input, r) ? " · Your selected site" : ""}</span>
-                  <span className="rank-card-score mono" title="Pareto trade-off group">
-                    Group {r.paretoFront}
-                  </span>
                 </span>
                 <span className={`results-metrics is-${audience}`}>
                   <span className="results-metric is-sun">
@@ -506,18 +516,9 @@ function RankedSitesPanel({ ranked, onPick, onHorizon }: { ranked: Ranked[]; onP
                   Longest sunlight outage: {nightText(r.longestNightH, audience)} · Longest radio outage: {r.longestNoLinkH === undefined ? 'Unknown' : nightText(r.longestNoLinkH, audience)} · Longest shared window: {r.longestBothH === undefined ? 'Unknown' : nightText(r.longestBothH, audience)}
                 </span>}
                 {API && <span className="ui-small ui-muted">{r.pointKind === 'region-center' ? 'Region centre · point estimate' : 'Catalog site'}</span>}
-                <span className="results-why">{why(r, audience)}</span>
                 {!planner && <span className="ui-small">{publicExplanation(r)}</span>}
                 <span className="ui-small ui-muted">Visibility index: {r.score.toFixed(1)}/100 · Configured requirements met</span>
               </button>
-              {planner && <details className="mission-checks ui-small">
-                <summary>Requirements and evidence</summary>
-                <ul>{r.assessment.checks.map(c => <li key={c.id}>{c.label}: {c.value?.toFixed(2) ?? 'Unknown'} {c.unit} · {c.direction === 'min' ? 'minimum' : 'maximum'} {c.limit} {c.unit} · {c.status}</li>)}</ul>
-                {r.localTerrain && <p>Local terrain: {r.localTerrain.status === 'ok' ? `${r.localTerrain.slopeDeg?.toFixed(2)}° slope, ${r.localTerrain.roughnessRmsM?.toFixed(2)} m residual RMS` : r.localTerrain.reason}. Support {r.localTerrain.supportDiameterM} m · native pixels {r.localTerrain.sourcePixelSizeM} m · {r.localTerrain.sampleCount} samples.</p>}
-                {r.assessment.power && <p>Battery minimum: {r.assessment.power.minBatteryWh.toFixed(1)} Wh · end: {r.assessment.power.endBatteryWh.toFixed(1)} Wh · generated: {r.assessment.power.generatedWh.toFixed(1)} Wh.</p>}
-                {r.provenance && <p>Terrain: {r.provenance.productIds.join(', ')}. Ephemerides: {r.provenance.ephemeris}. Evaluation {r.provenance.evaluationId}.</p>}
-              </details>}
-              {API && r.warnings?.length ? <details className="ui-small"><summary>Data resolution and limitations</summary>{r.warnings.map((w, i) => <p key={i}>{w}</p>)}</details> : null}
             </li>
           ))}
           {measuring &&
@@ -559,8 +560,9 @@ function RankedSitesPanel({ ranked, onPick, onHorizon }: { ranked: Ranked[]; onP
         {!progress.busy && <Button size="s" onClick={() => void runRegionRanking(true)}>Retry comparison</Button>}
       </section>}
 
-      <Button size="l" block icon={<ArrowIcon />} onClick={onHorizon} className="rank-go" disabled={planner ? !chosen : !pointShown}>
-        {!place ? 'Select a site to open its horizon' : student ? `Fly down to ${place}` : `Open the horizon at ${place}`}
+      </div>
+      <Button size="l" block icon={<ArrowIcon />} onClick={onHorizon} className="rank-go" disabled={!canOpen}>
+        {!canOpen || !place ? 'Select a site card to open its horizon' : student ? `Fly down to ${place}` : `Open the horizon at ${place}`}
       </Button>
     </section>
   )
@@ -633,21 +635,25 @@ export function MoonScreen({ mode }: { mode: 'moon' | 'explore' }) {
   const minSunFraction = mission.minSunFraction
   // Each audience starts somewhere else (S2): the planner on the brief and
   // shortlist, the educator on a choice of experiments, the public on the Moon.
-  const plan: Plan = 'both'
+  const plan: Plan = audience === 'planner' ? 'date' : 'both'
   const attempts = useStore((s) => s.attempts)
-  void mode
   const [realLight, setRealLight] = useState(true)
   const [showRegions, setShowRegions] = useState(true)
   const [view, setView] = useState<'whole' | 'pole'>('whole')
   const [resetNonce, setResetNonce] = useState(0)
   const [hover, setHover] = useState('')
   const [zoomed, setZoomed] = useState(false)
+  const [infoSlot, setInfoSlot] = useState<HTMLDivElement | null>(null)
   const planner = audience === 'planner'
-  const results = planner
+  // The planner's home sets the period over the whole Moon; the results rank the sites.
+  const results = planner && mode === 'explore'
   const pointShown = useStore((s) => s.pointShown)
-  useWide()
+  const wide = useWide()
   // Numbered badges only where the answer is a ranking: the planner's shortlist.
   const ranking = results
+  // The planner's home changes the period only: sites and regions stay highlighted
+  // on the Moon as a preview, but the best site comes from the date, never a click.
+  const preview = planner && !results
   const selectable = true
 
   // With the engine the regions are measured for the chosen period; practice data carries its own numbers.
@@ -686,13 +692,15 @@ export function MoonScreen({ mode }: { mode: 'moon' | 'explore' }) {
     return [...base, ...tries]
   }, [ranking, ranked, audience, places, catalog, sites, area, measured, attempts, input, durationDays, stepMinutes, azimuthStepDeg, maxDistanceKm])
 
-  // The shortlist opens on its leader when nothing else is chosen.
-  const chosenRanked = ranked.find((r) => isChosen(input, r))
+  // The results follow the best site for the date as measurements arrive,
+  // until a site is picked by hand from the cards or the Moon.
+  const followBest = useRef(true)
+  const top = results ? ranked[0] : undefined
+  const topChosen = !!top && isChosen(input, top)
   useEffect(() => {
-    if (!planner || pointShown || chosenRanked) return
-    const top = ranked[0]
-    if (top) selectSite({ ...top.center, name: top.name, id: top.id })
-  }, [planner, pointShown, chosenRanked, ranked])
+    if (!top || topChosen || !followBest.current) return
+    selectSite({ ...top.center, name: top.name, id: top.id })
+  }, [top, topChosen])
 
   const selectedId = API
     ? (input.selectionId ?? null)
@@ -702,7 +710,7 @@ export function MoonScreen({ mode }: { mode: 'moon' | 'explore' }) {
   // The camera only slides, it never turns.
   // On wide screens the results panel floats over the right of the sky: the
   // target sits in the middle of the free part on the left.
-  const offset: [number, number] | undefined = undefined
+  const offset: [number, number] | undefined = results && wide ? [RESULTS_SCREEN_X, 0] : undefined
   const focus: GlobeFocus | null = results
     ? zoomed
       ? { ...input.site, distanceM: 260_000, screen: offset }
@@ -745,16 +753,28 @@ export function MoonScreen({ mode }: { mode: 'moon' | 'explore' }) {
     setResetNonce((n) => n + 1)
   }
 
+  // Back from the results, the home shows the whole Moon again, from afar.
+  const wasResults = useRef(results)
+  useEffect(() => {
+    if (wasResults.current && !results) resetView()
+    wasResults.current = results
+  }, [results])
+
   const openHorizon = () => {
     setState({ cursorOffsetMs: 0 })
     goTo('site')
   }
 
   const showResults = () => {
-    if (pointShown) openHorizon()
+    if (planner) {
+      followBest.current = true
+      setZoomed(false)
+      goTo('explore')
+    } else if (pointShown) openHorizon()
   }
 
   const pick: Pick = (site) => {
+    followBest.current = false
     selectSite(site)
     if (results) setZoomed(true)
   }
@@ -772,12 +792,15 @@ export function MoonScreen({ mode }: { mode: 'moon' | 'explore' }) {
   }
 
   return (
-    <div className={`moon-page is-${audience}`}>
-      <TopBar demo={false} />
+    <div className={`moon-page is-${audience}${results ? ' is-results' : ''}`}>
+      {/* The results are the sky at full screen: no top bar. */}
+      {!results && <TopBar demo={false} />}
       <div className="moon-layout">
-        <div className={planner ? 'moon-side is-scroll' : 'moon-side'}>
-          {planner ? (
-            <RankedSitesPanel ranked={ranked} onPick={pick} onHorizon={openHorizon} />
+        {/* The info button sits outside the panel, beside its first box. */}
+        {results && <div ref={setInfoSlot} className="rank-info-slot" />}
+        <div className={results ? 'moon-side is-scroll' : 'moon-side'}>
+          {results ? (
+            <RankedSitesPanel ranked={ranked} onPick={pick} onHorizon={openHorizon} infoSlot={infoSlot} />
           ) : audience === 'educator' ? (
             <ExperimentCard />
           ) : (
@@ -785,7 +808,7 @@ export function MoonScreen({ mode }: { mode: 'moon' | 'explore' }) {
           )}
         </div>
         <div className="moon-stage">
-          <SpaceWindow className="moon-window has-credits" aria-label="The Moon">
+          <SpaceWindow className={results ? 'moon-window' : 'moon-window has-credits'} aria-label="The Moon">
             <Suspense fallback={<div className="moon-globe-loading">Loading the Moon…</div>}>
               <MoonGlobe
                 markers={markers}
@@ -797,13 +820,16 @@ export function MoonScreen({ mode }: { mode: 'moon' | 'explore' }) {
                 resetNonce={resetNonce}
                 regionShapes={showRegions ? shapes : NO_SHAPES}
                 selectable={selectable}
-                onPickMarker={pickMarker}
-                onPickPoint={(site) => setScenarioInput('A', { site, siteName: null })}
+                onPickMarker={preview ? () => undefined : pickMarker}
+                onPickPoint={preview ? () => undefined : (site) => setScenarioInput('A', { site, siteName: null })}
                 onHover={planner ? setHover : undefined}
               />
             </Suspense>
 
-            <div className="moon-window-toggles">
+            {results && <ResultsWhen />}
+
+            {/* The results show only the Moon and the ranking: no switches, key or credits band. */}
+            {!results && <div className="moon-window-toggles">
               <Toggle checked={realLight} onChange={setRealLight} onDark>
                 Sunlight on this day
               </Toggle>
@@ -820,8 +846,8 @@ export function MoonScreen({ mode }: { mode: 'moon' | 'explore' }) {
               >
                 <Info size={20} strokeWidth={1.75} aria-hidden="true" />
               </button>
-            </div>
-            {legendOpen && (
+            </div>}
+            {!results && legendOpen && (
               <ul id="moon-legend" className="moon-legend ui-small" aria-label="Map key">
                 {shapes.length > 0 && (
                   <li>
@@ -874,8 +900,8 @@ export function MoonScreen({ mode }: { mode: 'moon' | 'explore' }) {
             <Button variant="quiet" pill size="s" icon={<RotateCcw size={20} strokeWidth={1.75} aria-hidden="true" />} className="moon-reset" onClick={resetView}>
               Reset view
             </Button>
-            {planner && hover && <span className="ui-space-caption moon-hover mono">{hover}</span>}
-            <CreditsBar />
+            {planner && !results && hover && <span className="ui-space-caption moon-hover mono">{hover}</span>}
+            {!results && <CreditsBar />}
           </SpaceWindow>
         </div>
       </div>

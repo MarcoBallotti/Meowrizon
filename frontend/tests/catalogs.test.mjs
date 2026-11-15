@@ -91,6 +91,7 @@ test('genuine zero visibility is valid, missing samples and incomplete time cove
 })
 
 const { rank, overallScore, MIN_SUN_FRACTION } = await load('../src/domain/ranking.ts')
+const { DEFAULT_MISSION } = await load('../src/domain/mission.ts')
 const candidate = (overrides = {}) => ({
   id: 'site', name: 'Candidate', area: 'equatorial', center: { latDeg: 0, lonEastDeg: 0 },
   sunFraction: .8, earthFraction: .8, bothFraction: .65, periodHours: 100,
@@ -129,7 +130,7 @@ test('45 percent sunlight is inclusive and rejected sites skip all remaining sco
     get area() { throw new Error('No other filtering is needed') },
   }
   const boundary = candidate({ id: 'boundary', sunFraction: MIN_SUN_FRACTION, earthFraction: .7, bothFraction: .4 })
-  assert.deepEqual(rank([rejected, boundary], 'all').map(r => r.id), ['boundary'])
+  assert.deepEqual(rank([rejected, boundary], 'all', { ...structuredClone(DEFAULT_MISSION), minSunFraction: MIN_SUN_FRACTION }).map(r => r.id), ['boundary'])
 })
 
 test('zero visibility scores zero and full visibility scores 100', () => {

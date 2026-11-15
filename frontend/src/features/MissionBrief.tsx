@@ -12,7 +12,7 @@ import { provider } from '../api'
 import { orderingReason, candidateDifferences, requirementMargin, plannerContext, visibilityWindows } from '../domain/planner'
 import { scenarioIssue } from '../domain/comparison'
 import { rankingRequest } from '../domain/rankingRequest'
-import { beginPlannerExperiment, restorePlannerExperiment, getState, goTo, durationMs, setMission, setScenarioInput, setState, useStore } from '../state/store'
+import { restorePlannerExperiment, getState, goTo, durationMs, setMission, setScenarioInput, setState, useStore } from '../state/store'
 import { ArrowIcon, Button, Card, DateDial, Delta, Field, Select, TrackBar, Notice } from '../ui'
 
 const DURATIONS = [7, 14, 30, 60, 90]
@@ -162,7 +162,7 @@ export function Recommendation({ ranked, chosen, candidates, onOpen, onPick }: {
   const vs = `vs ${previousMonthName(startMs)}`
 
   if (!top) return <Card as="section" className="reco is-empty" aria-label="Recommendation">
-    <h2 className="ui-title">{busy ? 'Evaluating the current requirements…' : missing ? 'No recommendation from the available evidence' : 'No evaluated site meets these requirements'}</h2>
+    <h2 className="ui-title">{busy ? 'Finding the best site for this date…' : missing ? 'No recommendation from the available evidence' : 'No evaluated site for this period'}</h2>
     <p className="ui-small ui-muted">{busy ? 'Wait for current measurements before drawing a conclusion.' : missing ? 'Some candidates lack required data or failed to calculate. This does not establish that no solution exists.' : 'The evaluated candidates fail one or more configured limits. Inspect their reasons or try a different date or requirement.'}</p>
   </Card>
 
@@ -189,7 +189,6 @@ export function Recommendation({ ranked, chosen, candidates, onOpen, onPick }: {
     </details>
     <div className="reco-actions">
       {chosen?.id === top.id ? <Button icon={<ArrowIcon />} onClick={onOpen}>Open the horizon</Button> : <Button onClick={() => onPick(top)}>Select this site</Button>}
-      {!baseline && <Button size="s" variant="secondary" disabled={partial} onClick={() => beginPlannerExperiment(top)}>Try a requirement change</Button>}
     </div>
   </Card>
 }

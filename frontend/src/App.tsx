@@ -20,12 +20,10 @@ function useAutoRun() {
   const screen = useStore((s) => s.screen)
   const azimuthStepDeg = useStore((s) => s.azimuthStepDeg)
   const maxDistanceKm = useStore((s) => s.maxDistanceKm)
-  // The planner's home shows the landing windows of the selected site.
-  const plannerHome = useStore((s) => s.audience === 'planner' && (s.screen === 'moon' || s.screen === 'explore') && s.pointShown)
   const lastKeys = useRef<Partial<Record<ScenarioKey, string>>>({})
 
   useEffect(() => {
-    if (screen !== 'site' && !plannerHome) return
+    if (screen !== 'site') return
     const timer = setTimeout(() => {
       const wanted: [ScenarioKey, typeof A][] = compare ? [['A', A], ['B', B]] : [['A', A]]
       for (const [key, input] of wanted) {
@@ -36,7 +34,7 @@ function useAutoRun() {
       }
     }, 350)
     return () => clearTimeout(timer)
-  }, [A, B, compare, durationDays, stepMinutes, screen, azimuthStepDeg, maxDistanceKm, plannerHome])
+  }, [A, B, compare, durationDays, stepMinutes, screen, azimuthStepDeg, maxDistanceKm])
 }
 
 /** Space toggles playback on the site view, outside form controls. */

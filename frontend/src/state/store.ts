@@ -222,11 +222,9 @@ function storedAudience(): Audience {
   return 'public'
 }
 
+/** Requirements are no longer set in the interface: every session starts from the general defaults. */
 function storedMission(): MissionProfile {
-  try {
-    const saved = JSON.parse(localStorage.getItem('meowrizon.mission.v1') ?? 'null')
-    if (saved && !missionIssue(saved)) return saved
-  } catch { /* Storage is optional; malformed profiles never become requirements. */ }
+  try { localStorage.removeItem('meowrizon.mission.v1') } catch { /* Storage is optional. */ }
   return structuredClone(DEFAULT_MISSION)
 }
 
@@ -300,7 +298,6 @@ export function setState(update: Partial<AppState> | ((s: AppState) => Partial<A
 export function setMission(mission: MissionProfile): void {
   const issue = missionIssue(mission)
   if (issue) throw new Error(issue)
-  try { localStorage.setItem('meowrizon.mission.v1', JSON.stringify(mission)) } catch { /* Optional persistence. */ }
   setState({ mission })
 }
 

@@ -27,8 +27,9 @@ export interface MissionProfile {
   power: PowerProfile
 }
 
+/** General test defaults: no requirement excludes a candidate, every site is ranked. */
 export const DEFAULT_MISSION: MissionProfile = {
-  minSunFraction: .45, minEarthFraction: 0, minBothFraction: 0,
+  minSunFraction: 0, minEarthFraction: 0, minBothFraction: 0,
   maxSunOutageH: null, maxEarthOutageH: null, minJointWindowH: null,
   maxSlopeDeg: null, maxRoughnessM: null, maxDemPixelM: null,
   eventMarginMinutes: 0,

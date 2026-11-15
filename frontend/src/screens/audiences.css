@@ -5,16 +5,36 @@
 
 .moon-page.is-planner {
   --side-w: 440px;
+  --best: #2f9e6e;
 }
 
 @media (min-width: 1101px) {
+  /* The panel fills the side: the cards scroll inside it, the button sits below. */
   .moon-side.is-scroll {
-    overflow-y: auto;
-    padding-right: var(--s-1);
-    scrollbar-gutter: stable;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
   }
 
   .moon-side.is-scroll .rank-panel {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  /* Scrolls by wheel, touch and keyboard, with no visible scrollbar. */
+  .moon-side.is-scroll .rank-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    scrollbar-width: none;
+  }
+
+  .moon-side.is-scroll .rank-scroll::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Items keep their natural height, so the column scrolls instead of squeezing them. */
+  .moon-side.is-scroll .rank-scroll > * {
     flex: none;
   }
 
@@ -133,8 +153,112 @@
   font-weight: 600;
 }
 
-.rank-title {
-  margin-top: var(--s-2);
+/* Planner shortlist: progress first, the notes behind an info button. */
+.rank-loader {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.rank-loader-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--s-2);
+}
+
+.rank-loader p {
+  margin: 0;
+}
+
+.rank-info-slot {
+  position: relative;
+  z-index: 4;
+  order: 1;
+  align-self: flex-end;
+}
+
+.rank-info {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--card);
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+.rank-info:hover,
+.rank-info[aria-expanded='true'] {
+  color: var(--ink);
+}
+
+.rank-info:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+
+.rank-info-pop {
+  position: absolute;
+  z-index: 5;
+  top: calc(100% + var(--s-1));
+  right: 0;
+  width: min(380px, calc(100vw - 2 * var(--s-3)));
+  max-height: 60vh;
+  overflow-y: auto;
+  scrollbar-width: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 0.35);
+}
+
+/* Full-screen sky: left of the panel's first box, the notes opening over the sky. */
+@media (min-width: 1101px) {
+  .moon-page.is-results .rank-info-slot {
+    position: absolute;
+    top: var(--s-5);
+    right: calc(var(--side-w) + var(--s-5) + var(--s-2));
+  }
+
+  .moon-page.is-results .rank-info-pop {
+    top: 0;
+    right: calc(100% + var(--s-2));
+    max-height: calc(100dvh - 2 * var(--s-5));
+  }
+}
+
+.rank-info-pop::-webkit-scrollbar {
+  display: none;
+}
+
+.rank-info-pop p,
+.rank-info-pop h3 {
+  margin: 0;
+}
+
+.rank-info-close {
+  align-self: flex-end;
+}
+
+/* The cards and boxes, one column; on wide screens this column scrolls. */
+.rank-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.moon-page.is-planner .rank-scroll {
+  gap: var(--s-2);
+}
+
+/* The horizon button sits below the cards, never over them. */
+.rank-go {
+  flex: none;
 }
 
 /* ---------------------------------------------------------------- educator */
@@ -341,4 +465,30 @@
   flex-direction: column;
   gap: var(--s-2);
   margin-top: auto;
+}
+
+/* Disabled, the button is a muted, solid blue. */
+.moon-side.is-scroll .rank-go:disabled {
+  opacity: 1;
+  background: color-mix(in srgb, var(--primary) 50%, var(--card));
+  color: var(--on-primary);
+}
+
+/* Tighter shortlist: less space between the boxes and the cards. */
+.moon-page.is-planner .rank-panel {
+  gap: var(--s-2);
+}
+
+.moon-page.is-planner .rank-list {
+  gap: var(--s-1);
+}
+
+/* The best site: an accent green border, the green of its first-place badge. */
+.moon-page.is-planner .rank-card.is-best {
+  border: 2px solid var(--best);
+  padding: 11px;
+}
+
+.moon-page.is-planner .rank-card.is-best[aria-pressed='true'] {
+  box-shadow: inset 0 0 0 1px var(--best);
 }

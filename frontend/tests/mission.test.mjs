@@ -13,10 +13,11 @@ const power = overrides => ({ ...DEFAULT_MISSION.power, enabled: true, arrayPowe
 const series = (hours, fractions, distance = 149_597_870.7) => ({ timesMs: hours.map(h => h * 3600000), visibleFraction: fractions, distanceKm: hours.map(() => distance) })
 
 test('sunlight screening short-circuits all later measurements and preserves the exact boundary', () => {
+  const screen = profile({ minSunFraction: .45 })
   const rejected = { sunFraction: .449999, get earthFraction() { throw Error('must not read') } }
-  assert.equal(assessMission(rejected, profile()).status, 'excluded')
-  assert.equal(assessMission({ sunFraction: .45 - Number.EPSILON }, profile()).status, 'excluded')
-  assert.equal(assessMission(candidate({ sunFraction: .45, bothFraction: .3 }), profile()).status, 'eligible')
+  assert.equal(assessMission(rejected, screen).status, 'excluded')
+  assert.equal(assessMission({ sunFraction: .45 - Number.EPSILON }, screen).status, 'excluded')
+  assert.equal(assessMission(candidate({ sunFraction: .45, bothFraction: .3 }), screen).status, 'eligible')
   assert.equal(assessMission(candidate({ sunFraction: NaN }), profile()).status, 'insufficient-data')
 })
 
