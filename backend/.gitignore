@@ -8,3 +8,6 @@ __pycache__/
 !.env.example
 .pytest_cache/
 .ruff_cache/
+
+# Scenario measurement cache written by the engine at runtime: stays on disk, out of Git.
+/cache/
