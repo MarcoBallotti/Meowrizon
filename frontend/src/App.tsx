@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import { KitScreen } from './screens/KitScreen'
 import { MoonScreen } from './screens/MoonScreen'
 import { SiteScreen } from './screens/SiteScreen'
-import { loadCoverage, runScenario } from './state/runner'
+import { loadCoverage, loadRegionCatalog, runScenario } from './state/runner'
 import { getState, screenFromHash, setState, useStore, type ScenarioKey } from './state/store'
 import './screens/screens.css'
 
@@ -66,6 +66,7 @@ export default function App() {
   useHashRoute()
   useEffect(() => {
     void loadCoverage()
+    void loadRegionCatalog()
   }, [])
   useEffect(() => {
     document.documentElement.dataset.audience = audience
@@ -73,7 +74,7 @@ export default function App() {
 
   return (
     <div className="app" data-screen={screen}>
-      {screen === 'moon' && <MoonScreen />}
+      {(screen === 'moon' || screen === 'explore') && <MoonScreen mode={screen} />}
       {screen === 'site' && <SiteScreen />}
       {screen === 'kit' && <KitScreen />}
     </div>

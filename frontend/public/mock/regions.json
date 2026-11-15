@@ -1,0 +1,275 @@
+{
+  "origin": "demo",
+  "note": "Practice data. \"previous\" holds the same days one month earlier. Fractions and nights are invented for the interface; centres are approximate. Region names follow the nine Artemis III candidate regions announced by NASA in October 2024, plus the app's example sites.",
+  "period": {
+    "days": 30
+  },
+  "regions": [
+    {
+      "id": "malapert-massif",
+      "name": "Malapert Massif",
+      "area": "south-pole",
+      "center": {
+        "latDeg": -85.99,
+        "lonEastDeg": 2.9
+      },
+      "sunFraction": 0.66,
+      "earthFraction": 0.92,
+      "bothFraction": 0.6,
+      "longestNightH": 74,
+      "previous": {
+        "sunFraction": 0.72,
+        "earthFraction": 0.95,
+        "bothFraction": 0.56,
+        "longestNightH": 67
+      }
+    },
+    {
+      "id": "mons-mouton-plateau",
+      "name": "Mons Mouton Plateau",
+      "area": "south-pole",
+      "center": {
+        "latDeg": -85.2,
+        "lonEastDeg": 37.0
+      },
+      "sunFraction": 0.63,
+      "earthFraction": 0.88,
+      "bothFraction": 0.55,
+      "longestNightH": 86,
+      "previous": {
+        "sunFraction": 0.57,
+        "earthFraction": 0.87,
+        "bothFraction": 0.57,
+        "longestNightH": 83
+      }
+    },
+    {
+      "id": "mons-mouton",
+      "name": "Mons Mouton",
+      "area": "south-pole",
+      "center": {
+        "latDeg": -84.6,
+        "lonEastDeg": 31.3
+      },
+      "sunFraction": 0.61,
+      "earthFraction": 0.9,
+      "bothFraction": 0.55,
+      "longestNightH": 92,
+      "previous": {
+        "sunFraction": 0.62,
+        "earthFraction": 0.86,
+        "bothFraction": 0.52,
+        "longestNightH": 94
+      }
+    },
+    {
+      "id": "nobile-rim-1",
+      "name": "Nobile Rim 1",
+      "area": "south-pole",
+      "center": {
+        "latDeg": -84.8,
+        "lonEastDeg": 41.0
+      },
+      "sunFraction": 0.62,
+      "earthFraction": 0.78,
+      "bothFraction": 0.48,
+      "longestNightH": 101,
+      "previous": {
+        "sunFraction": 0.61,
+        "earthFraction": 0.76,
+        "bothFraction": 0.45,
+        "longestNightH": 111
+      }
+    },
+    {
+      "id": "nobile-rim-2",
+      "name": "Nobile Rim 2",
+      "area": "south-pole",
+      "center": {
+        "latDeg": -83.9,
+        "lonEastDeg": 58.4
+      },
+      "sunFraction": 0.55,
+      "earthFraction": 0.7,
+      "bothFraction": 0.39,
+      "longestNightH": 130,
+      "previous": {
+        "sunFraction": 0.54,
+        "earthFraction": 0.68,
+        "bothFraction": 0.36,
+        "longestNightH": 121
+      }
+    },
+    {
+      "id": "haworth",
+      "name": "Haworth",
+      "area": "south-pole",
+      "center": {
+        "latDeg": -86.9,
+        "lonEastDeg": -4.0
+      },
+      "sunFraction": 0.52,
+      "earthFraction": 0.85,
+      "bothFraction": 0.44,
+      "longestNightH": 150,
+      "previous": {
+        "sunFraction": 0.57,
+        "earthFraction": 0.88,
+        "bothFraction": 0.46,
+        "longestNightH": 136
+      }
+    },
+    {
+      "id": "de-gerlache-rim-2",
+      "name": "de Gerlache Rim 2",
+      "area": "south-pole",
+      "center": {
+        "latDeg": -88.6,
+        "lonEastDeg": -64.0
+      },
+      "sunFraction": 0.7,
+      "earthFraction": 0.55,
+      "bothFraction": 0.38,
+      "longestNightH": 60,
+      "previous": {
+        "sunFraction": 0.66,
+        "earthFraction": 0.54,
+        "bothFraction": 0.41,
+        "longestNightH": 73
+      }
+    },
+    {
+      "id": "peak-near-cabeus-b",
+      "name": "Peak near Cabeus B",
+      "area": "south-pole",
+      "center": {
+        "latDeg": -84.0,
+        "lonEastDeg": -47.0
+      },
+      "sunFraction": 0.48,
+      "earthFraction": 0.8,
+      "bothFraction": 0.38,
+      "longestNightH": 170,
+      "previous": {
+        "sunFraction": 0.5,
+        "earthFraction": 0.79,
+        "bothFraction": 0.39,
+        "longestNightH": 174
+      }
+    },
+    {
+      "id": "slater-plain",
+      "name": "Slater Plain",
+      "area": "south-pole",
+      "center": {
+        "latDeg": -87.8,
+        "lonEastDeg": 115.0
+      },
+      "sunFraction": 0.58,
+      "earthFraction": 0.35,
+      "bothFraction": 0.2,
+      "longestNightH": 120,
+      "previous": {
+        "sunFraction": 0.61,
+        "earthFraction": 0.32,
+        "bothFraction": 0.22,
+        "longestNightH": 131
+      }
+    },
+    {
+      "id": "shackleton",
+      "name": "Shackleton crater",
+      "area": "south-pole",
+      "center": {
+        "latDeg": -89.67,
+        "lonEastDeg": 129.8
+      },
+      "sunFraction": 0.72,
+      "earthFraction": 0.4,
+      "bothFraction": 0.3,
+      "longestNightH": 55,
+      "previous": {
+        "sunFraction": 0.76,
+        "earthFraction": 0.41,
+        "bothFraction": 0.25,
+        "longestNightH": 68
+      }
+    },
+    {
+      "id": "de-gerlache",
+      "name": "de Gerlache crater",
+      "area": "south-pole",
+      "center": {
+        "latDeg": -88.5,
+        "lonEastDeg": -87.1
+      },
+      "sunFraction": 0.64,
+      "earthFraction": 0.5,
+      "bothFraction": 0.32,
+      "longestNightH": 70,
+      "previous": {
+        "sunFraction": 0.63,
+        "earthFraction": 0.53,
+        "bothFraction": 0.34,
+        "longestNightH": 82
+      }
+    },
+    {
+      "id": "sp-ref",
+      "name": "Horizons reference point",
+      "area": "south-pole",
+      "center": {
+        "latDeg": -89.5,
+        "lonEastDeg": 0.0
+      },
+      "sunFraction": 0.45,
+      "earthFraction": 0.6,
+      "bothFraction": 0.27,
+      "longestNightH": 180,
+      "previous": {
+        "sunFraction": 0.46,
+        "earthFraction": 0.62,
+        "bothFraction": 0.24,
+        "longestNightH": 166
+      }
+    },
+    {
+      "id": "apollo11",
+      "name": "Apollo 11 · Tranquility Base",
+      "area": "equatorial",
+      "center": {
+        "latDeg": 0.6741,
+        "lonEastDeg": 23.473
+      },
+      "sunFraction": 0.5,
+      "earthFraction": 1.0,
+      "bothFraction": 0.5,
+      "longestNightH": 354,
+      "previous": {
+        "sunFraction": 0.5,
+        "earthFraction": 1.0,
+        "bothFraction": 0.5,
+        "longestNightH": 354
+      }
+    },
+    {
+      "id": "apollo15",
+      "name": "Apollo 15 · Hadley Rille",
+      "area": "equatorial",
+      "center": {
+        "latDeg": 26.1322,
+        "lonEastDeg": 3.6339
+      },
+      "sunFraction": 0.5,
+      "earthFraction": 0.99,
+      "bothFraction": 0.49,
+      "longestNightH": 354,
+      "previous": {
+        "sunFraction": 0.5,
+        "earthFraction": 0.99,
+        "bothFraction": 0.49,
+        "longestNightH": 354
+      }
+    }
+  ]
+}

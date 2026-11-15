@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react'
 import type { CoverageCatalog, ScenarioEvaluation, SiteCoordinates, TerrainAnalysis } from '../api/types'
+import type { AreaFilter, RankBy, RegionCatalog } from '../domain/ranking'
 import { EXAMPLE_SITES } from '../domain/sites'
 
 export type ScenarioKey = 'A' | 'B'
@@ -12,7 +13,21 @@ export const AUDIENCES: { id: Audience; label: string; hint: string }[] = [
   { id: 'planner', label: 'Planner', hint: 'Full technical data, exact times, A/B comparison.' },
 ]
 
-export type Screen = 'moon' | 'site' | 'kit'
+export type Screen = 'moon' | 'explore' | 'site' | 'kit'
+
+/** Period summary used to compare sites. Fractions 0..1, night in hours. */
+export interface SiteSummary {
+  sun: number
+  earth: number
+  both: number
+  nightH: number
+}
+
+export interface Comparison {
+  key: string
+  busy: boolean
+  items: { name: string; now: SiteSummary; prev: SiteSummary | null }[]
+}
 
 export interface ScenarioInput {
   site: SiteCoordinates
@@ -30,6 +45,8 @@ export interface ScenarioRun {
   /** Results stay visible while a newer run is in progress. */
   terrain?: TerrainAnalysis
   evaluation?: ScenarioEvaluation
+  /** Same length of time just before the start, for "vs last month". */
+  previous?: ScenarioEvaluation
   /** True while the shown results no longer match the inputs. */
   stale: boolean
   error?: string
@@ -55,6 +72,11 @@ export interface AppState {
   /** Simulated hours per real second during playback. */
   speed: number
   coverage: CoverageCatalog | null
+  regions: RegionCatalog | null
+  /** Top regions of the ranking, computed for the same period as scenario A. */
+  comparison: Comparison | null
+  rankBy: RankBy
+  area: AreaFilter
   /** Incremented to ask the globe to fly to a scenario. */
   flyRequest: { key: ScenarioKey; nonce: number } | null
 }
@@ -80,6 +102,7 @@ function storedAudience(): Audience {
 export function screenFromHash(hash: string): Screen {
   if (hash.startsWith('#/site')) return 'site'
   if (hash.startsWith('#/kit')) return 'kit'
+  if (hash.startsWith('#/explore')) return 'explore'
   return 'moon'
 }
 
@@ -106,6 +129,10 @@ const initialState: AppState = {
   playing: false,
   speed: 12,
   coverage: null,
+  regions: null,
+  comparison: null,
+  rankBy: 'overall',
+  area: 'south-pole',
   flyRequest: null,
 }
 
@@ -144,8 +171,15 @@ export function setAudience(audience: Audience): void {
 export function goTo(screen: Screen): void {
   const hash = screen === 'moon' ? '#/' : `#/${screen}`
   if (location.hash !== hash) history.pushState(null, '', hash)
-  setState({ screen, playing: false })
-  window.scrollTo(0, 0)
+  const apply = () => {
+    setState({ screen, playing: false })
+    window.scrollTo(0, 0)
+  }
+  // Morph the Moon window between the home and the full-screen view.
+  const doc = document as Document & { startViewTransition?: (cb: () => void) => unknown }
+  const morph = (screen === 'explore' && state.screen === 'moon') || (screen === 'moon' && state.screen === 'explore')
+  if (morph && doc.startViewTransition && !matchMedia('(prefers-reduced-motion: reduce)').matches) doc.startViewTransition(apply)
+  else apply()
 }
 
 function subscribe(l: Listener): () => void {

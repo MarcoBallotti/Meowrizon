@@ -68,6 +68,31 @@ export function Metric({ label, value, unit, detail, tone = 'neutral' }: MetricP
   )
 }
 
+/* ---------------------------------------------------------------- delta */
+
+interface DeltaProps {
+  /** Difference now − before, in display units (percentage points, hours…). */
+  value: number
+  unit?: string
+  /** Which direction is good news. */
+  better?: 'higher' | 'lower'
+  /** Optional reference, e.g. "vs Oct". */
+  suffix?: string
+}
+
+/** Plain signed change next to a number: "+4", "−6 h vs Oct". */
+export function Delta({ value, unit = '', better = 'higher', suffix }: DeltaProps) {
+  const r = Math.round(value)
+  const tone = r === 0 ? 'is-flat' : (r > 0) === (better === 'higher') ? 'is-up' : 'is-down'
+  const text = `${r > 0 ? '+' : r < 0 ? '−' : ''}${Math.abs(r)}${unit}`
+  return (
+    <span className={`ui-delta ${tone}`}>
+      {text}
+      {suffix && <span className="ui-delta-suffix"> {suffix}</span>}
+    </span>
+  )
+}
+
 /* ---------------------------------------------------------------- chip */
 
 interface ChipProps {
@@ -127,7 +152,7 @@ interface TrackBarProps {
   intervals: TimeInterval[]
   startMs: number
   spanMs: number
-  tone: 'sun' | 'earth' | 'both'
+  tone: 'sun' | 'earth' | 'both' | 'eclipse'
   size?: 's' | 'm'
   label: string
 }

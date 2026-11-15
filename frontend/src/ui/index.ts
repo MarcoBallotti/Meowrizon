@@ -8,6 +8,7 @@ export { Logo, MoonCatMark } from './Logo'
 export {
   ArrowIcon,
   BackIcon,
+  BackLink,
   Button,
   DownloadIcon,
   IconButton,
@@ -18,6 +19,8 @@ export {
   StepForwardIcon,
 } from './Button'
 export { Field, Input, Segmented, Select, SiteTile, Toggle, type SegmentOption } from './Controls'
-export { Card, Chip, Metric, Notice, Progress, SpaceWindow, StoryCard, TrackBar } from './Display'
-export { BothIcon, EarthIcon, SunIcon } from './Bodies'
+export { Card, Chip, Delta, Metric, Notice, Progress, SpaceWindow, StoryCard, TrackBar } from './Display'
+export { BothIcon, EarthIcon, EarthPhase, EclipseIcon, SunIcon } from './Bodies'
 export { phasePath } from './phase'
+export { Building } from './Building'
+export { DateDial } from './DateDial'
