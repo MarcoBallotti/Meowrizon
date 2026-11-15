@@ -40,8 +40,9 @@ npm start        # avvia backend e frontend
 | `web` (solo `npm run prod`) | http://localhost:8080 | Frontend compilato servito da nginx, come in produzione |
 
 Il frontend inoltra le chiamate `/api` al backend dentro la rete Docker.
-`VITE_DATA_SOURCE=api` in `.env` seleziona il client HTTP, ma non implementa gli endpoint
-scientifici mancanti né sostituisce la classifica dimostrativa (vedere `.env.example`).
+La modalità predefinita `api` carica i cataloghi reali di siti, regioni e copertura.
+Le regioni appaiono senza punteggi; l'engine scientifico resta da implementare.
+`VITE_DATA_SOURCE=demo` abilita esplicitamente la versione dimostrativa.
 
 Comandi disponibili (`npm run <nome>`):
 
@@ -86,7 +87,7 @@ npm run lint
 npm run preview
 ```
 
-Per collegare il motore, quando sarà disponibile: `VITE_DATA_SOURCE=api npm run dev`. Vedere `frontend/.env.example`.
+`npm run dev` usa i cataloghi del backend avviato separatamente; `VITE_DATA_SOURCE=demo npm run dev` abilita la demo. Vedere `frontend/.env.example`.
 
 ## Ripartizione del lavoro
 
@@ -156,9 +157,10 @@ I DEM numerici LOLA possono arrivare anche direttamente dagli archivi NASA PDS/P
 risultati dell'engine. Il nome del servizio NASA è Moon Trek.
 
 **Stato effettivo:** i connettori Horizons e Moon Trek sono presenti e il globo usa layer
-Moon Trek, ma il frontend parte in modalità `demo`. La classifica regionale legge ancora
-`frontend/public/mock/regions.json`; impostare `VITE_DATA_SOURCE=api` da solo non completa
-l'integrazione. Le metriche dimostrative non sono risultati del motore scientifico.
+Moon Trek. Il frontend parte in modalità `api` con cataloghi reali, messaggi di errore e retry.
+`frontend/public/mock/regions.json` è usato solo in modalità `demo`. In modalità API
+non ci sono punteggi o confronti regionali calcolati. Orbite, eclissi e luce del globo
+rimangono anteprime approssimate locali, dichiarate nel badge.
 L'adapter WebGeoCalc presente nel modulo di acquisizione serve a un profilo separato di
 traiettoria storica, non sostituisce Horizons come fonte scelta per Sole e Terra.
 

@@ -27,7 +27,22 @@ del frontend non sono ancora implementati.
 
 ### Stato dell'integrazione frontend (verifica del 15/11/2026)
 
-Con `VITE_DATA_SOURCE=api`, il proxy Vite inoltra correttamente le richieste al backend: `/api/regions` restituisce 13 regioni (2 attive), `/api/sites` 16 siti, `/api/coverage` zero DEM pronti. Il client invia poi `POST /api/terrain-analyses`, che attualmente risponde 404 perché il motore scientifico non è implementato. Il ranking nel frontend carica ancora `public/mock/regions.json` anche in modalità API: quei punteggi non provengono dai dati NASA. Di conseguenza, la build del frontend e il catalogo reale sono verificati, mentre uno scenario reale completo non lo è ancora.
+Con `VITE_DATA_SOURCE=api`, il proxy Vite inoltra correttamente le richieste al backend: `/api/regions` restituisce 13 regioni (2 attive), `/api/sites` 16 siti, `/api/coverage` zero DEM pronti. I POST terreno/scenario e il polling GET sono implementati come ricevute persistenti con errore esplicito: il motore scientifico non è ancora disponibile. Il ranking nel frontend carica ancora `public/mock/regions.json` anche in modalità API: quei punteggi non provengono dai dati NASA. Uno scenario reale completo resta da implementare.
+
+### Interfaccia terreno/scenario implementata
+
+- `POST /api/terrain-analyses`: riceve `site`, `observerHeightM`, `config.azimuthStepDeg/maxDistanceKm`.
+- `GET /api/terrain-analyses/{jobId}`: legge la ricevuta terreno salvata.
+- `POST /api/scenario-evaluations`: riceve `terrainAnalysisId`, `startUtc`, `stopUtc`, `stepMinutes`.
+- `GET /api/scenario-evaluations/{jobId}`: legge la ricevuta scenario salvata.
+
+Le POST valide rispondono 202 con `{id,status:"failed",error:{code,message}}`, compatibile con `HttpProvider` e `runJob` attuali. I codici sono `terrain_engine_unavailable` e `scenario_engine_unavailable`. Non viene creato alcun risultato scientifico. GET restituisce 200 per job noti, 404 per ID ignoti o dell'altra famiglia. Gli input invalidi rispondono 422 con `detail` stringa leggibile dal client e `errors` per campo. Le longitudini sono normalizzate; numeri non finiti, poli esatti, passi azimutali che non dividono 360, tempi non UTC e intervalli non crescenti sono rifiutati.
+
+Le ricevute e i parametri sono salvati atomicamente in `backend/data/jobs/scientific/`, separati dai job di acquisizione. Ogni invio crea una nuova ricevuta; non ci sono deduplicazione, scadenza o retry automatico. Nessun download viene avviato dalle richieste scientifiche. La coda di acquisizione continua a funzionare indipendentemente.
+
+Per usare l'interfaccia dal frontend, avviare il backend con `uvicorn app:app --port 8000` da `backend/`, poi `VITE_DATA_SOURCE=api npm run dev` da `frontend/`. La UI visualizzerà l'errore del motore; la modalità API non sostituisce ancora i percorsi mock, le orbite o le eclissi locali.
+
+Le nuove strutture scientifiche sono proposte in [SCIENTIFIC_SCHEMA_PROPOSAL.md](SCIENTIFIC_SCHEMA_PROPOSAL.md). Non sono nuove rotte o risultati implementati. Le decisioni U01–U09 del contratto revisione 3 restano da chiudere. La verifica documentale `scripts/verify_api_integration.py` segnala correttamente che `app/main.py` è cambiato rispetto all'audit statico; il manifest nella cartella `docs/` richiede una nuova revisione del comportamento, non solo l'aggiornamento degli hash.
 
 Le regioni sono solo quelle candidate di Artemis III. Il catalogo `catalog/regions.toml` decide quali usare (`active`), il limite del settore e la dimensione delle celle; i contorni non si scrivono a mano.
 

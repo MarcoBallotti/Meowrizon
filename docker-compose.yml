@@ -38,7 +38,7 @@ services:
       # Come per il backend: su Windows Vite deve controllare i file a intervalli.
       MEOWRIZON_WATCH_POLLING: "true"
       # demo = dati dimostrativi; api = motore Python. Si cambia in .env.
-      VITE_DATA_SOURCE: ${VITE_DATA_SOURCE:-demo}
+      VITE_DATA_SOURCE: ${VITE_DATA_SOURCE:-api}
       VITE_API_BASE_URL: /api
     ports:
       - "${FRONTEND_PORT:-5173}:5173"
@@ -59,7 +59,7 @@ services:
       dockerfile: frontend/Dockerfile
       target: prod
       args:
-        VITE_DATA_SOURCE: ${VITE_DATA_SOURCE:-demo}
+        VITE_DATA_SOURCE: ${VITE_DATA_SOURCE:-api}
         VITE_API_BASE_URL: /api
     image: meowrizon-web:latest
     ports:
