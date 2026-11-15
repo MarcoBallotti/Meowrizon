@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react'
 import type { CoverageCatalog, ScenarioEvaluation, SiteCoordinates, TerrainAnalysis } from '../api/types'
-import type { AreaFilter, RankBy, RegionCatalog } from '../domain/ranking'
+import type { AreaFilter, RankBy, Region, RegionCatalog } from '../domain/ranking'
 import { EXAMPLE_SITES } from '../domain/sites'
 import type { ExampleSite } from '../domain/sites'
 import { provider } from '../api'
@@ -30,6 +30,23 @@ export interface Comparison {
   key: string
   busy: boolean
   items: { name: string; now: SiteSummary; prev: SiteSummary | null }[]
+}
+
+/**
+ * Candidate regions measured for the chosen period, so they can be ranked
+ * best to worst. Filled one region at a time as the engine answers.
+ */
+export interface RegionRanking {
+  key: string
+  busy: boolean
+  /** Regions to measure, in catalog order. */
+  total: number
+  /** Measured regions (Sun, Earth, both, longest night). */
+  regions: Region[]
+  /** Names of the regions the engine could not measure. */
+  failed: string[]
+  /** Name of the region being measured now. */
+  current: string | null
 }
 
 export interface ScenarioInput {
@@ -83,6 +100,8 @@ export interface AppState {
   siteError: string | null
   /** Top regions of the ranking, computed for the same period as scenario A. */
   comparison: Comparison | null
+  /** Candidate regions measured for scenario A's period (engine only). */
+  ranking: RegionRanking | null
   rankBy: RankBy
   area: AreaFilter
   /** Incremented to ask the globe to fly to a scenario. */
@@ -142,6 +161,7 @@ const initialState: AppState = {
   regionError: null,
   siteError: null,
   comparison: null,
+  ranking: null,
   rankBy: 'overall',
   area: 'all',
   flyRequest: null,

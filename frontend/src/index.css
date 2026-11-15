@@ -58,14 +58,14 @@
   --font-display: 'Bricolage Grotesque', system-ui, sans-serif;
   --font-text: 'Figtree', system-ui, sans-serif;
   --font-data: 'JetBrains Mono', ui-monospace, monospace;
-  --text-xs: 14px;
-  --text-s: 16px;
-  --text-m: 18px;
-  --text-l: 20px;
-  --title-s: 20px;
-  --title-m: 26px;
-  --display-s: 34px;
-  --display-m: 48px;
+  --text-xs: 12px;
+  --text-s: 14px;
+  --text-m: 15px;
+  --text-l: 17px;
+  --title-s: 18px;
+  --title-m: 22px;
+  --display-s: 28px;
+  --display-m: 38px;
 
   /* Shape */
   --r-window: 24px;
@@ -86,9 +86,9 @@
   --s-10: 48px;
 
   /* Touch targets: classroom first */
-  --target-s: 48px;
-  --target-m: 56px;
-  --target-l: 64px;
+  --target-s: 40px;
+  --target-m: 48px;
+  --target-l: 56px;
 
   /* Motion: state changes only */
   --t-fast: 120ms;
@@ -106,11 +106,11 @@
 /* Tablet portrait and large phones */
 @media (max-width: 720px) {
   :root {
-    --text-l: 18px;
-    --title-s: 19px;
-    --title-m: 24px;
-    --display-s: 28px;
-    --display-m: 36px;
+    --text-l: 16px;
+    --title-s: 17px;
+    --title-m: 20px;
+    --display-s: 24px;
+    --display-m: 30px;
     --r-window: 16px;
   }
 }
@@ -118,12 +118,12 @@
 /* Phones */
 @media (max-width: 480px) {
   :root {
-    --text-m: 16px;
-    --text-l: 16px;
-    --title-s: 18px;
-    --title-m: 22px;
-    --display-s: 26px;
-    --display-m: 30px;
+    --text-m: 15px;
+    --text-l: 15px;
+    --title-s: 16px;
+    --title-m: 19px;
+    --display-s: 22px;
+    --display-m: 26px;
     --s-5: 16px;
     --s-6: 16px;
     --s-7: 24px;
@@ -144,14 +144,14 @@
 /* 1440p / 4K and classroom boards: scale type and targets up */
 @media (min-width: 2560px) {
   :root {
-    --text-xs: 16px;
-    --text-s: 18px;
-    --text-m: 22px;
-    --text-l: 24px;
-    --title-s: 26px;
-    --title-m: 34px;
-    --display-s: 44px;
-    --display-m: 60px;
+    --text-xs: 14px;
+    --text-s: 16px;
+    --text-m: 18px;
+    --text-l: 20px;
+    --title-s: 22px;
+    --title-m: 28px;
+    --display-s: 36px;
+    --display-m: 48px;
     --s-3: 24px;
     --s-4: 24px;
     --s-5: 32px;
@@ -159,9 +159,9 @@
     --s-7: 48px;
     --s-8: 48px;
     --s-10: 72px;
-    --target-s: 56px;
-    --target-m: 64px;
-    --target-l: 72px;
+    --target-s: 48px;
+    --target-m: 56px;
+    --target-l: 64px;
   }
 }
 

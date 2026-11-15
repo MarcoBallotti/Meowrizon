@@ -1,7 +1,7 @@
 import { catalogApi, provider } from '../api'
 import { runJob } from '../api/jobs'
 import type { ScenarioEvaluation, SiteCoordinates } from '../api/types'
-import { loadRegions, rank } from '../domain/ranking'
+import { loadRegions, rank, type Region } from '../domain/ranking'
 import { regionCatalog, siteCatalog } from '../domain/catalogs'
 import { intervalStats } from '../domain/sampling'
 import { getState, setState, updateScenario, type ScenarioKey, type SiteSummary } from './store'
@@ -170,6 +170,62 @@ export async function runComparison(): Promise<void> {
   } catch {
     if (!signal.aborted) setState({ comparison: { key, busy: false, items: [] } })
   }
+}
+
+let rankingController: AbortController | null = null
+
+/**
+ * Measures every candidate region for scenario A's period with the engine
+ * (terrain horizon, then Sun and Earth visibility), one region at a time, so
+ * the results screen can rank them best to worst. The engine runs one job at
+ * a time and keeps finished ones, so a second visit is immediate.
+ */
+export async function runRegionRanking(): Promise<void> {
+  if (provider.kind !== 'api') return // Practice data already carries its measurements.
+  const s = getState()
+  const locations = s.regions?.locations ?? []
+  if (!locations.length) return
+  const A = s.scenarios.A.input
+  const key = JSON.stringify([locations.map((l) => l.id), A.startMs, A.observerHeightM, s.durationDays, s.stepMinutes, s.azimuthStepDeg, s.maxDistanceKm])
+  if (s.ranking?.key === key) return
+
+  rankingController?.abort()
+  const controller = new AbortController()
+  rankingController = controller
+  const { signal } = controller
+  const start = A.startMs
+  const stop = start + s.durationDays * 86_400_000
+  const update = (patch: Partial<NonNullable<ReturnType<typeof getState>['ranking']>>) => {
+    const now = getState().ranking
+    if (!signal.aborted && now?.key === key) setState({ ranking: { ...now, ...patch } })
+  }
+  setState({ ranking: { key, busy: true, total: locations.length, regions: [], failed: [], current: locations[0].name } })
+
+  for (const loc of locations) {
+    if (signal.aborted) return
+    update({ current: loc.name })
+    try {
+      const terrain = await runJob(
+        () => provider.submitTerrainAnalysis({ site: loc.center, observerHeightM: A.observerHeightM, config: { azimuthStepDeg: s.azimuthStepDeg, maxDistanceKm: s.maxDistanceKm } }, signal),
+        (id) => provider.getTerrainAnalysis(id, signal),
+        () => undefined,
+        signal,
+      )
+      const evaluation = await runJob(
+        () => provider.submitScenarioEvaluation({ terrainAnalysisId: terrain.id, startUtc: new Date(start).toISOString(), stopUtc: new Date(stop).toISOString(), stepMinutes: s.stepMinutes }, signal),
+        (id) => provider.getScenarioEvaluation(id, signal),
+        () => undefined,
+        signal,
+      )
+      const m = summarize(evaluation, start, stop)
+      const region: Region = { id: loc.id, name: loc.name, area: loc.area, center: loc.center, sunFraction: m.sun, earthFraction: m.earth, bothFraction: m.both, longestNightH: Math.round(m.nightH) }
+      update({ regions: [...(getState().ranking?.regions ?? []), region] })
+    } catch {
+      if (signal.aborted) return
+      update({ failed: [...(getState().ranking?.failed ?? []), loc.name] })
+    }
+  }
+  update({ busy: false, current: null })
 }
 
 let regionRequest: ReturnType<typeof catalogApi.getRegions> | null = null

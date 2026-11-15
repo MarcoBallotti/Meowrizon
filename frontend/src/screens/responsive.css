@@ -91,6 +91,16 @@
     flex-basis: 100%;
   }
 
+  /* Stacked results: the Moon first, then the ranking. */
+  .moon-page.is-results .moon-side {
+    order: 2;
+  }
+
+  .rank-list {
+    max-height: none;
+    overflow: visible;
+  }
+
   .moon-window {
     height: clamp(360px, 68dvh, 720px);
   }
@@ -150,6 +160,11 @@
 
   .moon-globe-warning {
     top: 120px;
+  }
+
+  .moon-legend {
+    top: auto;
+    bottom: 72px;
   }
 
   /* Site view */

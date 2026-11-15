@@ -40,6 +40,17 @@ test('metadata never becomes a calculated ranking or zero-valued assessment', ()
   assert.equal(catalog.locations[0].active, true)
 })
 
+test('only regions of the current NASA list (2024) are kept', () => {
+  const at = (id, lists) => ({ ...region, properties: { ...region.properties, id, lists } })
+  const ids = regionCatalog(featureCollection([at('haworth', ['2022', '2024']), at('connecting-ridge', ['2022']), at('unlisted')])).locations.map((r) => r.id)
+  assert.deepEqual(ids, ['region:haworth', 'region:unlisted'])
+})
+
+test('planned and landed sites keep their catalog kind', () => {
+  const [s] = siteCatalog(featureCollection([{ ...site, properties: { ...site.properties, kind: 'previsto' } }]))
+  assert.equal(s.kind, 'previsto')
+})
+
 test('malformed, duplicate and out-of-range API data is rejected', () => {
   assert.throws(() => siteCatalog({ detail: 'Service unavailable' }))
   assert.throws(() => siteCatalog(featureCollection([site, site])))

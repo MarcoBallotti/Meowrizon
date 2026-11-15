@@ -70,6 +70,19 @@ export function rank(regions: Region[], by: RankBy, area: AreaFilter): Ranked[] 
     .map((r, i) => ({ ...r, rank: i + 1 }))
 }
 
+/**
+ * Colour of a place in the ranking, from green (best) to red (worst), shared by
+ * the result cards and the badges on the Moon. The number in the badge carries
+ * the same information, so the order never depends on colour alone.
+ */
+export const RANK_COLORS = ['#2f9e6e', '#86c34a', '#f2c94c', '#f2994a', '#e0574f'] as const
+
+export function rankColor(rank: number, total: number): string {
+  if (total <= 1) return RANK_COLORS[0]
+  const i = Math.round(((rank - 1) / (total - 1)) * (RANK_COLORS.length - 1))
+  return RANK_COLORS[Math.min(RANK_COLORS.length - 1, Math.max(0, i))]
+}
+
 export const RANK_LABELS: Record<RankBy, { student: string; other: string }> = {
   overall: { student: 'Best overall', other: 'Overall score' },
   sun: { student: 'Sunniest', other: 'Sunlight' },

@@ -24,11 +24,21 @@ function features(value: unknown): ObjectValue[] {
   return rows
 }
 
+/** The NASA list of Artemis III candidate regions in force since October 2024. */
+export const CURRENT_LIST = '2024'
+/** Regions in the October 2024 announcement; Moon Trek publishes outlines for the 2022 list only. */
+export const CURRENT_LIST_SIZE = 9
+function inCurrentList(p: ObjectValue): boolean {
+  return !Array.isArray(p.lists) || p.lists.includes(CURRENT_LIST)
+}
+
 export function regionCatalog(value: unknown): RegionCatalog {
   return {
-    origin: 'engine', note: 'NASA 2022 candidate regions via Moon Trek. Catalog order; scientific comparison unavailable.',
+    origin: 'engine', note: 'NASA Artemis III candidate regions (October 2024 list), outlines via Moon Trek. Catalog order; scientific comparison unavailable.',
     period: { days: 0 }, regions: [],
-    locations: features(value).map((row) => {
+    // Only the current NASA list (October 2024, nine regions): the 2022 regions it
+    // dropped are not candidates any more. Rows that name no list are kept.
+    locations: features(value).filter((row) => inCurrentList(object(row.properties))).map((row) => {
       const p = object(row.properties)
       const geometry = object(row.geometry)
       if (row.type !== 'Feature' || !['Polygon', 'MultiPolygon'].includes(String(geometry.type)) || !Array.isArray(geometry.coordinates) || typeof p.active !== 'boolean') throw new Error('Invalid region geometry or status.')
@@ -52,6 +62,7 @@ export function siteCatalog(value: unknown): ExampleSite[] {
       latDeg, lonEastDeg: number(geometry.coordinates[0], -180, 180),
       region: latDeg < -80 ? 'South pole' : Math.abs(latDeg) <= 35 ? 'Equatorial band' : 'Other latitudes',
       source: text(p.source), properties: p,
+      ...(typeof p.kind === 'string' ? { kind: p.kind } : {}),
     }
   })
 }
