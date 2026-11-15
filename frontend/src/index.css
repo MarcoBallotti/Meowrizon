@@ -1,5 +1,5 @@
 /* =====================================================================
-   Meowrizon tokens
+   Moonrizon tokens
    One cool neutral scale. Indigo is the only action colour. Two muted
    tones mark data only: ochre = Sun / light, blue = Earth / link.
    No gradients, no glow, no shadows. Spacing in steps of 8 px.
@@ -101,8 +101,77 @@
   color-scheme: light;
 }
 
+/* Tokens by screen size. Layout rules live in screens/responsive.css. */
+
+/* Tablet portrait and large phones */
+@media (max-width: 720px) {
+  :root {
+    --text-l: 18px;
+    --title-s: 22px;
+    --title-m: 28px;
+    --display-s: 32px;
+    --display-m: 40px;
+    --r-window: 16px;
+  }
+}
+
+/* Phones */
+@media (max-width: 480px) {
+  :root {
+    --text-m: 16px;
+    --text-l: 16px;
+    --title-s: 20px;
+    --title-m: 24px;
+    --display-s: 28px;
+    --display-m: 32px;
+    --s-5: 16px;
+    --s-6: 16px;
+    --s-7: 24px;
+    --s-8: 24px;
+    --s-10: 32px;
+  }
+}
+
+/* Wide desktop */
+@media (min-width: 1920px) {
+  :root {
+    --s-7: 40px;
+    --s-8: 40px;
+    --s-10: 64px;
+  }
+}
+
+/* 1440p / 4K and classroom boards: scale type and targets up */
+@media (min-width: 2560px) {
+  :root {
+    --text-xs: 16px;
+    --text-s: 18px;
+    --text-m: 22px;
+    --text-l: 24px;
+    --title-s: 30px;
+    --title-m: 40px;
+    --display-s: 52px;
+    --display-m: 72px;
+    --s-3: 24px;
+    --s-4: 24px;
+    --s-5: 32px;
+    --s-6: 32px;
+    --s-7: 48px;
+    --s-8: 48px;
+    --s-10: 72px;
+    --target-s: 56px;
+    --target-m: 64px;
+    --target-l: 72px;
+  }
+}
+
 * {
   box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 html,

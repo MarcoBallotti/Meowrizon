@@ -4,7 +4,7 @@
  * the same way, and a month grid for long jumps. All times are UTC.
  */
 import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react'
-import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type KeyboardEvent, type Ref } from 'react'
 
 const DAY = 86_400_000
 const HOUR = 3_600_000
@@ -35,7 +35,13 @@ function useWheelSteps(el: HTMLElement | null, step: (dir: 1 | -1) => void) {
     const onWheel = (e: WheelEvent) => {
       e.preventDefault()
       const d = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY
-      acc += e.deltaMode === 1 ? d * 16 : d
+      // A mouse wheel sends one big delta per notch: one notch, one step.
+      if (e.deltaMode === 1 || Math.abs(d) >= 50) {
+        acc = 0
+        stepRef.current(d > 0 ? 1 : -1)
+        return
+      }
+      acc += d
       while (acc >= WHEEL_STEP) {
         acc -= WHEEL_STEP
         stepRef.current(1)
@@ -50,27 +56,103 @@ function useWheelSteps(el: HTMLElement | null, step: (dir: 1 | -1) => void) {
   }, [el])
 }
 
-/* ------------------------------------------------------------------ spin field */
+/* ------------------------------------------------------------------ time field */
 
-function Spin({ value, label, onStep, children }: { value: number; label: string; onStep: (dir: 1 | -1) => void; children: ReactNode }) {
-  const [el, setEl] = useState<HTMLSpanElement | null>(null)
-  useWheelSteps(el, onStep)
-  const onKey = (e: KeyboardEvent) => {
-    if (e.key === 'ArrowUp') onStep(1)
-    else if (e.key === 'ArrowDown') onStep(-1)
-    else return
-    e.preventDefault()
+interface TimeFieldProps {
+  value: number
+  max: number
+  label: string
+  onStep: (dir: 1 | -1) => void
+  onSet: (n: number) => void
+  /** Called once two digits have been typed, to move on to the next field. */
+  onFilled?: () => void
+  inputRef?: Ref<HTMLInputElement>
+}
+
+/**
+ * Two digits you can type, scroll or step with the arrow keys. What you type
+ * is kept as a draft and applied on the second digit, on Enter or on leaving
+ * the field; a value out of range is dropped and the field shows the time again.
+ */
+function TimeField({ value, max, label, onStep, onSet, onFilled, inputRef }: TimeFieldProps) {
+  const [el, setEl] = useState<HTMLInputElement | null>(null)
+  const [draft, setDraftState] = useState<string | null>(null)
+  // Mirrors `draft` for handlers that run before the next render (blur fired by a focus move).
+  const draftRef = useRef<string | null>(null)
+  const setDraft = (text: string | null) => {
+    draftRef.current = text
+    setDraftState(text)
   }
+  useWheelSteps(el, onStep)
+
+  const commit = () => {
+    const text = draftRef.current
+    setDraft(null)
+    if (text === null || text === '') return
+    const n = Number(text)
+    if (Number.isInteger(n) && n >= 0 && n <= max) onSet(n)
+  }
+  const onKey = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+      e.preventDefault()
+      setDraft(null)
+      onStep(e.key === 'ArrowUp' ? 1 : -1)
+    } else if (e.key === 'Enter') {
+      e.preventDefault()
+      commit()
+      e.currentTarget.blur()
+    } else if (e.key === 'Escape') {
+      setDraft(null)
+      e.currentTarget.blur()
+    }
+  }
+  const setRefs = (node: HTMLInputElement | null) => {
+    setEl(node)
+    if (typeof inputRef === 'function') inputRef(node)
+    else if (inputRef) (inputRef as { current: HTMLInputElement | null }).current = node
+  }
+
   return (
-    <span ref={setEl} className="ui-dial-spin" role="spinbutton" tabIndex={0} aria-label={label} aria-valuenow={value} onKeyDown={onKey} title="Scroll or use the arrow keys">
-      {children}
-    </span>
+    <input
+      ref={setRefs}
+      className="ui-dial-spin"
+      type="text"
+      inputMode="numeric"
+      autoComplete="off"
+      maxLength={2}
+      role="spinbutton"
+      aria-label={label}
+      aria-valuenow={value}
+      aria-valuemin={0}
+      aria-valuemax={max}
+      value={draft ?? pad(value)}
+      title="Type, scroll or use the arrow keys"
+      onFocus={(e) => e.currentTarget.select()}
+      onChange={(e) => {
+        const digits = e.target.value.replace(/\D/g, '').slice(0, 2)
+        setDraft(digits)
+        if (digits.length === 2) {
+          commit()
+          onFilled?.()
+        }
+      }}
+      onBlur={commit}
+      onKeyDown={onKey}
+    />
   )
 }
 
 /* ------------------------------------------------------------------ month grid */
 
-function MonthGrid({ value, onPick, onClose }: { value: number; onPick: (dayMs: number) => void; onClose: () => void }) {
+interface MonthGridProps {
+  value: number
+  onPick: (dayMs: number) => void
+  onClose?: () => void
+  /** Part of the page instead of a popover: no outside-click close, no Close button. */
+  inline?: boolean
+}
+
+function MonthGrid({ value, onPick, onClose, inline = false }: MonthGridProps) {
   const d = new Date(value)
   const [month, setMonth] = useState({ y: d.getUTCFullYear(), m: d.getUTCMonth() })
   const ref = useRef<HTMLDivElement>(null)
@@ -81,7 +163,16 @@ function MonthGrid({ value, onPick, onClose }: { value: number; onPick: (dayMs: 
   const today = dayStart(Date.now())
   const shift = (k: number) => setMonth((p) => ({ y: p.y + Math.floor((p.m + k) / 12), m: (((p.m + k) % 12) + 12) % 12 }))
 
+  // Inline, the calendar follows the value when it moves to another month (strip, wheel, Today).
+  const shownMonth = `${d.getUTCFullYear()}-${d.getUTCMonth()}`
   useEffect(() => {
+    if (!inline) return
+    const [y, m] = shownMonth.split('-').map(Number)
+    setMonth({ y, m })
+  }, [inline, shownMonth])
+
+  useEffect(() => {
+    if (inline || !onClose) return
     const onDown = (e: PointerEvent) => {
       if (!ref.current?.contains(e.target as Node)) onClose()
     }
@@ -94,10 +185,10 @@ function MonthGrid({ value, onPick, onClose }: { value: number; onPick: (dayMs: 
       document.removeEventListener('pointerdown', onDown)
       document.removeEventListener('keydown', onKey)
     }
-  }, [onClose])
+  }, [inline, onClose])
 
   return (
-    <div ref={ref} className="ui-dial-month" role="dialog" aria-label="Choose a day">
+    <div ref={ref} className={`ui-dial-month${inline ? ' is-inline' : ''}`} role={inline ? 'group' : 'dialog'} aria-label="Choose a day">
       <div className="ui-dial-month-head">
         <button type="button" className="ui-dial-icon" onClick={() => shift(-1)} aria-label="Previous month">
           <ChevronLeft {...ICON} />
@@ -105,6 +196,11 @@ function MonthGrid({ value, onPick, onClose }: { value: number; onPick: (dayMs: 
         <span className="ui-dial-month-title">
           {MONTHS[month.m]} {month.y}
         </span>
+        {inline && (
+          <button type="button" className="ui-dial-link" onClick={() => onPick(today)}>
+            Today
+          </button>
+        )}
         <button type="button" className="ui-dial-icon" onClick={() => shift(1)} aria-label="Next month">
           <ChevronRight {...ICON} />
         </button>
@@ -133,16 +229,24 @@ function MonthGrid({ value, onPick, onClose }: { value: number; onPick: (dayMs: 
           )
         })}
       </div>
-      <div className="ui-dial-month-foot">
-        <button type="button" className="ui-dial-link" onClick={() => onPick(today)}>
-          Today
-        </button>
-        <button type="button" className="ui-dial-link" onClick={onClose}>
-          Close
-        </button>
-      </div>
+      {!inline && (
+        <div className="ui-dial-month-foot">
+          <button type="button" className="ui-dial-link" onClick={() => onPick(today)}>
+            Today
+          </button>
+          <button type="button" className="ui-dial-link" onClick={onClose}>
+            Close
+          </button>
+        </div>
+      )}
     </div>
   )
+}
+
+/** A month calendar laid out in the page; picking a day keeps the time of day. */
+export function MonthCalendar({ value, onChange }: { value: number; onChange: (ms: number) => void }) {
+  const timeOfDay = value - dayStart(value)
+  return <MonthGrid value={value} inline onPick={(dayMs) => onChange(dayMs + timeOfDay)} />
 }
 
 /* ------------------------------------------------------------------ dial */
@@ -174,6 +278,12 @@ export function DateDial({ value, onChange, label, minutes = false, strip = true
     onChange(latest.current)
   }
   const moveDays = (k: number) => shiftBy(k * DAY)
+  /** Same day, the typed hour and minute. */
+  const setTime = (h: number, m: number) => {
+    latest.current = dayStart(latest.current) + h * HOUR + m * MIN
+    onChange(latest.current)
+  }
+  const minuteRef = useRef<HTMLInputElement>(null)
   useWheelSteps(stripEl, (dir) => moveDays(dir))
   useWheelSteps(dateEl, (dir) => moveDays(dir))
 
@@ -212,14 +322,24 @@ export function DateDial({ value, onChange, label, minutes = false, strip = true
           </button>
         )}
         <span className="ui-dial-time">
-          <Spin value={d.getUTCHours()} label="Hour, UTC" onStep={(dir) => shiftBy(dir * HOUR)}>
-            {pad(d.getUTCHours())}
-          </Spin>
+          <TimeField
+            value={d.getUTCHours()}
+            max={23}
+            label="Hour, UTC"
+            onStep={(dir) => shiftBy(dir * HOUR)}
+            onSet={(h) => setTime(h, new Date(latest.current).getUTCMinutes())}
+            onFilled={minutes ? () => minuteRef.current?.focus() : undefined}
+          />
           <span aria-hidden="true">:</span>
           {minutes ? (
-            <Spin value={d.getUTCMinutes()} label="Minutes" onStep={(dir) => shiftBy(dir * 5 * MIN)}>
-              {pad(d.getUTCMinutes())}
-            </Spin>
+            <TimeField
+              inputRef={minuteRef}
+              value={d.getUTCMinutes()}
+              max={59}
+              label="Minutes, UTC"
+              onStep={(dir) => shiftBy(dir * 5 * MIN)}
+              onSet={(m) => setTime(new Date(latest.current).getUTCHours(), m)}
+            />
           ) : (
             <span className="ui-dial-fixed">{pad(d.getUTCMinutes())}</span>
           )}
@@ -232,16 +352,19 @@ export function DateDial({ value, onChange, label, minutes = false, strip = true
           <button type="button" className="ui-dial-icon" onClick={() => moveDays(-1)} aria-label="Previous day">
             <ChevronLeft {...ICON} />
           </button>
-          {visible.map((ms) => {
-            const day = new Date(ms)
-            const sel = ms === value
-            return (
-              <button key={ms} type="button" className="ui-dial-day" aria-pressed={sel} aria-label={longDate(ms)} onClick={() => onChange(ms)}>
-                <span className="ui-dial-dow">{day.getUTCDate() === 1 ? MONTHS[day.getUTCMonth()].slice(0, 3) : WEEKDAYS[day.getUTCDay()]}</span>
-                <span className="ui-dial-num">{day.getUTCDate()}</span>
-              </button>
-            )
-          })}
+          {/* The seven days sit in their own grid so they line up with the row above. */}
+          <div className="ui-dial-days">
+            {visible.map((ms) => {
+              const day = new Date(ms)
+              const sel = ms === value
+              return (
+                <button key={ms} type="button" className="ui-dial-day" aria-pressed={sel} aria-label={longDate(ms)} onClick={() => onChange(ms)}>
+                  <span className="ui-dial-dow">{day.getUTCDate() === 1 ? MONTHS[day.getUTCMonth()].slice(0, 3) : WEEKDAYS[day.getUTCDay()]}</span>
+                  <span className="ui-dial-num">{day.getUTCDate()}</span>
+                </button>
+              )
+            })}
+          </div>
           <button type="button" className="ui-dial-icon" onClick={() => moveDays(1)} aria-label="Next day">
             <ChevronRight {...ICON} />
           </button>

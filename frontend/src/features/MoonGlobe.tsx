@@ -10,7 +10,6 @@ import {
   Cartesian3,
   Color,
   ConstantPositionProperty,
-  ConstantProperty,
   Credit,
   DirectionalLight,
   Ellipsoid,
@@ -23,6 +22,7 @@ import {
   LabelStyle,
   Math as CesiumMath,
   NearFarScalar,
+  SceneTransforms,
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
   VerticalOrigin,
@@ -45,20 +45,41 @@ const SHADE_LAYER = 'LRO_LOLA_Shade_Global_256ppd_v06'
 
 const FONT = '"Figtree", system-ui, sans-serif'
 const SPACE = Color.fromCssColorString('#0b0c1a')
-const INK = Color.fromCssColorString('#171a2b')
 
-const COVERAGE_LINES = [
-  { lat: -80, label: 'LOLA 20 m · 80°S' },
-  { lat: -87, label: 'LOLA 5 m · 87°S' },
-  { lat: -60, label: 'SLDEM2015 · 60°S' },
-  { lat: 60, label: 'SLDEM2015 · 60°N' },
-]
+/** Landing sites: an opaque sky-blue disc with a darker rim. */
+const SITE_FILL = Color.fromCssColorString('#6cc4f5')
+const SITE_RIM = Color.fromCssColorString('#12507c')
+const REGION_LINE = Color.fromCssColorString('#a9dcfa')
 
 const svgUri = (svg: string) => `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`
 
 const RING = svgUri(
-  '<svg xmlns="http://www.w3.org/2000/svg" width="56" height="56"><circle cx="28" cy="28" r="20" fill="none" stroke="#0b0d1a" stroke-width="8" stroke-opacity="0.5"/><circle cx="28" cy="28" r="20" fill="none" stroke="#ffffff" stroke-width="4"/><circle cx="28" cy="28" r="7" fill="#ffffff"/></svg>',
+  '<svg xmlns="http://www.w3.org/2000/svg" width="56" height="56"><circle cx="28" cy="28" r="20" fill="none" stroke="#0b0d1a" stroke-width="8" stroke-opacity="0.5"/><circle cx="28" cy="28" r="20" fill="none" stroke="#ffffff" stroke-width="4"/><circle cx="28" cy="28" r="9" fill="#6cc4f5" stroke="#12507c" stroke-width="4"/></svg>',
 )
+
+/**
+ * A fixed star field behind the globe: dots of different size and brightness,
+ * many faint and a few bright. Seeded, so it never changes between renders.
+ */
+const STARS = (() => {
+  let seed = 20261115
+  const rnd = () => {
+    seed = (seed * 1664525 + 1013904223) >>> 0
+    return seed / 4294967296
+  }
+  return Array.from({ length: 140 }, () => {
+    const b = rnd() ** 3 // most stars are faint
+    return { x: +(rnd() * 100).toFixed(2), y: +(rnd() * 100).toFixed(2), r: +(0.5 + b * 1.3).toFixed(2), o: +(0.25 + b * 0.75).toFixed(2) }
+  })
+})()
+
+/** The two areas of the region catalogue, as the latitudes that bound them. */
+export interface RegionBands {
+  /** Northern edge of the south-pole area, degrees (negative). */
+  southPoleLat: number | null
+  /** Half-width of the equatorial band, degrees. */
+  equatorialLat: number | null
+}
 
 /** Numbered badge for ranked regions. The leader is indigo. */
 function rankBadge(n: number): string {
@@ -96,7 +117,8 @@ const HOME_VIEW = { lat: -48, lon: 15 }
 
 function homePose() {
   const unit = Cartesian3.normalize(Cartesian3.fromDegrees(HOME_VIEW.lon, HOME_VIEW.lat, 0, MOON), new Cartesian3())
-  const destination = Cartesian3.multiplyByScalar(unit, R * 2.75, new Cartesian3())
+  // Far enough for the whole disc to fit the window, limb included.
+  const destination = Cartesian3.multiplyByScalar(unit, R * 3.3, new Cartesian3())
   const direction = Cartesian3.negate(unit, new Cartesian3())
   const z = Cartesian3.UNIT_Z
   const up = Cartesian3.normalize(
@@ -153,10 +175,6 @@ function placeEntity(entity: Entity, lat: number, lon: number) {
   entity.position = new ConstantPositionProperty(Cartesian3.fromDegrees(lon, lat, 0, MOON))
 }
 
-function setLabel(entity: Entity, text: string) {
-  if (entity.label) entity.label.text = new ConstantProperty(text)
-}
-
 function setShow(entity: Entity, show: boolean) {
   entity.show = show
 }
@@ -168,19 +186,25 @@ interface MoonGlobeProps {
   focus: GlobeFocus | null
   /** Light the globe as on this date (approximate Sun direction); null = flat light. */
   lightMs: number | null
-  showCoverage: boolean
+  /** Outlines of the catalogue areas; null hides them. */
+  regions: RegionBands | null
+  /** Change it to put the camera back on the current framing. */
+  resetNonce: number
   onPickMarker: (id: string) => void
   onPickPoint: (site: SiteCoordinates) => void
   onHover?: (text: string) => void
 }
 
-export default function MoonGlobe({ markers, selected, focus, lightMs, showCoverage, onPickMarker, onPickPoint, onHover }: MoonGlobeProps) {
+export default function MoonGlobe({ markers, selected, focus, lightMs, regions, resetNonce, onPickMarker, onPickPoint, onHover }: MoonGlobeProps) {
   const container = useRef<HTMLDivElement>(null)
   const viewerRef = useRef<Viewer | null>(null)
   const ring = useRef<Entity | null>(null)
   const markerEntities = useRef<Map<string, Entity>>(new Map())
-  const coverage = useRef<Entity[]>([])
+  const regionEntities = useRef<Entity[]>([])
   const handlers = useRef({ onPickMarker, onPickPoint, onHover })
+  // The selection chip is HTML (crisp, rounded), so it is placed on the screen each frame.
+  const chip = useRef<HTMLDivElement>(null)
+  const chipAnchor = useRef<Cartesian3 | null>(null)
   const [imageryError, setImageryError] = useState(false)
 
   useEffect(() => {
@@ -226,12 +250,15 @@ export default function MoonGlobe({ markers, selected, focus, lightMs, showCover
       infoBox: false,
       selectionIndicator: false,
       requestRenderMode: true,
+      // A see-through canvas: the star field behind it is plain DOM.
+      contextOptions: { webgl: { alpha: true } },
+      orderIndependentTranslucency: false,
     })
     const relief = viewer.imageryLayers.addImageryProvider(shade)
     relief.alpha = 0.55
     relief.brightness = 1.15
 
-    viewer.scene.backgroundColor = SPACE
+    viewer.scene.backgroundColor = Color.TRANSPARENT
     viewer.scene.fog.enabled = false
     if (viewer.scene.sun) viewer.scene.sun.show = false
     if (viewer.scene.moon) viewer.scene.moon.show = false
@@ -239,39 +266,30 @@ export default function MoonGlobe({ markers, selected, focus, lightMs, showCover
     viewer.scene.screenSpaceCameraController.maximumZoomDistance = 9_000_000
     viewerRef.current = viewer
 
-    coverage.current = COVERAGE_LINES.map((c) =>
-      viewer.entities.add({
-        show: false,
-        polyline: { positions: parallel(c.lat), width: 1.5, arcType: ArcType.RHUMB, material: Color.fromCssColorString('#9fb8ff').withAlpha(0.7) },
-        position: Cartesian3.fromDegrees(0, c.lat, 0, MOON),
-        label: {
-          text: c.label,
-          font: `500 12px "JetBrains Mono", ui-monospace, monospace`,
-          fillColor: Color.fromCssColorString('#cfdcff'),
-          outlineColor: SPACE,
-          outlineWidth: 3,
-          style: LabelStyle.FILL_AND_OUTLINE,
-          verticalOrigin: VerticalOrigin.BOTTOM,
-          pixelOffset: new Cartesian2(0, -4),
-        },
-      }),
-    )
-
     ring.current = viewer.entities.add({
       billboard: { image: RING, width: 44, height: 44, disableDepthTestDistance: Number.POSITIVE_INFINITY },
-      label: {
-        text: '',
-        font: `600 17px ${FONT}`,
-        fillColor: INK,
-        showBackground: true,
-        backgroundColor: Color.WHITE,
-        backgroundPadding: new Cartesian2(14, 9),
-        pixelOffset: new Cartesian2(30, -30),
-        horizontalOrigin: HorizontalOrigin.LEFT,
-        verticalOrigin: VerticalOrigin.CENTER,
-        disableDepthTestDistance: Number.POSITIVE_INFINITY,
-      },
     })
+
+    // Put the chip beside the ring; hide it when the ring is on the far side of the Moon.
+    const placeChip = () => {
+      const el = chip.current
+      const pos = chipAnchor.current
+      if (!el || !pos) return
+      const toCamera = Cartesian3.subtract(viewer.camera.position, pos, new Cartesian3())
+      const facing = Cartesian3.dot(Cartesian3.normalize(pos, new Cartesian3()), toCamera) > 0
+      const win = facing ? SceneTransforms.worldToWindowCoordinates(viewer.scene, pos) : undefined
+      if (!win) {
+        el.style.display = 'none'
+        return
+      }
+      // Beside the ring on the right, or on its left when the chip would run off the window.
+      el.style.display = 'block'
+      const room = el.parentElement?.clientWidth ?? 0
+      const flip = win.x + 30 + el.offsetWidth > room - 16
+      const x = flip ? win.x - 30 : win.x + 30
+      el.style.transform = `translate(${x}px, ${win.y - 30}px) translate(${flip ? '-100%' : '0'}, -50%)`
+    }
+    viewer.scene.postRender.addEventListener(placeChip)
 
     const handler = new ScreenSpaceEventHandler(viewer.scene.canvas)
     const pick = (pos: Cartesian2) => {
@@ -302,6 +320,7 @@ export default function MoonGlobe({ markers, selected, focus, lightMs, showCover
 
     const entities = markerEntities.current
     return () => {
+      viewer.scene.postRender.removeEventListener(placeChip)
       handler.destroy()
       viewer.destroy()
       viewerRef.current = null
@@ -325,15 +344,17 @@ export default function MoonGlobe({ markers, selected, focus, lightMs, showCover
             })
           : viewer.entities.add({
               position,
-              point: { pixelSize: 9, color: Color.WHITE, outlineColor: SPACE, outlineWidth: 2 },
+              point: { pixelSize: 13, color: SITE_FILL, outlineColor: SITE_RIM, outlineWidth: 3 },
               label: {
                 text: m.label,
-                font: `600 15px ${FONT}`,
+                // Drawn at 2x and scaled down by half: the text stays sharp on dense screens.
+                font: `600 30px ${FONT}`,
+                scale: 0.5,
                 fillColor: Color.WHITE,
                 outlineColor: SPACE,
-                outlineWidth: 4,
+                outlineWidth: 8,
                 style: LabelStyle.FILL_AND_OUTLINE,
-                pixelOffset: new Cartesian2(10, 0),
+                pixelOffset: new Cartesian2(14, 0),
                 horizontalOrigin: HorizontalOrigin.LEFT,
                 verticalOrigin: VerticalOrigin.CENTER,
                 translucencyByDistance: new NearFarScalar(1.5e6, 1, 5e6, 0.0),
@@ -350,13 +371,13 @@ export default function MoonGlobe({ markers, selected, focus, lightMs, showCover
     const e = ring.current
     if (!viewer || !e) return
     placeEntity(e, selected.latDeg, selected.lonEastDeg)
-    setLabel(e, selected.label)
+    chipAnchor.current = Cartesian3.fromDegrees(selected.lonEastDeg, selected.latDeg, 0, MOON)
     for (const [id, ent] of markerEntities.current) {
       const m = markers.find((x) => x.id === id)
       setShow(ent, id !== selected.id || m?.rank !== undefined)
     }
     viewer.scene.requestRender()
-  }, [selected.latDeg, selected.lonEastDeg, selected.label, selected.id, markers])
+  }, [selected.latDeg, selected.lonEastDeg, selected.id, markers])
 
   // Camera: a short straight dolly, never a rotation (motion sickness).
   const focusKey = focus ? `${focus.latDeg},${focus.lonEastDeg},${focus.distanceM},${focus.screen?.join(',') ?? ''}` : ''
@@ -396,14 +417,59 @@ export default function MoonGlobe({ markers, selected, focus, lightMs, showCover
     viewer.scene.requestRender()
   }, [lightMs])
 
+  // Reset: straight back to the current framing, whatever the user dragged.
   useEffect(() => {
-    for (const e of coverage.current) setShow(e, showCoverage)
-    viewerRef.current?.scene.requestRender()
-  }, [showCoverage])
+    const viewer = viewerRef.current
+    if (!viewer || resetNonce === 0) return
+    const f = focusRef.current
+    viewer.camera.setView({ destination: f ? framedPosition(viewer, f) : HOME.destination, orientation: HOME.orientation })
+    viewer.scene.requestRender()
+  }, [resetNonce])
+
+  // Region outlines: the parallels that bound the catalogue's two areas.
+  const southLat = regions?.southPoleLat ?? null
+  const equatorLat = regions?.equatorialLat ?? null
+  useEffect(() => {
+    const viewer = viewerRef.current
+    if (!viewer) return
+    for (const e of regionEntities.current) viewer.entities.remove(e)
+    const lines: { lat: number; label?: string }[] = []
+    if (southLat !== null) lines.push({ lat: southLat, label: `South pole · ${Math.abs(southLat)}–90°S` })
+    if (equatorLat !== null) lines.push({ lat: equatorLat }, { lat: -equatorLat, label: `Equatorial band · ±${equatorLat}°` })
+    regionEntities.current = lines.map((l) =>
+      viewer.entities.add({
+        polyline: { positions: parallel(l.lat), width: 2, arcType: ArcType.RHUMB, material: REGION_LINE.withAlpha(0.85) },
+        position: Cartesian3.fromDegrees(HOME_VIEW.lon, l.lat, 0, MOON),
+        label: l.label
+          ? {
+              text: l.label,
+              font: `600 28px ${FONT}`,
+              scale: 0.5,
+              fillColor: Color.fromCssColorString('#d9eefc'),
+              outlineColor: SPACE,
+              outlineWidth: 8,
+              style: LabelStyle.FILL_AND_OUTLINE,
+              verticalOrigin: VerticalOrigin.TOP,
+              pixelOffset: new Cartesian2(0, 8),
+              translucencyByDistance: new NearFarScalar(1.5e6, 0, 3e6, 1),
+            }
+          : undefined,
+      }),
+    )
+    viewer.scene.requestRender()
+  }, [southLat, equatorLat])
 
   return (
     <div className="moon-globe">
+      <svg className="moon-stars" aria-hidden="true">
+        {STARS.map((s, i) => (
+          <circle key={i} cx={`${s.x}%`} cy={`${s.y}%`} r={s.r} opacity={s.o} />
+        ))}
+      </svg>
       <div ref={container} className="moon-globe-canvas" />
+      <div ref={chip} className="globe-chip" aria-hidden="true">
+        {selected.label}
+      </div>
       {imageryError && (
         <p className="moon-globe-warning" role="status">
           LRO images are unreachable: the globe shows the reference shape only.

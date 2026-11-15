@@ -1,0 +1,391 @@
+/* =====================================================================
+   Responsive layout. Loaded last, so these rules win over screens.css
+   and ui.css. Token changes per screen size live in index.css.
+
+   Breakpoints
+     >= 2560  4K / classroom boards
+     >= 1920  wide desktop
+     <= 1280  small laptop
+     <= 1100  tablet landscape: home, explore and site views stack
+     <=  720  tablet portrait / large phone
+     <=  480  phone
+     short    landscape phones and very low windows
+   ===================================================================== */
+
+/* ---------------------------------------------------------------- wide */
+
+@media (min-width: 1920px) {
+  .moon-page {
+    --side-w: 460px;
+  }
+
+  .site-page {
+    width: 100%;
+    max-width: 1840px;
+    margin-inline: auto;
+  }
+}
+
+@media (min-width: 2560px) {
+  .moon-page {
+    --side-w: 600px;
+  }
+
+  .site-page {
+    max-width: 2400px;
+  }
+
+  .kit-page {
+    max-width: 1800px;
+  }
+
+  .timeline-bars {
+    padding-left: 220px;
+  }
+
+  .timeline-speed {
+    width: 300px;
+  }
+
+  .ui-dial-month {
+    width: 420px;
+  }
+
+  .orbit-mini {
+    width: 288px;
+    height: 192px;
+  }
+}
+
+/* ---------------------------------------------------------------- small laptop */
+
+@media (max-width: 1280px) {
+  .moon-page,
+  .site-page,
+  .kit-page {
+    padding-inline: var(--s-5);
+  }
+
+  .moon-page {
+    --side-w: 380px;
+  }
+
+  .moon-layout {
+    gap: var(--s-5);
+  }
+
+  .moon-stage {
+    flex-basis: 440px;
+  }
+}
+
+/* ---------------------------------------------------------------- tablet landscape */
+
+@media (max-width: 1100px) {
+  /* Home stacks: inputs first, then the Moon at a height of its own. */
+  .moon-side {
+    flex: 1 1 100%;
+  }
+
+  .moon-stage {
+    flex-basis: 100%;
+  }
+
+  .moon-window {
+    height: clamp(360px, 68dvh, 720px);
+  }
+
+  /* Stacked, the card grows with its content: long lists scroll in a box of their own. */
+  .site-list,
+  .results-list {
+    max-height: 50dvh;
+  }
+}
+
+/* ---------------------------------------------------------------- tablet portrait */
+
+@media (max-width: 720px) {
+  .topbar {
+    gap: var(--s-2) var(--s-3);
+  }
+
+  .topbar-middle:empty {
+    display: none;
+  }
+
+  .topbar-end {
+    gap: var(--s-2);
+  }
+
+  /* Long switches scroll sideways instead of pushing the page wider. */
+  .ui-segmented {
+    max-width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .ui-segmented::-webkit-scrollbar {
+    display: none;
+  }
+
+  .ui-card-head {
+    flex-wrap: wrap;
+  }
+
+  .moon-window {
+    height: clamp(320px, 60dvh, 560px);
+  }
+
+  /* Overlays inside the space windows: wrapped pills become soft boxes. */
+  .moon-window-toggles,
+  .scene-toggles {
+    right: 16px;
+    border-radius: var(--r-card);
+  }
+
+  .moon-window-toggles .ui-toggle,
+  .scene-toggles .ui-toggle {
+    min-height: 40px;
+  }
+
+  .moon-globe-warning {
+    top: 120px;
+  }
+
+  /* Site view */
+  .site-window {
+    height: clamp(320px, 56dvh, 520px);
+  }
+
+  .site-orbits {
+    height: 320px;
+  }
+
+  .site-loading {
+    padding: 0 var(--s-5);
+  }
+
+  .scene-controls {
+    right: 64px;
+  }
+
+  .scene-toggles {
+    left: 16px;
+    top: auto;
+    bottom: 80px;
+    right: auto;
+  }
+
+  .timeline-transport {
+    gap: var(--s-2) var(--s-3);
+  }
+
+  .timeline-time {
+    flex-basis: 100%;
+  }
+
+  .timeline-speed {
+    width: auto;
+    flex: 1 1 200px;
+  }
+
+  .report-fact {
+    flex-wrap: wrap;
+  }
+
+  .report-fact dd {
+    white-space: normal;
+  }
+
+  .cmp-row {
+    grid-template-columns: minmax(0, 112px) 1fr auto;
+  }
+
+  .cmp-value {
+    min-width: 72px;
+  }
+
+  .deep-list li {
+    flex-wrap: wrap;
+  }
+
+  .deep-tip {
+    white-space: normal;
+    max-width: 240px;
+  }
+
+  .kit-grid.is-wide {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ui-metric-value {
+    white-space: normal;
+  }
+}
+
+/* ---------------------------------------------------------------- phone */
+
+@media (max-width: 480px) {
+  .moon-page,
+  .site-page,
+  .kit-page {
+    padding: var(--s-3);
+    gap: var(--s-4);
+  }
+
+  .ui-logo-word {
+    font-size: 20px;
+  }
+
+  .ui-segment {
+    padding: 0 var(--s-3);
+  }
+
+  .ui-button.is-l {
+    --h: var(--target-m);
+    font-size: var(--title-s);
+  }
+
+  .ui-card {
+    padding: var(--s-4);
+  }
+
+  /* Place tiles: two per row, whatever the audience. */
+  .ui-site-grid,
+  .ui-site-grid.is-dense {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--s-2);
+  }
+
+  .moon-period {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* Date dial: date and time on their own rows, a tighter week strip. */
+  .ui-dial-head {
+    flex-wrap: wrap;
+  }
+
+  .ui-dial-date {
+    flex: 1 1 auto;
+  }
+
+  .ui-dial-time {
+    margin-left: 0;
+  }
+
+  .ui-dial-days {
+    gap: 4px;
+  }
+
+  .ui-dial-month {
+    width: auto;
+    right: 0;
+  }
+
+  .moon-window {
+    height: clamp(300px, 56dvh, 480px);
+  }
+
+  .site-window {
+    height: clamp(300px, 52dvh, 440px);
+  }
+
+  .site-orbits {
+    height: 280px;
+  }
+
+  .orbit-mini {
+    width: 128px;
+    height: 88px;
+  }
+
+  .orbit-mini-label span {
+    display: none;
+  }
+
+  .now-metrics {
+    gap: var(--s-3);
+  }
+
+  .ui-metric-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ui-story-headline {
+    font-size: var(--display-s);
+  }
+
+  .scene-edge-btn {
+    min-height: 36px;
+    padding: 0 var(--s-2);
+  }
+
+  .cmp-row {
+    grid-template-columns: minmax(0, 88px) 1fr auto;
+  }
+
+  .cal {
+    gap: 4px;
+  }
+
+  .cal-day {
+    padding: 4px;
+  }
+
+  .kit-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .kit-logo-stage {
+    min-height: 120px;
+  }
+}
+
+/* ---------------------------------------------------------------- short windows */
+
+/* Low desktop windows: tighter spacing so the plan card keeps more room. */
+@media (max-height: 760px) and (min-width: 1101px) {
+  .moon-page {
+    gap: var(--s-4);
+    padding-block: var(--s-4);
+  }
+
+  .site-horizon,
+  .site-now {
+    height: clamp(360px, 72dvh, 720px);
+  }
+}
+
+/* Landscape phones: windows sized on the width, not the tiny height. */
+@media (max-height: 520px) and (max-width: 1100px) {
+  .moon-window,
+  .site-window {
+    height: clamp(280px, 86dvh, 420px);
+  }
+
+  .site-orbits {
+    height: 260px;
+  }
+}
+
+/* ---------------------------------------------------------------- print */
+
+@media print {
+  .topbar-end,
+  .timeline-transport,
+  .site-full,
+  .orbit-mini,
+  .report-actions {
+    display: none;
+  }
+
+  .site-page {
+    padding: 0;
+  }
+
+  .ui-card,
+  .site-horizon {
+    break-inside: avoid;
+  }
+}

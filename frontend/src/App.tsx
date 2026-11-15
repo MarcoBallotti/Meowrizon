@@ -5,6 +5,7 @@ import { SiteScreen } from './screens/SiteScreen'
 import { loadCoverage, loadRegionCatalog, runScenario } from './state/runner'
 import { getState, screenFromHash, setState, useStore, type ScenarioKey } from './state/store'
 import './screens/screens.css'
+import './screens/responsive.css'
 
 /** Re-run a scenario shortly after its inputs settle; superseded runs are aborted. */
 function useAutoRun() {

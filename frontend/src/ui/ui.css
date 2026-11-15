@@ -1,5 +1,5 @@
 /* =====================================================================
-   Meowrizon UI kit — component styles. Classes are prefixed `ui-`.
+   Moonrizon UI kit — component styles. Classes are prefixed `ui-`.
    ===================================================================== */
 
 /* ---------------------------------------------------------------- logo */
@@ -1105,14 +1105,28 @@ select.ui-input {
   font-variant-numeric: tabular-nums;
 }
 
+/* Hour and minute: plain two-digit inputs that look like the rest of the time box. */
 .ui-dial-spin {
-  padding: 0 var(--s-1);
+  width: calc(2ch + 2 * var(--s-1));
+  padding: 4px var(--s-1);
+  border: 0;
   border-radius: var(--r-small);
-  cursor: ns-resize;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  cursor: text;
 }
 
 .ui-dial-spin:hover {
   background: var(--primary-soft);
+}
+
+.ui-dial-spin:focus {
+  outline: none;
+  background: var(--primary-soft);
+  box-shadow: inset 0 0 0 2px var(--primary);
 }
 
 .ui-dial-fixed {
@@ -1128,11 +1142,35 @@ select.ui-input {
 }
 
 .ui-dial-strip {
-  display: grid;
-  grid-template-columns: 32px repeat(7, minmax(0, 1fr)) 32px;
+  display: flex;
   align-items: stretch;
   gap: var(--s-1);
+  margin-top: var(--s-2);
   cursor: ew-resize;
+}
+
+.ui-dial-days {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: var(--s-1);
+}
+
+/* The strip stays inside its container's padding: each arrow sits flush with
+   the edge the date button and the time are aligned to. */
+.ui-dial-strip > .ui-dial-icon {
+  width: 24px;
+  min-width: 0;
+  flex: none;
+}
+
+.ui-dial-strip > .ui-dial-icon:first-child {
+  justify-content: flex-start;
+}
+
+.ui-dial-strip > .ui-dial-icon:last-child {
+  justify-content: flex-end;
 }
 
 .ui-dial-icon {
@@ -1255,6 +1293,39 @@ select.ui-input {
 .ui-dial-month-foot {
   display: flex;
   justify-content: space-between;
+}
+
+/* Inline calendar: part of the page, grows with the space it is given. */
+/* It never shrinks below its six weeks of days: it only grows into spare room. */
+.ui-dial-month.is-inline {
+  position: static;
+  z-index: auto;
+  width: auto;
+  box-shadow: none;
+}
+
+.ui-dial-month.is-inline .ui-dial-month-grid {
+  flex: 1;
+  grid-auto-rows: minmax(30px, 1fr);
+}
+
+/* Inline, "Today" sits in the header next to the month: no footer row. */
+.ui-dial-month.is-inline .ui-dial-month-title {
+  margin-right: auto;
+  padding-left: var(--s-1);
+}
+
+.ui-dial-month.is-inline .ui-dial-month-dow {
+  align-self: end;
+}
+
+.ui-dial-month.is-inline .ui-dial-month-day {
+  min-height: 0;
+  background: var(--card-sunk);
+}
+
+.ui-dial-month.is-inline .ui-dial-month-day[aria-pressed='true'] {
+  background: var(--ink);
 }
 
 .ui-dial-link {

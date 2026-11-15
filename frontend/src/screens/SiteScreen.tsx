@@ -166,7 +166,7 @@ export function SiteScreen() {
       <TopBar
         start={
           <div className="site-title">
-            <BackLink label="Back to the Moon" onClick={() => goTo('explore')} />
+            <BackLink label="Back to the sites" onClick={() => goTo('explore')} />
             <div className="site-title-text">
               <h1 className="ui-title is-m">{name}</h1>
               <span className="ui-small ui-muted">
