@@ -19,7 +19,7 @@ La domanda a cui il programma deve rispondere:
 | Archiviazione | **Nessun database**: solo file (GeoJSON, JSON, NumPy, Parquet, GeoTIFF) | 14/11 |
 | Effemeridi | **Solo API JPL Horizons**, con una tabella globale (`COMMAND='301'`, `CENTER='500@399'`, `QUANTITIES='14,15,20'`). SpiceyPy e kernel SPICE sono esclusi | 14/11 |
 | Ambiente | Docker (micromamba e conda-forge) per backend e frontend, avviati con `npm start` | 14/11 |
-| API | Tutte le rotte stanno sotto `/api`, in JSON. Il contratto con il frontend è in `backend/API_CONTRACT.md` | 14/11 |
+| API | Rotte sotto `/api`; contratto frontend aggiornato in `docs/api-contract.md`, schemi ed esempi in `docs/api-contract.openapi.json`. `backend/API_CONTRACT.md` rimanda alla specifica unica | 15/11 |
 | Integrazione con il lavoro di Kevin | Le rotte `/api/data/...` (acquisizione, preparazione, job persistenti) sono nella stessa applicazione, con i dati in `backend/data/` | 15/11 |
 
 ### 1.2 Modello: settore, regioni, celle, siti
@@ -108,10 +108,10 @@ Tutti decisi (C1–C7, 15/11/2026). Le soglie si rivedono dopo i primi calcoli s
 
 | # | Cosa |
 |---|---|
-| D12 | **Formato delle celle** per colorare le regioni: GeoJSON, griglia compatta o immagine PNG |
-| — | **Formato di `/api/sites`**: oggi è GeoJSON con id come `apollo-11`, mentre il contratto prevede `SiteCatalog` con id come `apollo11`. Va unificato |
-| — | **Endpoint delle regioni** (`/api/ranking`, `/api/regions/{id}/evaluation`, `/api/regions/{id}/cells`): da aggiungere al contratto |
-| — | **Schemi Pydantic** delle risposte, perché lo schema OpenAPI descriva i campi |
+| D12 | **Formato delle celle** per una futura mappa: da definire con il renderer; le schermate attuali consumano contorni e risultati aggregati, non una griglia di punti |
+| — | **Formato di `/api/sites` definito** nel contratto v2: si preserva il GeoJSON esistente e si migra esplicitamente `apollo11` → `apollo-11`; da implementare l'adapter frontend |
+| — | **API dei flussi attuali definite** nel contratto v2: `/api/ranking`, criteri del punto nello scenario, eclissi, orbite e visualizzazioni; da implementare backend e collegamento frontend |
+| — | **Schemi delle risposte definiti** in `docs/api-contract.openapi.json`; da tradurre in modelli Pydantic e verificare sull'OpenAPI emesso dal server |
 | — | **Strumenti dell'agente AI**, da adattare dai siti alle regioni |
 
 ### 2.5 Pulizia tecnica (non blocca l'algoritmo)

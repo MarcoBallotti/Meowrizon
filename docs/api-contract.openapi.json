@@ -1,0 +1,6565 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Meowrizon frontend API contract",
+    "version": "2.0.0",
+    "description": "Contratto proposto per il frontend 48c2cdf e main c81fcca, ricognizione 15 novembre 2026. Non descrive API scientifiche già implementate. Cataloghi GeoJSON esistenti preservati. Esempi sintetici di formato, non dati NASA. Vincoli relazionali: docs/api-contract.md."
+  },
+  "servers": [
+    {
+      "url": "/"
+    }
+  ],
+  "x-frontend-commit": "48c2cdfb90686313c41e14b0fec357460dff2c63",
+  "x-main-commit": "c81fccaae7578e9187e398cefca6b681e27be7d1",
+  "tags": [
+    {
+      "name": "Cataloghi"
+    },
+    {
+      "name": "Simulatore"
+    }
+  ],
+  "paths": {
+    "/api/regions": {
+      "get": {
+        "operationId": "getRegionCatalog",
+        "summary": "Contorni delle regioni del catalogo",
+        "tags": [
+          "Cataloghi"
+        ],
+        "x-implementation-status": "existing",
+        "responses": {
+          "200": {
+            "description": "Risposta JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegionFeatureCollection"
+                }
+              }
+            }
+          },
+          "503": {
+            "$ref": "#/components/responses/CatalogUnavailable"
+          }
+        },
+        "parameters": [
+          {
+            "name": "active",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ]
+      }
+    },
+    "/api/sites": {
+      "get": {
+        "operationId": "getSiteCatalog",
+        "summary": "Siti ufficiali in GeoJSON",
+        "tags": [
+          "Cataloghi"
+        ],
+        "x-implementation-status": "existing",
+        "responses": {
+          "200": {
+            "description": "Risposta JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteFeatureCollection"
+                }
+              }
+            }
+          },
+          "503": {
+            "$ref": "#/components/responses/CatalogUnavailable"
+          }
+        }
+      }
+    },
+    "/api/coverage": {
+      "get": {
+        "operationId": "getCoverage",
+        "summary": "Catalogo dei prodotti DEM utilizzabili",
+        "tags": [
+          "Simulatore"
+        ],
+        "x-implementation-status": "required-not-implemented",
+        "responses": {
+          "200": {
+            "description": "Risposta JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoverageCatalog"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "404": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "409": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "410": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "415": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "422": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "429": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "502": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "504": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ScientificError"
+          }
+        }
+      }
+    },
+    "/api/terrain-analyses": {
+      "post": {
+        "operationId": "submitTerrainAnalysis",
+        "summary": "Avvia TerrainAnalysis",
+        "tags": [
+          "Simulatore"
+        ],
+        "x-implementation-status": "required-not-implemented",
+        "responses": {
+          "200": {
+            "description": "Risposta JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TerrainJob"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Job scientifico accodato",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TerrainJob"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "404": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "409": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "410": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "415": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "422": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "429": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "502": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "504": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ScientificError"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TerrainAnalysisRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/terrain-analyses/{jobId}": {
+      "get": {
+        "operationId": "pollTerrainAnalysis",
+        "summary": "Legge il job TerrainAnalysis",
+        "tags": [
+          "Simulatore"
+        ],
+        "x-implementation-status": "required-not-implemented",
+        "responses": {
+          "200": {
+            "description": "Risposta JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TerrainJob"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "404": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "409": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "410": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "415": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "422": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "429": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "502": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "504": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ScientificError"
+          }
+        },
+        "parameters": [
+          {
+            "name": "jobId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ]
+      }
+    },
+    "/api/scenario-evaluations": {
+      "post": {
+        "operationId": "submitScenarioEvaluation",
+        "summary": "Avvia ScenarioEvaluation",
+        "tags": [
+          "Simulatore"
+        ],
+        "x-implementation-status": "required-not-implemented",
+        "responses": {
+          "200": {
+            "description": "Risposta JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScenarioJob"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Job scientifico accodato",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScenarioJob"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "404": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "409": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "410": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "415": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "422": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "429": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "502": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "504": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ScientificError"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScenarioEvaluationRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/scenario-evaluations/{jobId}": {
+      "get": {
+        "operationId": "pollScenarioEvaluation",
+        "summary": "Legge il job ScenarioEvaluation",
+        "tags": [
+          "Simulatore"
+        ],
+        "x-implementation-status": "required-not-implemented",
+        "responses": {
+          "200": {
+            "description": "Risposta JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScenarioJob"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "404": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "409": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "410": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "415": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "422": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "429": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "502": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "504": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ScientificError"
+          }
+        },
+        "parameters": [
+          {
+            "name": "jobId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ]
+      }
+    },
+    "/api/ranking": {
+      "post": {
+        "operationId": "submitRanking",
+        "summary": "Avvia Ranking",
+        "tags": [
+          "Simulatore"
+        ],
+        "x-implementation-status": "required-not-implemented",
+        "responses": {
+          "200": {
+            "description": "Risposta JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RankingJob"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Job scientifico accodato",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RankingJob"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "404": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "409": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "410": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "415": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "422": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "429": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "502": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "504": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ScientificError"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RankingRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ranking/{jobId}": {
+      "get": {
+        "operationId": "pollRanking",
+        "summary": "Legge il job Ranking",
+        "tags": [
+          "Simulatore"
+        ],
+        "x-implementation-status": "required-not-implemented",
+        "responses": {
+          "200": {
+            "description": "Risposta JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RankingJob"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "404": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "409": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "410": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "415": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "422": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "429": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "502": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "504": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ScientificError"
+          }
+        },
+        "parameters": [
+          {
+            "name": "jobId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ]
+      }
+    },
+    "/api/eclipse-searches": {
+      "post": {
+        "operationId": "submitEclipseSearch",
+        "summary": "Avvia EclipseSearch",
+        "tags": [
+          "Simulatore"
+        ],
+        "x-implementation-status": "required-not-implemented",
+        "responses": {
+          "200": {
+            "description": "Risposta JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EclipseSearchJob"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Job scientifico accodato",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EclipseSearchJob"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "404": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "409": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "410": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "415": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "422": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "429": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "502": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "504": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ScientificError"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EclipseSearchRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/eclipse-searches/{jobId}": {
+      "get": {
+        "operationId": "pollEclipseSearch",
+        "summary": "Legge il job EclipseSearch",
+        "tags": [
+          "Simulatore"
+        ],
+        "x-implementation-status": "required-not-implemented",
+        "responses": {
+          "200": {
+            "description": "Risposta JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EclipseSearchJob"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "404": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "409": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "410": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "415": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "422": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "429": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "502": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "504": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ScientificError"
+          }
+        },
+        "parameters": [
+          {
+            "name": "jobId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ]
+      }
+    },
+    "/api/system-ephemerides": {
+      "post": {
+        "operationId": "submitSystemEphemerides",
+        "summary": "Avvia SystemEphemerides",
+        "tags": [
+          "Simulatore"
+        ],
+        "x-implementation-status": "required-not-implemented",
+        "responses": {
+          "200": {
+            "description": "Risposta JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemEphemeridesJob"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Job scientifico accodato",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemEphemeridesJob"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "404": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "409": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "410": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "415": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "422": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "429": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "502": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "504": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ScientificError"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SystemEphemeridesRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/system-ephemerides/{jobId}": {
+      "get": {
+        "operationId": "pollSystemEphemerides",
+        "summary": "Legge il job SystemEphemerides",
+        "tags": [
+          "Simulatore"
+        ],
+        "x-implementation-status": "required-not-implemented",
+        "responses": {
+          "200": {
+            "description": "Risposta JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemEphemeridesJob"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "404": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "409": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "410": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "415": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "422": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "429": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "502": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "504": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ScientificError"
+          }
+        },
+        "parameters": [
+          {
+            "name": "jobId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ]
+      }
+    },
+    "/api/globe-state": {
+      "get": {
+        "operationId": "getGlobeState",
+        "summary": "Direzioni per la luce del globo",
+        "tags": [
+          "Simulatore"
+        ],
+        "x-implementation-status": "required-not-implemented",
+        "responses": {
+          "200": {
+            "description": "Risposta JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GlobeState"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "404": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "409": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "410": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "415": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "422": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "429": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "502": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "504": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ScientificError"
+          }
+        },
+        "parameters": [
+          {
+            "name": "utc",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/UtcDateTime"
+            }
+          }
+        ]
+      }
+    },
+    "/api/visualization-config": {
+      "get": {
+        "operationId": "getVisualizationConfig",
+        "summary": "Mappe e disponibilità temporale",
+        "tags": [
+          "Simulatore"
+        ],
+        "x-implementation-status": "required-not-implemented",
+        "responses": {
+          "200": {
+            "description": "Risposta JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VisualizationConfig"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "404": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "409": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "410": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "415": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "422": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "429": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "502": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "504": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ScientificError"
+          }
+        }
+      }
+    },
+    "/api/map-tiles/{layerId}/{tileMatrix}/{tileRow}/{tileCol}.{format}": {
+      "get": {
+        "operationId": "getMapTile",
+        "summary": "Tessera immagine tramite il backend",
+        "tags": [
+          "Simulatore"
+        ],
+        "x-implementation-status": "required-not-implemented",
+        "responses": {
+          "200": {
+            "description": "Byte immagine, mai JSON/base64",
+            "content": {
+              "image/jpeg": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/png": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "404": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "409": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "410": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "415": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "422": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "429": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "502": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "504": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "500": {
+            "$ref": "#/components/responses/ScientificError"
+          },
+          "304": {
+            "description": "Immagine non modificata; risposta senza corpo"
+          }
+        },
+        "parameters": [
+          {
+            "name": "layerId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tileMatrix",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "tileRow",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "tileCol",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "format",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "jpg",
+                "png"
+              ]
+            }
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "EpochMilliseconds": {
+        "type": "integer",
+        "description": "Unix epoch UTC in millisecondi, non secondi."
+      },
+      "UtcDateTime": {
+        "type": "string",
+        "format": "date-time",
+        "pattern": "Z$",
+        "description": "ISO 8601 UTC, suffisso Z obbligatorio."
+      },
+      "Origin": {
+        "type": "string",
+        "enum": [
+          "demo",
+          "engine"
+        ]
+      },
+      "Coordinates": {
+        "type": "object",
+        "properties": {
+          "latDeg": {
+            "type": "number",
+            "minimum": -90,
+            "maximum": 90
+          },
+          "lonEastDeg": {
+            "type": "number",
+            "minimum": -180,
+            "exclusiveMaximum": 180
+          }
+        },
+        "required": [
+          "latDeg",
+          "lonEastDeg"
+        ],
+        "additionalProperties": false
+      },
+      "InputCoordinates": {
+        "type": "object",
+        "properties": {
+          "latDeg": {
+            "type": "number",
+            "minimum": -90,
+            "maximum": 90
+          },
+          "lonEastDeg": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "latDeg",
+          "lonEastDeg"
+        ],
+        "additionalProperties": false,
+        "description": "Il backend normalizza la longitudine. Il terreno rifiuta i poli esatti."
+      },
+      "TimeRange": {
+        "type": "object",
+        "properties": {
+          "startUtc": {
+            "$ref": "#/components/schemas/UtcDateTime"
+          },
+          "stopUtc": {
+            "$ref": "#/components/schemas/UtcDateTime"
+          },
+          "startMs": {
+            "$ref": "#/components/schemas/EpochMilliseconds"
+          },
+          "stopMs": {
+            "$ref": "#/components/schemas/EpochMilliseconds"
+          }
+        },
+        "required": [
+          "startUtc",
+          "stopUtc",
+          "startMs",
+          "stopMs"
+        ],
+        "additionalProperties": false
+      },
+      "VisibilityRequest": {
+        "type": "object",
+        "properties": {
+          "model": {
+            "type": "string",
+            "enum": [
+              "body-center",
+              "disk-fraction"
+            ]
+          },
+          "minVisibleFraction": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 1,
+            "default": 0.5
+          }
+        },
+        "required": [
+          "model"
+        ],
+        "additionalProperties": false,
+        "description": "Se assente: body-center. Per il modello disco la soglia predefinita è 0.5."
+      },
+      "TimeInterval": {
+        "type": "object",
+        "properties": {
+          "startMs": {
+            "$ref": "#/components/schemas/EpochMilliseconds"
+          },
+          "endMs": {
+            "$ref": "#/components/schemas/EpochMilliseconds"
+          },
+          "startClipped": {
+            "type": "boolean"
+          },
+          "endClipped": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "startMs",
+          "endMs",
+          "startClipped",
+          "endClipped"
+        ],
+        "additionalProperties": false,
+        "description": "[startMs,endMs), durata positiva; i flag separano i bordi del range dagli eventi fisici."
+      },
+      "IntervalStats": {
+        "type": "object",
+        "properties": {
+          "totalMs": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "fraction": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "longestOnMs": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "longestOffMs": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "riseCount": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "totalMs",
+          "fraction",
+          "longestOnMs",
+          "longestOffMs",
+          "count",
+          "riseCount"
+        ],
+        "additionalProperties": false
+      },
+      "PeriodSummary": {
+        "type": "object",
+        "properties": {
+          "startMs": {
+            "$ref": "#/components/schemas/EpochMilliseconds"
+          },
+          "stopMs": {
+            "$ref": "#/components/schemas/EpochMilliseconds"
+          },
+          "visibilityModel": {
+            "type": "string",
+            "enum": [
+              "body-center",
+              "disk-fraction"
+            ]
+          },
+          "minVisibleFraction": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sun": {
+            "$ref": "#/components/schemas/IntervalStats"
+          },
+          "earth": {
+            "$ref": "#/components/schemas/IntervalStats"
+          },
+          "both": {
+            "$ref": "#/components/schemas/IntervalStats"
+          }
+        },
+        "required": [
+          "startMs",
+          "stopMs",
+          "visibilityModel",
+          "minVisibleFraction",
+          "sun",
+          "earth",
+          "both"
+        ],
+        "additionalProperties": false
+      },
+      "EphemerisMetadata": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "kernels": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "corrections": {
+            "type": "string"
+          },
+          "coordinateFrame": {
+            "type": "string"
+          },
+          "frameVersion": {
+            "type": "string"
+          },
+          "sourceDatasetIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "sourceStepMinutes": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "timingUncertaintyMs": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "accuracyNotes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "source",
+          "version",
+          "kernels",
+          "corrections",
+          "coordinateFrame",
+          "frameVersion",
+          "sourceDatasetIds",
+          "sourceStepMinutes",
+          "timingUncertaintyMs",
+          "accuracyNotes"
+        ],
+        "additionalProperties": false,
+        "description": "Solo Horizons nel progetto attuale; kernels è []. La tolleranza numerica non certifica accuratezza fisica."
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "detail": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "fields": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "field": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "field",
+                "message"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "retryable": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "detail",
+          "code",
+          "fields",
+          "retryable"
+        ],
+        "additionalProperties": false,
+        "examples": [
+          {
+            "detail": "Il periodo supera 20000 campioni",
+            "code": "sample_limit_exceeded",
+            "fields": [
+              {
+                "field": "stepMinutes",
+                "message": "Aumentare il passo o ridurre il periodo"
+              }
+            ],
+            "retryable": false
+          }
+        ]
+      },
+      "LegacyError": {
+        "type": "object",
+        "properties": {
+          "detail": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "detail"
+        ],
+        "additionalProperties": true,
+        "description": "Envelope attualmente emesso dai cataloghi esistenti, da preservare."
+      },
+      "JobError": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "additionalProperties": false
+      },
+      "PointGeometry": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "const": "Point",
+            "type": "string"
+          },
+          "coordinates": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "minItems": 2,
+            "maxItems": 2
+          }
+        },
+        "required": [
+          "type",
+          "coordinates"
+        ],
+        "additionalProperties": false
+      },
+      "PolygonGeometry": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "const": "Polygon",
+            "type": "string"
+          },
+          "coordinates": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "number"
+                },
+                "minItems": 2,
+                "maxItems": 2
+              },
+              "minItems": 4
+            },
+            "minItems": 1
+          }
+        },
+        "required": [
+          "type",
+          "coordinates"
+        ],
+        "additionalProperties": false
+      },
+      "MultiPolygonGeometry": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "const": "MultiPolygon",
+            "type": "string"
+          },
+          "coordinates": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  },
+                  "minItems": 2,
+                  "maxItems": 2
+                },
+                "minItems": 4
+              },
+              "minItems": 1
+            },
+            "minItems": 1
+          }
+        },
+        "required": [
+          "type",
+          "coordinates"
+        ],
+        "additionalProperties": false
+      },
+      "LunarFootprint": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/PolygonGeometry"
+          },
+          {
+            "$ref": "#/components/schemas/MultiPolygonGeometry"
+          }
+        ]
+      },
+      "DemProduct": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "pixelSizeM": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "latMinDeg": {
+            "type": "number",
+            "minimum": -90,
+            "maximum": 90
+          },
+          "latMaxDeg": {
+            "type": "number",
+            "minimum": -90,
+            "maximum": 90
+          },
+          "source": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "notes": {
+            "type": "string"
+          },
+          "available": {
+            "type": "boolean"
+          },
+          "version": {
+            "type": "string"
+          },
+          "coordinateFrame": {
+            "type": "string"
+          },
+          "frameVersion": {
+            "type": "string"
+          },
+          "referenceRadiusKm": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "footprint": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LunarFootprint"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "pixelSizeM",
+          "latMinDeg",
+          "latMaxDeg",
+          "source",
+          "url",
+          "notes",
+          "available",
+          "version",
+          "coordinateFrame",
+          "frameVersion",
+          "referenceRadiusKm",
+          "footprint"
+        ],
+        "additionalProperties": false
+      },
+      "CoverageCatalog": {
+        "type": "object",
+        "properties": {
+          "origin": {
+            "$ref": "#/components/schemas/Origin"
+          },
+          "products": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DemProduct"
+            }
+          }
+        },
+        "required": [
+          "origin",
+          "products"
+        ],
+        "additionalProperties": false,
+        "examples": [
+          {
+            "origin": "engine",
+            "products": [
+              {
+                "id": "LDEM_80S_20MPP_ADJ",
+                "title": "LOLA south pole 20 m/pixel",
+                "pixelSizeM": 20,
+                "latMinDeg": -90,
+                "latMaxDeg": -80,
+                "source": "NASA GSFC / LOLA",
+                "url": "https://pgda.gsfc.nasa.gov/products/90",
+                "notes": "Fixture contrattuale, non stato del server.",
+                "available": true,
+                "version": "fixture-product-001",
+                "coordinateFrame": "MOON_ME",
+                "frameVersion": "DE421",
+                "referenceRadiusKm": 1737.4,
+                "footprint": null
+              }
+            ]
+          }
+        ]
+      },
+      "TerrainConfig": {
+        "type": "object",
+        "properties": {
+          "azimuthStepDeg": {
+            "type": "number",
+            "minimum": 0.1,
+            "maximum": 90
+          },
+          "maxDistanceKm": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 300
+          }
+        },
+        "required": [
+          "azimuthStepDeg",
+          "maxDistanceKm"
+        ],
+        "additionalProperties": false
+      },
+      "TerrainAnalysisRequest": {
+        "type": "object",
+        "properties": {
+          "site": {
+            "$ref": "#/components/schemas/InputCoordinates"
+          },
+          "observerHeightM": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 500
+          },
+          "config": {
+            "$ref": "#/components/schemas/TerrainConfig"
+          }
+        },
+        "required": [
+          "site",
+          "observerHeightM",
+          "config"
+        ],
+        "additionalProperties": false,
+        "examples": [
+          {
+            "site": {
+              "latDeg": -85.99,
+              "lonEastDeg": 2.9
+            },
+            "observerHeightM": 2,
+            "config": {
+              "azimuthStepDeg": 90,
+              "maxDistanceKm": 150
+            }
+          }
+        ]
+      },
+      "SlopeMeasurement": {
+        "type": "object",
+        "properties": {
+          "baselineM": {
+            "const": 100,
+            "type": "integer"
+          },
+          "valueDeg": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 90
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "computed",
+              "unavailable"
+            ]
+          },
+          "reasonCode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "baselineM",
+          "valueDeg",
+          "status",
+          "reasonCode"
+        ],
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "const": "computed"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "valueDeg": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 90
+                },
+                "reasonCode": {
+                  "type": "null"
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "const": "unavailable"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "valueDeg": {
+                  "type": "null"
+                },
+                "reasonCode": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          }
+        ]
+      },
+      "HorizonProfile": {
+        "type": "object",
+        "properties": {
+          "azimuthDeg": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "minimum": 0,
+              "exclusiveMaximum": 360
+            },
+            "minItems": 4
+          },
+          "elevationDeg": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "minimum": -90,
+              "maximum": 90
+            },
+            "minItems": 4
+          },
+          "observer": {
+            "type": "object",
+            "properties": {
+              "site": {
+                "$ref": "#/components/schemas/Coordinates"
+              },
+              "surfaceHeightM": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "heightAboveSurfaceM": {
+                "type": "number",
+                "minimum": 0
+              },
+              "referenceRadiusKm": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              }
+            },
+            "required": [
+              "site",
+              "surfaceHeightM",
+              "heightAboveSurfaceM",
+              "referenceRadiusKm"
+            ],
+            "additionalProperties": false
+          },
+          "dem": {
+            "type": "object",
+            "properties": {
+              "productIds": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "minItems": 1
+              },
+              "effectivePixelSizeM": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "noDataFraction": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              }
+            },
+            "required": [
+              "productIds",
+              "effectivePixelSizeM",
+              "noDataFraction"
+            ],
+            "additionalProperties": false
+          },
+          "params": {
+            "$ref": "#/components/schemas/TerrainConfig"
+          },
+          "algorithmVersion": {
+            "type": "string"
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "coordinateFrame": {
+            "const": "MOON_ME",
+            "type": "string"
+          },
+          "frameVersion": {
+            "type": "string"
+          },
+          "verticalDatum": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "azimuthDeg",
+          "elevationDeg",
+          "observer",
+          "dem",
+          "params",
+          "algorithmVersion",
+          "warnings",
+          "coordinateFrame",
+          "frameVersion",
+          "verticalDatum"
+        ],
+        "additionalProperties": false
+      },
+      "TerrainAnalysis": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "origin": {
+            "$ref": "#/components/schemas/Origin"
+          },
+          "preview": {
+            "const": false,
+            "type": "boolean"
+          },
+          "profile": {
+            "$ref": "#/components/schemas/HorizonProfile"
+          },
+          "slope": {
+            "$ref": "#/components/schemas/SlopeMeasurement"
+          }
+        },
+        "required": [
+          "id",
+          "origin",
+          "preview",
+          "profile",
+          "slope"
+        ],
+        "additionalProperties": false,
+        "examples": [
+          {
+            "id": "terrain-001",
+            "origin": "engine",
+            "preview": false,
+            "profile": {
+              "azimuthDeg": [
+                0,
+                90,
+                180,
+                270
+              ],
+              "elevationDeg": [
+                1,
+                1,
+                1,
+                1
+              ],
+              "observer": {
+                "site": {
+                  "latDeg": -85.99,
+                  "lonEastDeg": 2.9
+                },
+                "surfaceHeightM": 1200,
+                "heightAboveSurfaceM": 2,
+                "referenceRadiusKm": 1737.4
+              },
+              "dem": {
+                "productIds": [
+                  "LDEM_80S_20MPP_ADJ"
+                ],
+                "effectivePixelSizeM": 20,
+                "noDataFraction": 0
+              },
+              "params": {
+                "azimuthStepDeg": 90,
+                "maxDistanceKm": 150
+              },
+              "algorithmVersion": "fixture-horizon-2.0",
+              "warnings": [
+                "Profilo ridotto a quattro campioni per leggibilità."
+              ],
+              "coordinateFrame": "MOON_ME",
+              "frameVersion": "DE421",
+              "verticalDatum": "sphere-1737400m"
+            },
+            "slope": {
+              "baselineM": 100,
+              "valueDeg": 5,
+              "status": "computed",
+              "reasonCode": null
+            }
+          }
+        ]
+      },
+      "TerrainJob": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "completed",
+              "failed"
+            ]
+          },
+          "progress": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "message": {
+            "type": "string"
+          },
+          "result": {
+            "$ref": "#/components/schemas/TerrainAnalysis"
+          },
+          "error": {
+            "$ref": "#/components/schemas/JobError"
+          }
+        },
+        "required": [
+          "id",
+          "status"
+        ],
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "const": "completed"
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "result"
+              ],
+              "not": {
+                "required": [
+                  "error"
+                ]
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "const": "failed"
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "error"
+              ],
+              "not": {
+                "required": [
+                  "result"
+                ]
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "enum": [
+                    "queued",
+                    "running"
+                  ]
+                }
+              }
+            },
+            "then": {
+              "not": {
+                "anyOf": [
+                  {
+                    "required": [
+                      "result"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "error"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        "examples": [
+          {
+            "id": "job-terrainanalysis-001",
+            "status": "completed",
+            "progress": 1,
+            "result": {
+              "id": "terrain-001",
+              "origin": "engine",
+              "preview": false,
+              "profile": {
+                "azimuthDeg": [
+                  0,
+                  90,
+                  180,
+                  270
+                ],
+                "elevationDeg": [
+                  1,
+                  1,
+                  1,
+                  1
+                ],
+                "observer": {
+                  "site": {
+                    "latDeg": -85.99,
+                    "lonEastDeg": 2.9
+                  },
+                  "surfaceHeightM": 1200,
+                  "heightAboveSurfaceM": 2,
+                  "referenceRadiusKm": 1737.4
+                },
+                "dem": {
+                  "productIds": [
+                    "LDEM_80S_20MPP_ADJ"
+                  ],
+                  "effectivePixelSizeM": 20,
+                  "noDataFraction": 0
+                },
+                "params": {
+                  "azimuthStepDeg": 90,
+                  "maxDistanceKm": 150
+                },
+                "algorithmVersion": "fixture-horizon-2.0",
+                "warnings": [
+                  "Profilo ridotto a quattro campioni per leggibilità."
+                ],
+                "coordinateFrame": "MOON_ME",
+                "frameVersion": "DE421",
+                "verticalDatum": "sphere-1737400m"
+              },
+              "slope": {
+                "baselineM": 100,
+                "valueDeg": 5,
+                "status": "computed",
+                "reasonCode": null
+              }
+            }
+          }
+        ]
+      },
+      "ScenarioEvaluationRequest": {
+        "type": "object",
+        "properties": {
+          "terrainAnalysisId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "startUtc": {
+            "$ref": "#/components/schemas/UtcDateTime"
+          },
+          "stopUtc": {
+            "$ref": "#/components/schemas/UtcDateTime"
+          },
+          "stepMinutes": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1440
+          },
+          "visibility": {
+            "$ref": "#/components/schemas/VisibilityRequest"
+          },
+          "includePointAssessment": {
+            "type": "boolean",
+            "default": false
+          }
+        },
+        "required": [
+          "terrainAnalysisId",
+          "startUtc",
+          "stopUtc",
+          "stepMinutes"
+        ],
+        "additionalProperties": false,
+        "examples": [
+          {
+            "terrainAnalysisId": "terrain-001",
+            "startUtc": "2026-12-01T00:00:00.000Z",
+            "stopUtc": "2026-12-01T01:00:00.000Z",
+            "stepMinutes": 30,
+            "visibility": {
+              "model": "disk-fraction",
+              "minVisibleFraction": 0.5
+            },
+            "includePointAssessment": true
+          }
+        ]
+      },
+      "SunTrack": {
+        "type": "object",
+        "properties": {
+          "azimuthDeg": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "minimum": 0,
+              "exclusiveMaximum": 360
+            },
+            "minItems": 2
+          },
+          "elevationDeg": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "minimum": -90,
+              "maximum": 90
+            },
+            "minItems": 2
+          },
+          "horizonDeg": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "minimum": -90,
+              "maximum": 90
+            },
+            "minItems": 2
+          },
+          "centerVisible": {
+            "type": "array",
+            "items": {
+              "type": "boolean"
+            },
+            "minItems": 2
+          },
+          "visible": {
+            "type": "array",
+            "items": {
+              "type": "boolean"
+            },
+            "minItems": 2
+          },
+          "visibleDiskFraction": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "minItems": 2
+          },
+          "distanceKm": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "minItems": 2
+          },
+          "angularDiameterDeg": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "minItems": 2
+          }
+        },
+        "required": [
+          "azimuthDeg",
+          "elevationDeg",
+          "horizonDeg",
+          "centerVisible",
+          "visible",
+          "visibleDiskFraction",
+          "distanceKm",
+          "angularDiameterDeg"
+        ],
+        "additionalProperties": false
+      },
+      "EarthTrack": {
+        "type": "object",
+        "properties": {
+          "azimuthDeg": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "minimum": 0,
+              "exclusiveMaximum": 360
+            },
+            "minItems": 2
+          },
+          "elevationDeg": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "minimum": -90,
+              "maximum": 90
+            },
+            "minItems": 2
+          },
+          "horizonDeg": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "minimum": -90,
+              "maximum": 90
+            },
+            "minItems": 2
+          },
+          "centerVisible": {
+            "type": "array",
+            "items": {
+              "type": "boolean"
+            },
+            "minItems": 2
+          },
+          "visible": {
+            "type": "array",
+            "items": {
+              "type": "boolean"
+            },
+            "minItems": 2
+          },
+          "visibleDiskFraction": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "minItems": 2
+          },
+          "distanceKm": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "minItems": 2
+          },
+          "angularDiameterDeg": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "minItems": 2
+          },
+          "illuminatedFraction": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "minItems": 2
+          },
+          "brightLimbAngleDeg": {
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "minimum": 0,
+                  "exclusiveMaximum": 360
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "minItems": 2
+          }
+        },
+        "required": [
+          "azimuthDeg",
+          "elevationDeg",
+          "horizonDeg",
+          "centerVisible",
+          "visible",
+          "visibleDiskFraction",
+          "distanceKm",
+          "angularDiameterDeg",
+          "illuminatedFraction",
+          "brightLimbAngleDeg"
+        ],
+        "additionalProperties": false
+      },
+      "EclipseState": {
+        "type": "object",
+        "properties": {
+          "separationDeg": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 180
+            },
+            "minItems": 2
+          },
+          "magnitude": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "minimum": 0
+            },
+            "minItems": 2
+          },
+          "obscurationFraction": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "minItems": 2
+          },
+          "kind": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "none",
+                "partial",
+                "total"
+              ]
+            },
+            "minItems": 2
+          }
+        },
+        "required": [
+          "separationDeg",
+          "magnitude",
+          "obscurationFraction",
+          "kind"
+        ],
+        "additionalProperties": false
+      },
+      "Event": {
+        "type": "object",
+        "properties": {
+          "timeMs": {
+            "$ref": "#/components/schemas/EpochMilliseconds"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "sunrise",
+              "sunset",
+              "earthrise",
+              "earthset",
+              "eclipse-start",
+              "eclipse-end",
+              "totality-start",
+              "totality-end"
+            ]
+          },
+          "eclipseId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "timeMs",
+          "kind",
+          "eclipseId"
+        ],
+        "additionalProperties": false
+      },
+      "SiteEclipse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "startMs": {
+            "$ref": "#/components/schemas/EpochMilliseconds"
+          },
+          "endMs": {
+            "$ref": "#/components/schemas/EpochMilliseconds"
+          },
+          "maxMs": {
+            "$ref": "#/components/schemas/EpochMilliseconds"
+          },
+          "totalStartMs": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EpochMilliseconds"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "totalEndMs": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EpochMilliseconds"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "partial",
+              "total"
+            ]
+          },
+          "magnitude": {
+            "type": "number",
+            "minimum": 0
+          },
+          "obscurationFraction": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "visible": {
+            "type": "boolean"
+          },
+          "sunAzimuthDeg": {
+            "type": "number",
+            "minimum": 0,
+            "exclusiveMaximum": 360
+          },
+          "sunElevationDeg": {
+            "type": "number",
+            "minimum": -90,
+            "maximum": 90
+          },
+          "horizonDeg": {
+            "type": "number",
+            "minimum": -90,
+            "maximum": 90
+          },
+          "visibleAtMaxFraction": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "required": [
+          "id",
+          "startMs",
+          "endMs",
+          "maxMs",
+          "totalStartMs",
+          "totalEndMs",
+          "kind",
+          "magnitude",
+          "obscurationFraction",
+          "visible",
+          "sunAzimuthDeg",
+          "sunElevationDeg",
+          "horizonDeg",
+          "visibleAtMaxFraction"
+        ],
+        "additionalProperties": false,
+        "description": "Contatti completi topocentrici; visible indica solo visibilità rispetto al terreno al massimo.",
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "kind": {
+                  "const": "partial"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "totalStartMs": {
+                  "type": "null"
+                },
+                "totalEndMs": {
+                  "type": "null"
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "kind": {
+                  "const": "total"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "totalStartMs": {
+                  "$ref": "#/components/schemas/EpochMilliseconds"
+                },
+                "totalEndMs": {
+                  "$ref": "#/components/schemas/EpochMilliseconds"
+                }
+              }
+            }
+          }
+        ],
+        "examples": [
+          {
+            "id": "eclipse-fixture-001",
+            "startMs": 1796173200000,
+            "endMs": 1796187600000,
+            "maxMs": 1796180400000,
+            "totalStartMs": 1796176800000,
+            "totalEndMs": 1796184000000,
+            "kind": "total",
+            "magnitude": 1.2,
+            "obscurationFraction": 1,
+            "visible": true,
+            "sunAzimuthDeg": 90,
+            "sunElevationDeg": 2,
+            "horizonDeg": 1,
+            "visibleAtMaxFraction": 1
+          }
+        ]
+      },
+      "BodyAtEpoch": {
+        "type": "object",
+        "properties": {
+          "visible": {
+            "type": "boolean"
+          },
+          "visibleDiskFraction": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "elevationDeg": {
+            "type": "number",
+            "minimum": -90,
+            "maximum": 90
+          },
+          "horizonDeg": {
+            "type": "number",
+            "minimum": -90,
+            "maximum": 90
+          },
+          "marginDeg": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "visible",
+          "visibleDiskFraction",
+          "elevationDeg",
+          "horizonDeg",
+          "marginDeg"
+        ],
+        "additionalProperties": false
+      },
+      "ContinuousVisibility": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "found",
+              "already-hidden",
+              "not-found-in-coverage"
+            ]
+          },
+          "eventMs": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EpochMilliseconds"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "hours": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "searchedUntilMs": {
+            "$ref": "#/components/schemas/EpochMilliseconds"
+          }
+        },
+        "required": [
+          "status",
+          "eventMs",
+          "hours",
+          "searchedUntilMs"
+        ],
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "const": "found"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "eventMs": {
+                  "$ref": "#/components/schemas/EpochMilliseconds"
+                },
+                "hours": {
+                  "type": "number",
+                  "minimum": 0
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "const": "already-hidden"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "eventMs": {
+                  "$ref": "#/components/schemas/EpochMilliseconds"
+                },
+                "hours": {
+                  "const": 0
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "const": "not-found-in-coverage"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "eventMs": {
+                  "type": "null"
+                },
+                "hours": {
+                  "type": "null"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "FirstNight": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "complete",
+              "open-ended",
+              "not-found-in-coverage"
+            ]
+          },
+          "startMs": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EpochMilliseconds"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "endMs": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EpochMilliseconds"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "durationH": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "atLeastH": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "exceeds50H": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "status",
+          "startMs",
+          "endMs",
+          "durationH",
+          "atLeastH",
+          "exceeds50H"
+        ],
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "const": "complete"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "startMs": {
+                  "$ref": "#/components/schemas/EpochMilliseconds"
+                },
+                "endMs": {
+                  "$ref": "#/components/schemas/EpochMilliseconds"
+                },
+                "durationH": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "atLeastH": {
+                  "type": "null"
+                },
+                "exceeds50H": {
+                  "type": "boolean"
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "const": "open-ended"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "durationH": {
+                  "type": "null"
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "const": "not-found-in-coverage"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "durationH": {
+                  "type": "null"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "AnnualIllumination": {
+        "type": "object",
+        "properties": {
+          "year": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "complete",
+              "partial",
+              "unavailable"
+            ]
+          },
+          "coverageFraction": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "sunFraction": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "isPeak": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "peakThreshold": {
+            "const": 0.8,
+            "type": "number"
+          }
+        },
+        "required": [
+          "year",
+          "status",
+          "coverageFraction",
+          "sunFraction",
+          "isPeak",
+          "peakThreshold"
+        ],
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "const": "complete"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "coverageFraction": {
+                  "const": 1
+                },
+                "sunFraction": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "isPeak": {
+                  "type": "boolean"
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "const": "partial"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "sunFraction": {
+                  "type": "null"
+                },
+                "isPeak": {
+                  "type": "null"
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "const": "unavailable"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "sunFraction": {
+                  "type": "null"
+                },
+                "isPeak": {
+                  "type": "null"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "PointShift": {
+        "type": "object",
+        "properties": {
+          "offsetDays": {
+            "type": "integer",
+            "minimum": -3,
+            "maximum": 3
+          },
+          "epochMs": {
+            "$ref": "#/components/schemas/EpochMilliseconds"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "evaluated",
+              "unavailable"
+            ]
+          },
+          "eligible": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sunVisible": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "earthVisible": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sunMarginDeg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "earthMarginDeg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "continuousSunH": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "continuousEarthH": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "firstNightStartMs": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EpochMilliseconds"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "firstNightDurationH": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "offsetDays",
+          "epochMs",
+          "status",
+          "eligible",
+          "sunVisible",
+          "earthVisible",
+          "sunMarginDeg",
+          "earthMarginDeg",
+          "continuousSunH",
+          "continuousEarthH",
+          "firstNightStartMs",
+          "firstNightDurationH"
+        ],
+        "additionalProperties": false
+      },
+      "PointRobustness": {
+        "type": "object",
+        "properties": {
+          "advanceDays": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 3
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "delayDays": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 3
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "balancedDays": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 3
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "samples": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PointShift"
+            },
+            "minItems": 7,
+            "maxItems": 7
+          }
+        },
+        "required": [
+          "advanceDays",
+          "delayDays",
+          "balancedDays",
+          "samples"
+        ],
+        "additionalProperties": false
+      },
+      "PointAssessment": {
+        "type": "object",
+        "properties": {
+          "epochMs": {
+            "$ref": "#/components/schemas/EpochMilliseconds"
+          },
+          "site": {
+            "$ref": "#/components/schemas/Coordinates"
+          },
+          "observerHeightM": {
+            "type": "number",
+            "minimum": 0
+          },
+          "cellSizeM": {
+            "const": 100,
+            "type": "integer"
+          },
+          "policyVersion": {
+            "type": "string"
+          },
+          "visibilityThreshold": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 1
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "eligible",
+              "excluded",
+              "unavailable"
+            ]
+          },
+          "reasonCodes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "sun": {
+            "$ref": "#/components/schemas/BodyAtEpoch"
+          },
+          "earth": {
+            "$ref": "#/components/schemas/BodyAtEpoch"
+          },
+          "continuousSun": {
+            "$ref": "#/components/schemas/ContinuousVisibility"
+          },
+          "continuousEarth": {
+            "$ref": "#/components/schemas/ContinuousVisibility"
+          },
+          "firstNight": {
+            "$ref": "#/components/schemas/FirstNight"
+          },
+          "slope": {
+            "$ref": "#/components/schemas/SlopeMeasurement"
+          },
+          "annual": {
+            "$ref": "#/components/schemas/AnnualIllumination"
+          },
+          "robustness": {
+            "$ref": "#/components/schemas/PointRobustness"
+          }
+        },
+        "required": [
+          "epochMs",
+          "site",
+          "observerHeightM",
+          "cellSizeM",
+          "policyVersion",
+          "visibilityThreshold",
+          "status",
+          "reasonCodes",
+          "sun",
+          "earth",
+          "continuousSun",
+          "continuousEarth",
+          "firstNight",
+          "slope",
+          "annual",
+          "robustness"
+        ],
+        "additionalProperties": false,
+        "examples": [
+          {
+            "epochMs": 1796083200000,
+            "site": {
+              "latDeg": -85.99,
+              "lonEastDeg": 2.9
+            },
+            "observerHeightM": 2,
+            "cellSizeM": 100,
+            "policyVersion": "criteria-2026-11-15-v1",
+            "visibilityThreshold": 0.5,
+            "status": "eligible",
+            "reasonCodes": [],
+            "sun": {
+              "visible": true,
+              "visibleDiskFraction": 1,
+              "elevationDeg": 2,
+              "horizonDeg": 1,
+              "marginDeg": 1
+            },
+            "earth": {
+              "visible": true,
+              "visibleDiskFraction": 1,
+              "elevationDeg": 3,
+              "horizonDeg": 1,
+              "marginDeg": 2
+            },
+            "continuousSun": {
+              "status": "found",
+              "eventMs": 1796084100000,
+              "hours": 0.25,
+              "searchedUntilMs": 1827619200000
+            },
+            "continuousEarth": {
+              "status": "found",
+              "eventMs": 1796097600000,
+              "hours": 4,
+              "searchedUntilMs": 1827619200000
+            },
+            "firstNight": {
+              "status": "complete",
+              "startMs": 1796084100000,
+              "endMs": 1796085900000,
+              "durationH": 0.5,
+              "atLeastH": null,
+              "exceeds50H": false
+            },
+            "slope": {
+              "baselineM": 100,
+              "valueDeg": 5,
+              "status": "computed",
+              "reasonCode": null
+            },
+            "annual": {
+              "year": 2026,
+              "status": "complete",
+              "coverageFraction": 1,
+              "sunFraction": 0.85,
+              "isPeak": true,
+              "peakThreshold": 0.8
+            },
+            "robustness": {
+              "advanceDays": 1,
+              "delayDays": 2,
+              "balancedDays": 1,
+              "samples": [
+                {
+                  "offsetDays": -3,
+                  "epochMs": 1795824000000,
+                  "status": "evaluated",
+                  "eligible": false,
+                  "sunVisible": false,
+                  "earthVisible": true,
+                  "sunMarginDeg": -1,
+                  "earthMarginDeg": 2,
+                  "continuousSunH": 0,
+                  "continuousEarthH": 4,
+                  "firstNightStartMs": 1795820400000,
+                  "firstNightDurationH": 2
+                },
+                {
+                  "offsetDays": -2,
+                  "epochMs": 1795910400000,
+                  "status": "evaluated",
+                  "eligible": false,
+                  "sunVisible": false,
+                  "earthVisible": true,
+                  "sunMarginDeg": -1,
+                  "earthMarginDeg": 2,
+                  "continuousSunH": 0,
+                  "continuousEarthH": 4,
+                  "firstNightStartMs": 1795906800000,
+                  "firstNightDurationH": 2
+                },
+                {
+                  "offsetDays": -1,
+                  "epochMs": 1795996800000,
+                  "status": "evaluated",
+                  "eligible": true,
+                  "sunVisible": true,
+                  "earthVisible": true,
+                  "sunMarginDeg": 1,
+                  "earthMarginDeg": 2,
+                  "continuousSunH": 0.25,
+                  "continuousEarthH": 4,
+                  "firstNightStartMs": 1795997700000,
+                  "firstNightDurationH": 0.5
+                },
+                {
+                  "offsetDays": 0,
+                  "epochMs": 1796083200000,
+                  "status": "evaluated",
+                  "eligible": true,
+                  "sunVisible": true,
+                  "earthVisible": true,
+                  "sunMarginDeg": 1,
+                  "earthMarginDeg": 2,
+                  "continuousSunH": 0.25,
+                  "continuousEarthH": 4,
+                  "firstNightStartMs": 1796084100000,
+                  "firstNightDurationH": 0.5
+                },
+                {
+                  "offsetDays": 1,
+                  "epochMs": 1796169600000,
+                  "status": "evaluated",
+                  "eligible": true,
+                  "sunVisible": true,
+                  "earthVisible": true,
+                  "sunMarginDeg": 1,
+                  "earthMarginDeg": 2,
+                  "continuousSunH": 0.25,
+                  "continuousEarthH": 4,
+                  "firstNightStartMs": 1796170500000,
+                  "firstNightDurationH": 0.5
+                },
+                {
+                  "offsetDays": 2,
+                  "epochMs": 1796256000000,
+                  "status": "evaluated",
+                  "eligible": true,
+                  "sunVisible": true,
+                  "earthVisible": true,
+                  "sunMarginDeg": 1,
+                  "earthMarginDeg": 2,
+                  "continuousSunH": 0.25,
+                  "continuousEarthH": 4,
+                  "firstNightStartMs": 1796256900000,
+                  "firstNightDurationH": 0.5
+                },
+                {
+                  "offsetDays": 3,
+                  "epochMs": 1796342400000,
+                  "status": "evaluated",
+                  "eligible": false,
+                  "sunVisible": false,
+                  "earthVisible": true,
+                  "sunMarginDeg": -1,
+                  "earthMarginDeg": 2,
+                  "continuousSunH": 0,
+                  "continuousEarthH": 4,
+                  "firstNightStartMs": 1796338800000,
+                  "firstNightDurationH": 2
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "ScenarioEvaluation": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "origin": {
+            "$ref": "#/components/schemas/Origin"
+          },
+          "terrainAnalysisId": {
+            "type": "string"
+          },
+          "timeScale": {
+            "const": "UTC",
+            "type": "string"
+          },
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
+          },
+          "timesMs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EpochMilliseconds"
+            },
+            "minItems": 2,
+            "maxItems": 20000
+          },
+          "sun": {
+            "$ref": "#/components/schemas/SunTrack"
+          },
+          "earth": {
+            "$ref": "#/components/schemas/EarthTrack"
+          },
+          "intervals": {
+            "type": "object",
+            "properties": {
+              "sun": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/TimeInterval"
+                }
+              },
+              "earth": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/TimeInterval"
+                }
+              },
+              "both": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/TimeInterval"
+                }
+              },
+              "eclipse": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/TimeInterval"
+                }
+              },
+              "eclipseTotal": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/TimeInterval"
+                }
+              }
+            },
+            "required": [
+              "sun",
+              "earth",
+              "both",
+              "eclipse",
+              "eclipseTotal"
+            ],
+            "additionalProperties": false
+          },
+          "visibilityModel": {
+            "type": "string",
+            "enum": [
+              "body-center",
+              "disk-fraction"
+            ]
+          },
+          "minVisibleFraction": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ephemeris": {
+            "$ref": "#/components/schemas/EphemerisMetadata"
+          },
+          "eventToleranceMs": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000
+          },
+          "approximations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "summary": {
+            "$ref": "#/components/schemas/PeriodSummary"
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Event"
+            }
+          },
+          "eclipses": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SiteEclipse"
+            }
+          },
+          "eclipseState": {
+            "$ref": "#/components/schemas/EclipseState"
+          },
+          "pointAssessment": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PointAssessment"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "origin",
+          "terrainAnalysisId",
+          "timeScale",
+          "range",
+          "timesMs",
+          "sun",
+          "earth",
+          "intervals",
+          "visibilityModel",
+          "minVisibleFraction",
+          "ephemeris",
+          "eventToleranceMs",
+          "approximations",
+          "summary",
+          "events",
+          "eclipses",
+          "eclipseState",
+          "pointAssessment"
+        ],
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "visibilityModel": {
+                  "const": "body-center"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "minVisibleFraction": {
+                  "type": "null"
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "visibilityModel": {
+                  "const": "disk-fraction"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "minVisibleFraction": {
+                  "type": "number",
+                  "exclusiveMinimum": 0,
+                  "maximum": 1
+                }
+              }
+            }
+          }
+        ],
+        "examples": [
+          {
+            "id": "scenario-001",
+            "origin": "engine",
+            "terrainAnalysisId": "terrain-001",
+            "timeScale": "UTC",
+            "range": {
+              "startUtc": "2026-12-01T00:00:00.000Z",
+              "stopUtc": "2026-12-01T01:00:00.000Z",
+              "startMs": 1796083200000,
+              "stopMs": 1796086800000
+            },
+            "timesMs": [
+              1796083200000,
+              1796085000000,
+              1796086800000
+            ],
+            "sun": {
+              "azimuthDeg": [
+                90,
+                90.5,
+                91
+              ],
+              "elevationDeg": [
+                2,
+                0,
+                2
+              ],
+              "horizonDeg": [
+                1,
+                1,
+                1
+              ],
+              "centerVisible": [
+                true,
+                false,
+                true
+              ],
+              "visible": [
+                true,
+                false,
+                true
+              ],
+              "visibleDiskFraction": [
+                1,
+                0,
+                1
+              ],
+              "distanceKm": [
+                149600000,
+                149600000,
+                149600000
+              ],
+              "angularDiameterDeg": [
+                0.533,
+                0.533,
+                0.533
+              ]
+            },
+            "earth": {
+              "azimuthDeg": [
+                180,
+                180.01,
+                180.02
+              ],
+              "elevationDeg": [
+                3,
+                3.1,
+                3.2
+              ],
+              "horizonDeg": [
+                1,
+                1,
+                1
+              ],
+              "centerVisible": [
+                true,
+                true,
+                true
+              ],
+              "visible": [
+                true,
+                true,
+                true
+              ],
+              "visibleDiskFraction": [
+                1,
+                1,
+                1
+              ],
+              "distanceKm": [
+                384400,
+                384400,
+                384400
+              ],
+              "angularDiameterDeg": [
+                1.9,
+                1.9,
+                1.9
+              ],
+              "illuminatedFraction": [
+                0.5,
+                0.5,
+                0.5
+              ],
+              "brightLimbAngleDeg": [
+                180,
+                180,
+                180
+              ]
+            },
+            "intervals": {
+              "sun": [
+                {
+                  "startMs": 1796083200000,
+                  "endMs": 1796084100000,
+                  "startClipped": true,
+                  "endClipped": false
+                },
+                {
+                  "startMs": 1796085900000,
+                  "endMs": 1796086800000,
+                  "startClipped": false,
+                  "endClipped": true
+                }
+              ],
+              "earth": [
+                {
+                  "startMs": 1796083200000,
+                  "endMs": 1796086800000,
+                  "startClipped": true,
+                  "endClipped": true
+                }
+              ],
+              "both": [
+                {
+                  "startMs": 1796083200000,
+                  "endMs": 1796084100000,
+                  "startClipped": true,
+                  "endClipped": false
+                },
+                {
+                  "startMs": 1796085900000,
+                  "endMs": 1796086800000,
+                  "startClipped": false,
+                  "endClipped": true
+                }
+              ],
+              "eclipse": [],
+              "eclipseTotal": []
+            },
+            "visibilityModel": "disk-fraction",
+            "minVisibleFraction": 0.5,
+            "ephemeris": {
+              "source": "NASA/JPL Horizons",
+              "version": "fixture-adapter-2.0",
+              "kernels": [],
+              "corrections": "Convenzione apparente airless documentata dall’adapter; fixture di formato.",
+              "coordinateFrame": "MOON_ME",
+              "frameVersion": "DE421",
+              "sourceDatasetIds": [
+                "fixture-dataset-001"
+              ],
+              "sourceStepMinutes": 60,
+              "timingUncertaintyMs": null,
+              "accuracyNotes": [
+                "Esempio contrattuale, non una previsione astronomica."
+              ]
+            },
+            "eventToleranceMs": 1000,
+            "approximations": [
+              "Fixture di formato, non dati NASA."
+            ],
+            "summary": {
+              "startMs": 1796083200000,
+              "stopMs": 1796086800000,
+              "visibilityModel": "disk-fraction",
+              "minVisibleFraction": 0.5,
+              "sun": {
+                "totalMs": 1800000,
+                "fraction": 0.5,
+                "longestOnMs": 900000,
+                "longestOffMs": 1800000,
+                "count": 2,
+                "riseCount": 1
+              },
+              "earth": {
+                "totalMs": 3600000,
+                "fraction": 1.0,
+                "longestOnMs": 3600000,
+                "longestOffMs": 0,
+                "count": 1,
+                "riseCount": 0
+              },
+              "both": {
+                "totalMs": 1800000,
+                "fraction": 0.5,
+                "longestOnMs": 900000,
+                "longestOffMs": 1800000,
+                "count": 2,
+                "riseCount": 1
+              }
+            },
+            "events": [
+              {
+                "timeMs": 1796084100000,
+                "kind": "sunset",
+                "eclipseId": null
+              },
+              {
+                "timeMs": 1796085900000,
+                "kind": "sunrise",
+                "eclipseId": null
+              }
+            ],
+            "eclipses": [],
+            "eclipseState": {
+              "separationDeg": [
+                90,
+                90,
+                90
+              ],
+              "magnitude": [
+                0,
+                0,
+                0
+              ],
+              "obscurationFraction": [
+                0,
+                0,
+                0
+              ],
+              "kind": [
+                "none",
+                "none",
+                "none"
+              ]
+            },
+            "pointAssessment": {
+              "epochMs": 1796083200000,
+              "site": {
+                "latDeg": -85.99,
+                "lonEastDeg": 2.9
+              },
+              "observerHeightM": 2,
+              "cellSizeM": 100,
+              "policyVersion": "criteria-2026-11-15-v1",
+              "visibilityThreshold": 0.5,
+              "status": "eligible",
+              "reasonCodes": [],
+              "sun": {
+                "visible": true,
+                "visibleDiskFraction": 1,
+                "elevationDeg": 2,
+                "horizonDeg": 1,
+                "marginDeg": 1
+              },
+              "earth": {
+                "visible": true,
+                "visibleDiskFraction": 1,
+                "elevationDeg": 3,
+                "horizonDeg": 1,
+                "marginDeg": 2
+              },
+              "continuousSun": {
+                "status": "found",
+                "eventMs": 1796084100000,
+                "hours": 0.25,
+                "searchedUntilMs": 1827619200000
+              },
+              "continuousEarth": {
+                "status": "found",
+                "eventMs": 1796097600000,
+                "hours": 4,
+                "searchedUntilMs": 1827619200000
+              },
+              "firstNight": {
+                "status": "complete",
+                "startMs": 1796084100000,
+                "endMs": 1796085900000,
+                "durationH": 0.5,
+                "atLeastH": null,
+                "exceeds50H": false
+              },
+              "slope": {
+                "baselineM": 100,
+                "valueDeg": 5,
+                "status": "computed",
+                "reasonCode": null
+              },
+              "annual": {
+                "year": 2026,
+                "status": "complete",
+                "coverageFraction": 1,
+                "sunFraction": 0.85,
+                "isPeak": true,
+                "peakThreshold": 0.8
+              },
+              "robustness": {
+                "advanceDays": 1,
+                "delayDays": 2,
+                "balancedDays": 1,
+                "samples": [
+                  {
+                    "offsetDays": -3,
+                    "epochMs": 1795824000000,
+                    "status": "evaluated",
+                    "eligible": false,
+                    "sunVisible": false,
+                    "earthVisible": true,
+                    "sunMarginDeg": -1,
+                    "earthMarginDeg": 2,
+                    "continuousSunH": 0,
+                    "continuousEarthH": 4,
+                    "firstNightStartMs": 1795820400000,
+                    "firstNightDurationH": 2
+                  },
+                  {
+                    "offsetDays": -2,
+                    "epochMs": 1795910400000,
+                    "status": "evaluated",
+                    "eligible": false,
+                    "sunVisible": false,
+                    "earthVisible": true,
+                    "sunMarginDeg": -1,
+                    "earthMarginDeg": 2,
+                    "continuousSunH": 0,
+                    "continuousEarthH": 4,
+                    "firstNightStartMs": 1795906800000,
+                    "firstNightDurationH": 2
+                  },
+                  {
+                    "offsetDays": -1,
+                    "epochMs": 1795996800000,
+                    "status": "evaluated",
+                    "eligible": true,
+                    "sunVisible": true,
+                    "earthVisible": true,
+                    "sunMarginDeg": 1,
+                    "earthMarginDeg": 2,
+                    "continuousSunH": 0.25,
+                    "continuousEarthH": 4,
+                    "firstNightStartMs": 1795997700000,
+                    "firstNightDurationH": 0.5
+                  },
+                  {
+                    "offsetDays": 0,
+                    "epochMs": 1796083200000,
+                    "status": "evaluated",
+                    "eligible": true,
+                    "sunVisible": true,
+                    "earthVisible": true,
+                    "sunMarginDeg": 1,
+                    "earthMarginDeg": 2,
+                    "continuousSunH": 0.25,
+                    "continuousEarthH": 4,
+                    "firstNightStartMs": 1796084100000,
+                    "firstNightDurationH": 0.5
+                  },
+                  {
+                    "offsetDays": 1,
+                    "epochMs": 1796169600000,
+                    "status": "evaluated",
+                    "eligible": true,
+                    "sunVisible": true,
+                    "earthVisible": true,
+                    "sunMarginDeg": 1,
+                    "earthMarginDeg": 2,
+                    "continuousSunH": 0.25,
+                    "continuousEarthH": 4,
+                    "firstNightStartMs": 1796170500000,
+                    "firstNightDurationH": 0.5
+                  },
+                  {
+                    "offsetDays": 2,
+                    "epochMs": 1796256000000,
+                    "status": "evaluated",
+                    "eligible": true,
+                    "sunVisible": true,
+                    "earthVisible": true,
+                    "sunMarginDeg": 1,
+                    "earthMarginDeg": 2,
+                    "continuousSunH": 0.25,
+                    "continuousEarthH": 4,
+                    "firstNightStartMs": 1796256900000,
+                    "firstNightDurationH": 0.5
+                  },
+                  {
+                    "offsetDays": 3,
+                    "epochMs": 1796342400000,
+                    "status": "evaluated",
+                    "eligible": false,
+                    "sunVisible": false,
+                    "earthVisible": true,
+                    "sunMarginDeg": -1,
+                    "earthMarginDeg": 2,
+                    "continuousSunH": 0,
+                    "continuousEarthH": 4,
+                    "firstNightStartMs": 1796338800000,
+                    "firstNightDurationH": 2
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "ScenarioJob": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "completed",
+              "failed"
+            ]
+          },
+          "progress": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "message": {
+            "type": "string"
+          },
+          "result": {
+            "$ref": "#/components/schemas/ScenarioEvaluation"
+          },
+          "error": {
+            "$ref": "#/components/schemas/JobError"
+          }
+        },
+        "required": [
+          "id",
+          "status"
+        ],
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "const": "completed"
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "result"
+              ],
+              "not": {
+                "required": [
+                  "error"
+                ]
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "const": "failed"
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "error"
+              ],
+              "not": {
+                "required": [
+                  "result"
+                ]
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "enum": [
+                    "queued",
+                    "running"
+                  ]
+                }
+              }
+            },
+            "then": {
+              "not": {
+                "anyOf": [
+                  {
+                    "required": [
+                      "result"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "error"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        "examples": [
+          {
+            "id": "job-scenario-001",
+            "status": "queued",
+            "progress": 0
+          }
+        ]
+      },
+      "CatalogMetadata": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "regions",
+              "sites"
+            ]
+          },
+          "generated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "reference": {
+            "type": "object",
+            "properties": {
+              "body": {
+                "type": "string"
+              },
+              "sphere_radius_m": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "frame": {
+                "type": "string"
+              },
+              "lonlat": {
+                "type": "string"
+              },
+              "projection_m": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "body",
+              "sphere_radius_m",
+              "frame",
+              "lonlat",
+              "projection_m"
+            ],
+            "additionalProperties": false
+          },
+          "sector": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "lat_limit": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "name",
+              "lat_limit"
+            ],
+            "additionalProperties": false
+          },
+          "cell_size_m": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "source": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "kind",
+          "generated_at",
+          "reference",
+          "sector",
+          "cell_size_m"
+        ],
+        "additionalProperties": true
+      },
+      "RegionFeature": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "const": "Feature",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "geometry": {
+            "$ref": "#/components/schemas/LunarFootprint"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "moontrek_label": {
+                "type": "string"
+              },
+              "lists": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "2022",
+                    "2024"
+                  ]
+                },
+                "minItems": 1
+              },
+              "active": {
+                "type": "boolean"
+              },
+              "area_km2": {
+                "type": "number",
+                "minimum": 0
+              },
+              "center_lon": {
+                "type": "number"
+              },
+              "center_lat": {
+                "type": "number"
+              },
+              "lat_min": {
+                "type": "number"
+              },
+              "lat_max": {
+                "type": "number"
+              },
+              "corners_m": {
+                "type": "array",
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  },
+                  "minItems": 2,
+                  "maxItems": 2
+                }
+              },
+              "bbox_m": {
+                "type": "array",
+                "items": {
+                  "type": "number"
+                },
+                "minItems": 4,
+                "maxItems": 4
+              },
+              "cell_size_m": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "cells_x": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "cells_y": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "grid_aligned": {
+                "type": "boolean"
+              },
+              "dem_near": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "dem_covering": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "moontrek_label",
+              "lists",
+              "active",
+              "area_km2",
+              "center_lon",
+              "center_lat",
+              "lat_min",
+              "lat_max",
+              "corners_m",
+              "bbox_m",
+              "cell_size_m",
+              "cells_x",
+              "cells_y",
+              "grid_aligned",
+              "dem_near",
+              "dem_covering"
+            ],
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "type",
+          "id",
+          "geometry",
+          "properties"
+        ],
+        "additionalProperties": true
+      },
+      "SiteFeature": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "const": "Feature",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "geometry": {
+            "$ref": "#/components/schemas/PointGeometry"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "atterrato",
+                  "previsto",
+                  "personalizzato"
+                ]
+              },
+              "date": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "source": {
+                "type": "string"
+              },
+              "note": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "in_sector": {
+                "type": "boolean"
+              },
+              "cell_size_m": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "x_m": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "y_m": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "cell_bounds_m": {
+                "anyOf": [
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "number"
+                    },
+                    "minItems": 4,
+                    "maxItems": 4
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "region": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "dem_near": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "dem_covering": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "kind",
+              "date",
+              "source",
+              "note",
+              "in_sector",
+              "cell_size_m",
+              "x_m",
+              "y_m",
+              "cell_bounds_m",
+              "region",
+              "dem_near",
+              "dem_covering"
+            ],
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "type",
+          "id",
+          "geometry",
+          "properties"
+        ],
+        "additionalProperties": true
+      },
+      "RegionFeatureCollection": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "const": "FeatureCollection",
+            "type": "string"
+          },
+          "meowrizon": {
+            "$ref": "#/components/schemas/CatalogMetadata"
+          },
+          "features": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RegionFeature"
+            }
+          }
+        },
+        "required": [
+          "type",
+          "meowrizon",
+          "features"
+        ],
+        "additionalProperties": true
+      },
+      "SiteFeatureCollection": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "const": "FeatureCollection",
+            "type": "string"
+          },
+          "meowrizon": {
+            "$ref": "#/components/schemas/CatalogMetadata"
+          },
+          "features": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SiteFeature"
+            }
+          }
+        },
+        "required": [
+          "type",
+          "meowrizon",
+          "features"
+        ],
+        "additionalProperties": true
+      },
+      "RankingRequest": {
+        "type": "object",
+        "properties": {
+          "epochUtc": {
+            "$ref": "#/components/schemas/UtcDateTime"
+          },
+          "regionIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "uniqueItems": true
+          },
+          "sortBy": {
+            "type": "string",
+            "enum": [
+              "overall",
+              "sun",
+              "earth",
+              "both"
+            ],
+            "default": "overall"
+          },
+          "displayDays": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 90,
+            "default": 30
+          },
+          "stepMinutes": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1440,
+            "default": 60
+          },
+          "observerHeightM": {
+            "const": 2,
+            "type": "integer",
+            "default": 2
+          },
+          "minVisibleFraction": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 1,
+            "default": 0.5
+          },
+          "includePrevious": {
+            "type": "boolean",
+            "default": true
+          }
+        },
+        "required": [
+          "epochUtc"
+        ],
+        "additionalProperties": false,
+        "examples": [
+          {
+            "epochUtc": "2026-12-01T00:00:00.000Z",
+            "regionIds": [
+              "malapert-massif"
+            ],
+            "sortBy": "overall",
+            "displayDays": 1,
+            "stepMinutes": 60,
+            "observerHeightM": 2,
+            "minVisibleFraction": 0.5,
+            "includePrevious": true
+          }
+        ]
+      },
+      "RegionShift": {
+        "type": "object",
+        "properties": {
+          "offsetDays": {
+            "type": "integer",
+            "minimum": -3,
+            "maximum": 3
+          },
+          "epochMs": {
+            "$ref": "#/components/schemas/EpochMilliseconds"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "evaluated",
+              "unavailable"
+            ]
+          },
+          "eligibleCellCount": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "offsetDays",
+          "epochMs",
+          "status",
+          "eligibleCellCount"
+        ],
+        "additionalProperties": false
+      },
+      "RegionRobustness": {
+        "type": "object",
+        "properties": {
+          "advanceDays": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 3
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "delayDays": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 3
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "balancedDays": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 3
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "samples": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RegionShift"
+            },
+            "minItems": 7,
+            "maxItems": 7
+          }
+        },
+        "required": [
+          "advanceDays",
+          "delayDays",
+          "balancedDays",
+          "samples"
+        ],
+        "additionalProperties": false
+      },
+      "RepresentativeCell": {
+        "type": "object",
+        "properties": {
+          "site": {
+            "$ref": "#/components/schemas/Coordinates"
+          },
+          "terrainAnalysisId": {
+            "type": "string"
+          },
+          "selectionRule": {
+            "const": "max-sun-hours-then-earth-hours-then-cell-id",
+            "type": "string"
+          },
+          "assessment": {
+            "$ref": "#/components/schemas/PointAssessment"
+          },
+          "current": {
+            "$ref": "#/components/schemas/PeriodSummary"
+          },
+          "previous": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PeriodSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "previousStatus": {
+            "type": "string",
+            "enum": [
+              "complete",
+              "unavailable",
+              "not-requested"
+            ]
+          }
+        },
+        "required": [
+          "site",
+          "terrainAnalysisId",
+          "selectionRule",
+          "assessment",
+          "current",
+          "previous",
+          "previousStatus"
+        ],
+        "additionalProperties": false
+      },
+      "RankedRegion": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "center": {
+            "$ref": "#/components/schemas/Coordinates"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "eligible",
+              "excluded",
+              "unavailable"
+            ]
+          },
+          "reasonCodes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "rank": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "overallRank": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "totalCellCount": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "evaluatedCellCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "eligibleCellCount": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "eligibleAreaKm2": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "robustness": {
+            "$ref": "#/components/schemas/RegionRobustness"
+          },
+          "representative": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RepresentativeCell"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "center",
+          "status",
+          "reasonCodes",
+          "rank",
+          "overallRank",
+          "totalCellCount",
+          "evaluatedCellCount",
+          "eligibleCellCount",
+          "eligibleAreaKm2",
+          "robustness",
+          "representative"
+        ],
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "const": "eligible"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "rank": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "overallRank": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "representative": {
+                  "$ref": "#/components/schemas/RepresentativeCell"
+                },
+                "eligibleCellCount": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "const": "excluded"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "rank": {
+                  "type": "null"
+                },
+                "overallRank": {
+                  "type": "null"
+                },
+                "representative": {
+                  "type": "null"
+                },
+                "reasonCodes": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "const": "unavailable"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "rank": {
+                  "type": "null"
+                },
+                "overallRank": {
+                  "type": "null"
+                },
+                "representative": {
+                  "type": "null"
+                },
+                "reasonCodes": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "const": "excluded"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "eligibleCellCount": {
+                  "const": 0
+                },
+                "eligibleAreaKm2": {
+                  "const": 0
+                }
+              }
+            }
+          }
+        ]
+      },
+      "RankingResult": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "origin": {
+            "$ref": "#/components/schemas/Origin"
+          },
+          "epochMs": {
+            "$ref": "#/components/schemas/EpochMilliseconds"
+          },
+          "policyVersion": {
+            "type": "string"
+          },
+          "observerHeightM": {
+            "const": 2,
+            "type": "integer"
+          },
+          "minVisibleFraction": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 1
+          },
+          "sortBy": {
+            "type": "string",
+            "enum": [
+              "overall",
+              "sun",
+              "earth",
+              "both"
+            ]
+          },
+          "officialSort": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "statisticsScope": {
+            "const": "representative-cell",
+            "type": "string"
+          },
+          "displayRange": {
+            "$ref": "#/components/schemas/TimeRange"
+          },
+          "previousRange": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TimeRange"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "regions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RankedRegion"
+            }
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "origin",
+          "epochMs",
+          "policyVersion",
+          "observerHeightM",
+          "minVisibleFraction",
+          "sortBy",
+          "officialSort",
+          "statisticsScope",
+          "displayRange",
+          "previousRange",
+          "regions",
+          "warnings"
+        ],
+        "additionalProperties": false,
+        "examples": [
+          {
+            "id": "ranking-001",
+            "origin": "engine",
+            "epochMs": 1796083200000,
+            "policyVersion": "criteria-2026-11-15-v1",
+            "observerHeightM": 2,
+            "minVisibleFraction": 0.5,
+            "sortBy": "overall",
+            "officialSort": [
+              "robustness.balancedDays:desc",
+              "robustness.delayDays:desc",
+              "eligibleAreaKm2:desc",
+              "representative.assessment.continuousSun.hours:desc",
+              "representative.assessment.continuousEarth.hours:desc",
+              "id:asc"
+            ],
+            "statisticsScope": "representative-cell",
+            "displayRange": {
+              "startUtc": "2026-12-01T00:00:00.000Z",
+              "stopUtc": "2026-12-02T00:00:00.000Z",
+              "startMs": 1796083200000,
+              "stopMs": 1796169600000
+            },
+            "previousRange": {
+              "startUtc": "2026-11-30T00:00:00.000Z",
+              "stopUtc": "2026-12-01T00:00:00.000Z",
+              "startMs": 1795996800000,
+              "stopMs": 1796083200000
+            },
+            "warnings": [
+              "Conteggi e misure della fixture sono inventati."
+            ],
+            "regions": [
+              {
+                "id": "malapert-massif",
+                "name": "Malapert Massif",
+                "center": {
+                  "latDeg": -85.99,
+                  "lonEastDeg": 2.9
+                },
+                "status": "eligible",
+                "reasonCodes": [],
+                "rank": 1,
+                "overallRank": 1,
+                "totalCellCount": 10,
+                "evaluatedCellCount": 10,
+                "eligibleCellCount": 3,
+                "eligibleAreaKm2": 0.03,
+                "robustness": {
+                  "advanceDays": 1,
+                  "delayDays": 2,
+                  "balancedDays": 1,
+                  "samples": [
+                    {
+                      "offsetDays": -3,
+                      "epochMs": 1795824000000,
+                      "status": "evaluated",
+                      "eligibleCellCount": 0
+                    },
+                    {
+                      "offsetDays": -2,
+                      "epochMs": 1795910400000,
+                      "status": "evaluated",
+                      "eligibleCellCount": 0
+                    },
+                    {
+                      "offsetDays": -1,
+                      "epochMs": 1795996800000,
+                      "status": "evaluated",
+                      "eligibleCellCount": 3
+                    },
+                    {
+                      "offsetDays": 0,
+                      "epochMs": 1796083200000,
+                      "status": "evaluated",
+                      "eligibleCellCount": 3
+                    },
+                    {
+                      "offsetDays": 1,
+                      "epochMs": 1796169600000,
+                      "status": "evaluated",
+                      "eligibleCellCount": 3
+                    },
+                    {
+                      "offsetDays": 2,
+                      "epochMs": 1796256000000,
+                      "status": "evaluated",
+                      "eligibleCellCount": 3
+                    },
+                    {
+                      "offsetDays": 3,
+                      "epochMs": 1796342400000,
+                      "status": "evaluated",
+                      "eligibleCellCount": 0
+                    }
+                  ]
+                },
+                "representative": {
+                  "site": {
+                    "latDeg": -85.99,
+                    "lonEastDeg": 2.9
+                  },
+                  "terrainAnalysisId": "terrain-001",
+                  "selectionRule": "max-sun-hours-then-earth-hours-then-cell-id",
+                  "assessment": {
+                    "epochMs": 1796083200000,
+                    "site": {
+                      "latDeg": -85.99,
+                      "lonEastDeg": 2.9
+                    },
+                    "observerHeightM": 2,
+                    "cellSizeM": 100,
+                    "policyVersion": "criteria-2026-11-15-v1",
+                    "visibilityThreshold": 0.5,
+                    "status": "eligible",
+                    "reasonCodes": [],
+                    "sun": {
+                      "visible": true,
+                      "visibleDiskFraction": 1,
+                      "elevationDeg": 2,
+                      "horizonDeg": 1,
+                      "marginDeg": 1
+                    },
+                    "earth": {
+                      "visible": true,
+                      "visibleDiskFraction": 1,
+                      "elevationDeg": 3,
+                      "horizonDeg": 1,
+                      "marginDeg": 2
+                    },
+                    "continuousSun": {
+                      "status": "found",
+                      "eventMs": 1796084100000,
+                      "hours": 0.25,
+                      "searchedUntilMs": 1827619200000
+                    },
+                    "continuousEarth": {
+                      "status": "found",
+                      "eventMs": 1796097600000,
+                      "hours": 4,
+                      "searchedUntilMs": 1827619200000
+                    },
+                    "firstNight": {
+                      "status": "complete",
+                      "startMs": 1796084100000,
+                      "endMs": 1796085900000,
+                      "durationH": 0.5,
+                      "atLeastH": null,
+                      "exceeds50H": false
+                    },
+                    "slope": {
+                      "baselineM": 100,
+                      "valueDeg": 5,
+                      "status": "computed",
+                      "reasonCode": null
+                    },
+                    "annual": {
+                      "year": 2026,
+                      "status": "complete",
+                      "coverageFraction": 1,
+                      "sunFraction": 0.85,
+                      "isPeak": true,
+                      "peakThreshold": 0.8
+                    },
+                    "robustness": {
+                      "advanceDays": 1,
+                      "delayDays": 2,
+                      "balancedDays": 1,
+                      "samples": [
+                        {
+                          "offsetDays": -3,
+                          "epochMs": 1795824000000,
+                          "status": "evaluated",
+                          "eligible": false,
+                          "sunVisible": false,
+                          "earthVisible": true,
+                          "sunMarginDeg": -1,
+                          "earthMarginDeg": 2,
+                          "continuousSunH": 0,
+                          "continuousEarthH": 4,
+                          "firstNightStartMs": 1795820400000,
+                          "firstNightDurationH": 2
+                        },
+                        {
+                          "offsetDays": -2,
+                          "epochMs": 1795910400000,
+                          "status": "evaluated",
+                          "eligible": false,
+                          "sunVisible": false,
+                          "earthVisible": true,
+                          "sunMarginDeg": -1,
+                          "earthMarginDeg": 2,
+                          "continuousSunH": 0,
+                          "continuousEarthH": 4,
+                          "firstNightStartMs": 1795906800000,
+                          "firstNightDurationH": 2
+                        },
+                        {
+                          "offsetDays": -1,
+                          "epochMs": 1795996800000,
+                          "status": "evaluated",
+                          "eligible": true,
+                          "sunVisible": true,
+                          "earthVisible": true,
+                          "sunMarginDeg": 1,
+                          "earthMarginDeg": 2,
+                          "continuousSunH": 0.25,
+                          "continuousEarthH": 4,
+                          "firstNightStartMs": 1795997700000,
+                          "firstNightDurationH": 0.5
+                        },
+                        {
+                          "offsetDays": 0,
+                          "epochMs": 1796083200000,
+                          "status": "evaluated",
+                          "eligible": true,
+                          "sunVisible": true,
+                          "earthVisible": true,
+                          "sunMarginDeg": 1,
+                          "earthMarginDeg": 2,
+                          "continuousSunH": 0.25,
+                          "continuousEarthH": 4,
+                          "firstNightStartMs": 1796084100000,
+                          "firstNightDurationH": 0.5
+                        },
+                        {
+                          "offsetDays": 1,
+                          "epochMs": 1796169600000,
+                          "status": "evaluated",
+                          "eligible": true,
+                          "sunVisible": true,
+                          "earthVisible": true,
+                          "sunMarginDeg": 1,
+                          "earthMarginDeg": 2,
+                          "continuousSunH": 0.25,
+                          "continuousEarthH": 4,
+                          "firstNightStartMs": 1796170500000,
+                          "firstNightDurationH": 0.5
+                        },
+                        {
+                          "offsetDays": 2,
+                          "epochMs": 1796256000000,
+                          "status": "evaluated",
+                          "eligible": true,
+                          "sunVisible": true,
+                          "earthVisible": true,
+                          "sunMarginDeg": 1,
+                          "earthMarginDeg": 2,
+                          "continuousSunH": 0.25,
+                          "continuousEarthH": 4,
+                          "firstNightStartMs": 1796256900000,
+                          "firstNightDurationH": 0.5
+                        },
+                        {
+                          "offsetDays": 3,
+                          "epochMs": 1796342400000,
+                          "status": "evaluated",
+                          "eligible": false,
+                          "sunVisible": false,
+                          "earthVisible": true,
+                          "sunMarginDeg": -1,
+                          "earthMarginDeg": 2,
+                          "continuousSunH": 0,
+                          "continuousEarthH": 4,
+                          "firstNightStartMs": 1796338800000,
+                          "firstNightDurationH": 2
+                        }
+                      ]
+                    }
+                  },
+                  "current": {
+                    "startMs": 1796083200000,
+                    "stopMs": 1796169600000,
+                    "visibilityModel": "disk-fraction",
+                    "minVisibleFraction": 0.5,
+                    "sun": {
+                      "totalMs": 84600000,
+                      "fraction": 0.9791666666666666,
+                      "longestOnMs": 83700000,
+                      "longestOffMs": 1800000,
+                      "count": 2,
+                      "riseCount": 1
+                    },
+                    "earth": {
+                      "totalMs": 14400000,
+                      "fraction": 0.16666666666666666,
+                      "longestOnMs": 14400000,
+                      "longestOffMs": 72000000,
+                      "count": 1,
+                      "riseCount": 0
+                    },
+                    "both": {
+                      "totalMs": 12600000,
+                      "fraction": 0.14583333333333334,
+                      "longestOnMs": 11700000,
+                      "longestOffMs": 72000000,
+                      "count": 2,
+                      "riseCount": 1
+                    }
+                  },
+                  "previous": {
+                    "startMs": 1795996800000,
+                    "stopMs": 1796083200000,
+                    "visibilityModel": "disk-fraction",
+                    "minVisibleFraction": 0.5,
+                    "sun": {
+                      "totalMs": 43200000,
+                      "fraction": 0.5,
+                      "longestOnMs": 43200000,
+                      "longestOffMs": 43200000,
+                      "count": 1,
+                      "riseCount": 0
+                    },
+                    "earth": {
+                      "totalMs": 86400000,
+                      "fraction": 1.0,
+                      "longestOnMs": 86400000,
+                      "longestOffMs": 0,
+                      "count": 1,
+                      "riseCount": 0
+                    },
+                    "both": {
+                      "totalMs": 43200000,
+                      "fraction": 0.5,
+                      "longestOnMs": 43200000,
+                      "longestOffMs": 43200000,
+                      "count": 1,
+                      "riseCount": 0
+                    }
+                  },
+                  "previousStatus": "complete"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "RankingJob": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "completed",
+              "failed"
+            ]
+          },
+          "progress": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "message": {
+            "type": "string"
+          },
+          "result": {
+            "$ref": "#/components/schemas/RankingResult"
+          },
+          "error": {
+            "$ref": "#/components/schemas/JobError"
+          }
+        },
+        "required": [
+          "id",
+          "status"
+        ],
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "const": "completed"
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "result"
+              ],
+              "not": {
+                "required": [
+                  "error"
+                ]
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "const": "failed"
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "error"
+              ],
+              "not": {
+                "required": [
+                  "result"
+                ]
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "enum": [
+                    "queued",
+                    "running"
+                  ]
+                }
+              }
+            },
+            "then": {
+              "not": {
+                "anyOf": [
+                  {
+                    "required": [
+                      "result"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "error"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        "examples": [
+          {
+            "id": "job-ranking-001",
+            "status": "running",
+            "progress": 0.5,
+            "message": "Valutazione delle regioni"
+          }
+        ]
+      },
+      "EclipseSearchRequest": {
+        "type": "object",
+        "properties": {
+          "terrainAnalysisId": {
+            "type": "string"
+          },
+          "startUtc": {
+            "$ref": "#/components/schemas/UtcDateTime"
+          },
+          "stopUtc": {
+            "$ref": "#/components/schemas/UtcDateTime"
+          },
+          "minVisibleFraction": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 1,
+            "default": 0.5
+          }
+        },
+        "required": [
+          "terrainAnalysisId",
+          "startUtc",
+          "stopUtc"
+        ],
+        "additionalProperties": false,
+        "examples": [
+          {
+            "terrainAnalysisId": "terrain-001",
+            "startUtc": "2026-12-01T00:00:00.000Z",
+            "stopUtc": "2028-11-30T00:00:00.000Z",
+            "minVisibleFraction": 0.5
+          }
+        ]
+      },
+      "EclipseSearchResult": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "origin": {
+            "$ref": "#/components/schemas/Origin"
+          },
+          "terrainAnalysisId": {
+            "type": "string"
+          },
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
+          },
+          "minVisibleFraction": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 1
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SiteEclipse"
+            }
+          },
+          "eventToleranceMs": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000
+          },
+          "ephemeris": {
+            "$ref": "#/components/schemas/EphemerisMetadata"
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "origin",
+          "terrainAnalysisId",
+          "range",
+          "minVisibleFraction",
+          "events",
+          "eventToleranceMs",
+          "ephemeris",
+          "warnings"
+        ],
+        "additionalProperties": false,
+        "examples": [
+          {
+            "id": "eclipse-search-001",
+            "origin": "engine",
+            "terrainAnalysisId": "terrain-001",
+            "range": {
+              "startUtc": "2026-12-01T00:00:00.000Z",
+              "stopUtc": "2028-11-30T00:00:00.000Z",
+              "startMs": 1796083200000,
+              "stopMs": 1859155200000
+            },
+            "minVisibleFraction": 0.5,
+            "events": [
+              {
+                "id": "eclipse-fixture-001",
+                "startMs": 1796173200000,
+                "endMs": 1796187600000,
+                "maxMs": 1796180400000,
+                "totalStartMs": 1796176800000,
+                "totalEndMs": 1796184000000,
+                "kind": "total",
+                "magnitude": 1.2,
+                "obscurationFraction": 1,
+                "visible": true,
+                "sunAzimuthDeg": 90,
+                "sunElevationDeg": 2,
+                "horizonDeg": 1,
+                "visibleAtMaxFraction": 1
+              }
+            ],
+            "eventToleranceMs": 1000,
+            "ephemeris": {
+              "source": "NASA/JPL Horizons",
+              "version": "fixture-adapter-2.0",
+              "kernels": [],
+              "corrections": "Convenzione apparente airless documentata dall’adapter; fixture di formato.",
+              "coordinateFrame": "MOON_ME",
+              "frameVersion": "DE421",
+              "sourceDatasetIds": [
+                "fixture-dataset-001"
+              ],
+              "sourceStepMinutes": 60,
+              "timingUncertaintyMs": null,
+              "accuracyNotes": [
+                "Esempio contrattuale, non una previsione astronomica."
+              ]
+            },
+            "warnings": [
+              "Date puramente illustrative."
+            ]
+          }
+        ]
+      },
+      "EclipseSearchJob": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "completed",
+              "failed"
+            ]
+          },
+          "progress": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "message": {
+            "type": "string"
+          },
+          "result": {
+            "$ref": "#/components/schemas/EclipseSearchResult"
+          },
+          "error": {
+            "$ref": "#/components/schemas/JobError"
+          }
+        },
+        "required": [
+          "id",
+          "status"
+        ],
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "const": "completed"
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "result"
+              ],
+              "not": {
+                "required": [
+                  "error"
+                ]
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "const": "failed"
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "error"
+              ],
+              "not": {
+                "required": [
+                  "result"
+                ]
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "enum": [
+                    "queued",
+                    "running"
+                  ]
+                }
+              }
+            },
+            "then": {
+              "not": {
+                "anyOf": [
+                  {
+                    "required": [
+                      "result"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "error"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        "examples": [
+          {
+            "id": "job-eclipse-001",
+            "status": "failed",
+            "error": {
+              "code": "ephemeris_coverage_incomplete",
+              "message": "Copertura temporale insufficiente"
+            }
+          }
+        ]
+      },
+      "SystemEphemeridesRequest": {
+        "type": "object",
+        "properties": {
+          "startUtc": {
+            "$ref": "#/components/schemas/UtcDateTime"
+          },
+          "stopUtc": {
+            "$ref": "#/components/schemas/UtcDateTime"
+          },
+          "stepMinutes": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1440,
+            "default": 60
+          }
+        },
+        "required": [
+          "startUtc",
+          "stopUtc"
+        ],
+        "additionalProperties": false,
+        "examples": [
+          {
+            "startUtc": "2026-12-01T00:00:00.000Z",
+            "stopUtc": "2026-12-01T01:00:00.000Z",
+            "stepMinutes": 30
+          }
+        ]
+      },
+      "SystemEphemerides": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "origin": {
+            "$ref": "#/components/schemas/Origin"
+          },
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
+          },
+          "timeScale": {
+            "const": "UTC",
+            "type": "string"
+          },
+          "coordinateFrame": {
+            "const": "ECLIPJ2000",
+            "type": "string"
+          },
+          "vectorOrigin": {
+            "const": "earth-center",
+            "type": "string"
+          },
+          "vectorUnits": {
+            "const": "km",
+            "type": "string"
+          },
+          "corrections": {
+            "const": "geometric",
+            "type": "string"
+          },
+          "timesMs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EpochMilliseconds"
+            },
+            "minItems": 2,
+            "maxItems": 20000
+          },
+          "sunGeocentricKm": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              },
+              "minItems": 3,
+              "maxItems": 3
+            },
+            "minItems": 2
+          },
+          "moonGeocentricKm": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              },
+              "minItems": 3,
+              "maxItems": 3
+            },
+            "minItems": 2
+          },
+          "moonEclipticLatitudeDeg": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "minimum": -90,
+              "maximum": 90
+            },
+            "minItems": 2
+          },
+          "moonCenterEclipse": {
+            "$ref": "#/components/schemas/EclipseState"
+          },
+          "ephemeris": {
+            "$ref": "#/components/schemas/EphemerisMetadata"
+          }
+        },
+        "required": [
+          "id",
+          "origin",
+          "range",
+          "timeScale",
+          "coordinateFrame",
+          "vectorOrigin",
+          "vectorUnits",
+          "corrections",
+          "timesMs",
+          "sunGeocentricKm",
+          "moonGeocentricKm",
+          "moonEclipticLatitudeDeg",
+          "moonCenterEclipse",
+          "ephemeris"
+        ],
+        "additionalProperties": false,
+        "examples": [
+          {
+            "id": "system-001",
+            "origin": "engine",
+            "range": {
+              "startUtc": "2026-12-01T00:00:00.000Z",
+              "stopUtc": "2026-12-01T01:00:00.000Z",
+              "startMs": 1796083200000,
+              "stopMs": 1796086800000
+            },
+            "timeScale": "UTC",
+            "coordinateFrame": "ECLIPJ2000",
+            "vectorOrigin": "earth-center",
+            "vectorUnits": "km",
+            "corrections": "geometric",
+            "timesMs": [
+              1796083200000,
+              1796085000000,
+              1796086800000
+            ],
+            "sunGeocentricKm": [
+              [
+                149600000,
+                0,
+                0
+              ],
+              [
+                149600000,
+                0,
+                0
+              ],
+              [
+                149600000,
+                0,
+                0
+              ]
+            ],
+            "moonGeocentricKm": [
+              [
+                384400,
+                0,
+                0
+              ],
+              [
+                384400,
+                0,
+                0
+              ],
+              [
+                384400,
+                0,
+                0
+              ]
+            ],
+            "moonEclipticLatitudeDeg": [
+              0,
+              0,
+              0
+            ],
+            "moonCenterEclipse": {
+              "separationDeg": [
+                180,
+                180,
+                180
+              ],
+              "magnitude": [
+                0,
+                0,
+                0
+              ],
+              "obscurationFraction": [
+                0,
+                0,
+                0
+              ],
+              "kind": [
+                "none",
+                "none",
+                "none"
+              ]
+            },
+            "ephemeris": {
+              "source": "NASA/JPL Horizons",
+              "version": "fixture-adapter-2.0",
+              "kernels": [],
+              "corrections": "geometric",
+              "coordinateFrame": "ECLIPJ2000",
+              "frameVersion": "ICRF/J2000",
+              "sourceDatasetIds": [
+                "fixture-dataset-001"
+              ],
+              "sourceStepMinutes": 60,
+              "timingUncertaintyMs": null,
+              "accuracyNotes": [
+                "Esempio contrattuale, non una previsione astronomica."
+              ]
+            }
+          }
+        ]
+      },
+      "SystemEphemeridesJob": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "completed",
+              "failed"
+            ]
+          },
+          "progress": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "message": {
+            "type": "string"
+          },
+          "result": {
+            "$ref": "#/components/schemas/SystemEphemerides"
+          },
+          "error": {
+            "$ref": "#/components/schemas/JobError"
+          }
+        },
+        "required": [
+          "id",
+          "status"
+        ],
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "const": "completed"
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "result"
+              ],
+              "not": {
+                "required": [
+                  "error"
+                ]
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "const": "failed"
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "error"
+              ],
+              "not": {
+                "required": [
+                  "result"
+                ]
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "enum": [
+                    "queued",
+                    "running"
+                  ]
+                }
+              }
+            },
+            "then": {
+              "not": {
+                "anyOf": [
+                  {
+                    "required": [
+                      "result"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "error"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        "examples": [
+          {
+            "id": "job-system-001",
+            "status": "queued"
+          }
+        ]
+      },
+      "GlobeBody": {
+        "type": "object",
+        "properties": {
+          "subPoint": {
+            "$ref": "#/components/schemas/Coordinates"
+          },
+          "directionMoonFixed": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "minItems": 3,
+            "maxItems": 3
+          },
+          "distanceKm": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          }
+        },
+        "required": [
+          "subPoint",
+          "directionMoonFixed",
+          "distanceKm"
+        ],
+        "additionalProperties": false
+      },
+      "GlobeState": {
+        "type": "object",
+        "properties": {
+          "origin": {
+            "$ref": "#/components/schemas/Origin"
+          },
+          "utc": {
+            "$ref": "#/components/schemas/UtcDateTime"
+          },
+          "timeMs": {
+            "$ref": "#/components/schemas/EpochMilliseconds"
+          },
+          "coordinateFrame": {
+            "const": "MOON_ME",
+            "type": "string"
+          },
+          "frameVersion": {
+            "type": "string"
+          },
+          "sun": {
+            "$ref": "#/components/schemas/GlobeBody"
+          },
+          "earth": {
+            "$ref": "#/components/schemas/GlobeBody"
+          },
+          "ephemeris": {
+            "$ref": "#/components/schemas/EphemerisMetadata"
+          }
+        },
+        "required": [
+          "origin",
+          "utc",
+          "timeMs",
+          "coordinateFrame",
+          "frameVersion",
+          "sun",
+          "earth",
+          "ephemeris"
+        ],
+        "additionalProperties": false,
+        "examples": [
+          {
+            "origin": "engine",
+            "utc": "2026-12-01T00:00:00.000Z",
+            "timeMs": 1796083200000,
+            "coordinateFrame": "MOON_ME",
+            "frameVersion": "DE421",
+            "sun": {
+              "subPoint": {
+                "latDeg": 0,
+                "lonEastDeg": 0
+              },
+              "directionMoonFixed": [
+                1,
+                0,
+                0
+              ],
+              "distanceKm": 149600000
+            },
+            "earth": {
+              "subPoint": {
+                "latDeg": 0,
+                "lonEastDeg": 90
+              },
+              "directionMoonFixed": [
+                0,
+                1,
+                0
+              ],
+              "distanceKm": 384400
+            },
+            "ephemeris": {
+              "source": "NASA/JPL Horizons",
+              "version": "fixture-adapter-2.0",
+              "kernels": [],
+              "corrections": "Convenzione apparente airless documentata dall’adapter; fixture di formato.",
+              "coordinateFrame": "MOON_ME",
+              "frameVersion": "DE421",
+              "sourceDatasetIds": [
+                "fixture-dataset-001"
+              ],
+              "sourceStepMinutes": 60,
+              "timingUncertaintyMs": null,
+              "accuracyNotes": [
+                "Esempio contrattuale, non una previsione astronomica."
+              ]
+            }
+          }
+        ]
+      },
+      "ImageryLayer": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "basemap",
+              "hillshade"
+            ]
+          },
+          "upstreamLayerId": {
+            "type": "string"
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "jpg",
+              "png"
+            ]
+          },
+          "tileUrlTemplate": {
+            "type": "string"
+          },
+          "minimumLevel": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "maximumLevel": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "tileWidthPx": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "tileHeightPx": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "tilingScheme": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "const": "geographic",
+                "type": "string"
+              },
+              "levelZeroColumns": {
+                "const": 2,
+                "type": "integer"
+              },
+              "levelZeroRows": {
+                "const": 1,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "type",
+              "levelZeroColumns",
+              "levelZeroRows"
+            ],
+            "additionalProperties": false
+          },
+          "attribution": {
+            "type": "string"
+          },
+          "sourceUrl": {
+            "type": "string",
+            "format": "uri"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "role",
+          "upstreamLayerId",
+          "format",
+          "tileUrlTemplate",
+          "minimumLevel",
+          "maximumLevel",
+          "tileWidthPx",
+          "tileHeightPx",
+          "tilingScheme",
+          "attribution",
+          "sourceUrl"
+        ],
+        "additionalProperties": false
+      },
+      "VisualizationConfig": {
+        "type": "object",
+        "properties": {
+          "origin": {
+            "$ref": "#/components/schemas/Origin"
+          },
+          "moon": {
+            "type": "object",
+            "properties": {
+              "referenceRadiusKm": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "coordinateFrame": {
+                "const": "MOON_ME",
+                "type": "string"
+              },
+              "frameVersion": {
+                "type": "string"
+              },
+              "geometry": {
+                "const": "sphere",
+                "type": "string"
+              }
+            },
+            "required": [
+              "referenceRadiusKm",
+              "coordinateFrame",
+              "frameVersion",
+              "geometry"
+            ],
+            "additionalProperties": false
+          },
+          "timeCoverage": {
+            "type": "object",
+            "properties": {
+              "supportedStartUtc": {
+                "$ref": "#/components/schemas/UtcDateTime"
+              },
+              "supportedStopUtc": {
+                "$ref": "#/components/schemas/UtcDateTime"
+              },
+              "cachedStartUtc": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/UtcDateTime"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "cachedStopUtc": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/UtcDateTime"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "supportedStartUtc",
+              "supportedStopUtc",
+              "cachedStartUtc",
+              "cachedStopUtc"
+            ],
+            "additionalProperties": false
+          },
+          "sourceStepMinutes": {
+            "const": 60,
+            "type": "integer"
+          },
+          "maximumSamples": {
+            "const": 20000,
+            "type": "integer"
+          },
+          "layers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ImageryLayer"
+            }
+          }
+        },
+        "required": [
+          "origin",
+          "moon",
+          "timeCoverage",
+          "sourceStepMinutes",
+          "maximumSamples",
+          "layers"
+        ],
+        "additionalProperties": false,
+        "examples": [
+          {
+            "origin": "engine",
+            "moon": {
+              "referenceRadiusKm": 1737.4,
+              "coordinateFrame": "MOON_ME",
+              "frameVersion": "DE421",
+              "geometry": "sphere"
+            },
+            "timeCoverage": {
+              "supportedStartUtc": "2026-01-01T00:00:00.000Z",
+              "supportedStopUtc": "2029-01-01T00:00:00.000Z",
+              "cachedStartUtc": null,
+              "cachedStopUtc": null
+            },
+            "sourceStepMinutes": 60,
+            "maximumSamples": 20000,
+            "layers": [
+              {
+                "id": "lro-wac",
+                "title": "LRO WAC global mosaic",
+                "role": "basemap",
+                "upstreamLayerId": "LRO_WAC_Mosaic_Global_303ppd_v02",
+                "format": "jpg",
+                "tileUrlTemplate": "/api/map-tiles/lro-wac/{TileMatrix}/{TileRow}/{TileCol}.jpg",
+                "minimumLevel": 0,
+                "maximumLevel": 7,
+                "tileWidthPx": 256,
+                "tileHeightPx": 256,
+                "tilingScheme": {
+                  "type": "geographic",
+                  "levelZeroColumns": 2,
+                  "levelZeroRows": 1
+                },
+                "attribution": "NASA/GSFC/ASU · via NASA Moon Trek",
+                "sourceUrl": "https://trek.nasa.gov/tiles/Moon/EQ/LRO_WAC_Mosaic_Global_303ppd_v02/1.0.0/WMTSCapabilities.xml"
+              },
+              {
+                "id": "lola-hillshade",
+                "title": "LOLA global hillshade",
+                "role": "hillshade",
+                "upstreamLayerId": "LRO_LOLA_Shade_Global_256ppd_v06",
+                "format": "png",
+                "tileUrlTemplate": "/api/map-tiles/lola-hillshade/{TileMatrix}/{TileRow}/{TileCol}.png",
+                "minimumLevel": 0,
+                "maximumLevel": 7,
+                "tileWidthPx": 256,
+                "tileHeightPx": 256,
+                "tilingScheme": {
+                  "type": "geographic",
+                  "levelZeroColumns": 2,
+                  "levelZeroRows": 1
+                },
+                "attribution": "NASA/GSFC/ASU · via NASA Moon Trek",
+                "sourceUrl": "https://trek.nasa.gov/tiles/Moon/EQ/LRO_LOLA_Shade_Global_256ppd_v06/1.0.0/WMTSCapabilities.xml"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "responses": {
+      "ScientificError": {
+        "description": "Errore documentato nel contratto Markdown",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "CatalogUnavailable": {
+        "description": "Catalogo non inizializzato",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/LegacyError"
+            }
+          }
+        }
+      }
+    }
+  }
+}
