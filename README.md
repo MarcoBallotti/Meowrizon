@@ -1,56 +1,83 @@
 # Moonrizon
 
-Moonrizon compares lunar locations and dates using terrain horizons, sunlight and geometric Earth visibility. It is developed for the NASA Space Apps **Lunar Landing Site Navigator** challenge. Results support exploration and preliminary comparisons; they do not certify landing safety, power availability or radio performance.
+Moonrizon is a lunar exploration tool that compares locations and dates using terrain horizons, sunlight and geometric Earth visibility. Built for the NASA Space Apps **Lunar Landing Site Navigator** challenge, it helps users explore candidate sites on a 3D Moon, inspect visibility windows and compare mission requirements.
 
-## Current status
+## How it is built
 
-Reviewed against the working tree on **2026-11-15**.
+| Component | Technologies | Role |
+|---|---|---|
+| Frontend | React 19, TypeScript, Vite, CesiumJS | Interactive lunar globe, terrain panorama, timelines, reports and site comparisons |
+| Backend | Python 3.12, FastAPI, NumPy, Rasterio, PyProj, Shapely | Data acquisition, terrain analysis, Sun/Earth visibility calculations and background jobs |
+| Storage | Local files, GeoTIFF, Parquet and JSON | Source datasets, prepared data, cached calculations and job results; no database required |
+| Development and serving | Docker Compose, Vite, nginx | Run both services locally or serve the built frontend |
 
-- The React/TypeScript frontend provides a lunar globe, local horizon, timeline, reports and comparisons. API mode is the default; `VITE_DATA_SOURCE=demo` explicitly enables synthetic examples.
-- FastAPI serves real region/site catalogs, terrain-analysis jobs and scenario-evaluation jobs. Scientific results use numerical LOLA terrain and JPL Horizons. Coverage is reported separately; `/api/coverage` currently returns an empty product list rather than claiming global preparation.
-- The independent Python **V1 library/CLI** analyzes identified points in de Gerlache Rim 2 and Malapert Massif. Its numerical checks passed for the documented demo configuration. **Independent observational validation remains incomplete**, and physical terrain uncertainty is not quantified.
-- The HTTP calculation path and CLI V1 use different orchestrators and terrain configurations. CLI validation does not certify every HTTP result, global site or frontend comparison. See the [validation review](docs/validazione-engine-v1-revisione.md).
+The project uses Moon Trek region catalogs and imagery, LRO/LOLA elevation products and JPL Horizons ephemerides. The catalog contains 13 historical 2022 Artemis candidate polygons and 9 documented sites.
 
-The catalog contains 13 historical 2022 Artemis candidate polygons and 9 documented sites. A polygon center is a point estimate, not an assessment of its entire area. Regional grids, cumulative areas and annual P50 remain future scientific work. Current mission requirements, Pareto comparisons and the optional battery model are frontend decision aids with their own assumptions, described in the [frontend guide](frontend/README.md).
+## How it works
+
+1. Select a catalog site or lunar location and choose a date and analysis period.
+2. The frontend submits a terrain-analysis job to the backend. The backend loads numerical elevation data and calculates the local horizon around the observer.
+3. A scenario job compares Sun and Earth positions from JPL Horizons with that horizon to calculate visibility, interruptions and simultaneous visibility windows.
+4. The frontend polls the jobs and displays their results in the globe, horizon view, timeline and reports. Users can compare points and apply mission requirements; optional energy estimates use configurable panel, load and battery assumptions.
+
+Source data and completed calculations are cached on disk. Initial analyses may need internet access to download upstream data. The frontend uses the backend API by default; an explicit demo mode provides synthetic examples.
+
+Results support preliminary exploration. Independent observational validation remains incomplete, and the separate V1 CLI engine has its own calculation path and validation scope. A polygon-center result represents one point, and geometric visibility alone does not establish landing safety, power availability or radio performance. See the [validation review](docs/validazione-engine-v1-revisione.md) for the recorded evidence and limitations.
 
 ## Run with Docker
 
-Start Docker Desktop, then run from the repository root:
+Install Docker with Compose and Node.js/npm. The repository pins Node.js **22.22.1** in `.nvmrc`. Run these commands from the repository root with Docker running:
 
 ```sh
 npm run setup
 npm start
 ```
 
-`setup` builds the images and initializes Moon Trek catalogs. Startup alone does not prepare every scientific dataset; first analyses may require upstream downloads.
+`setup` builds the images and initializes the region/site catalogs. It requires internet access and does not download every scientific dataset in advance.
 
-| Service | Address | Purpose |
-|---|---|---|
-| Frontend | http://localhost:5173 | Vite development server |
-| Backend | http://localhost:8000/api | FastAPI service |
-| API documentation | http://localhost:8000/api/docs | Implemented HTTP schemas and routes |
-| Production frontend | http://localhost:8080 | nginx, enabled with `npm run prod` |
-
-Vite and nginx proxy `/api` to the backend. Docker uses `VITE_DATA_SOURCE=api` unless overridden in `.env`.
-
-| Command | Purpose |
+| Service | Default address |
 |---|---|
-| `npm run start:bg` | Start development services in the background |
-| `npm run stop` | Stop development services |
-| `npm run logs` / `npm run status` | Follow logs / inspect containers |
-| `npm run prod` / `npm run prod:stop` | Start / stop the production profile |
-| `npm run data:init` | Download and rebuild region/site GeoJSON |
-| `npm run data:init:offline` | Rebuild using the cached polygon response |
-| `npm run check` | Backend lint/format/tests and frontend lint/type checks |
-| `npm run check:backend` | Backend checks in Docker |
-| `npm run check:frontend` | Frontend checks in Docker |
-| `npm run test:network` | Explicit Horizons network check |
+| Frontend | http://localhost:5173 |
+| Backend API | http://localhost:8000/api |
+| Interactive API documentation | http://localhost:8000/api/docs |
+| OpenAPI schema | http://localhost:8000/api/openapi.json |
 
-After dependency changes, rebuild images and renew dependency volumes with `docker compose up --build -V`.
+The frontend proxies `/api` requests to the backend. Both services reload during development. To customize ports or settings, copy `.env.example` to `.env` and edit the relevant values before starting.
 
-## Run locally
+Useful commands from the repository root:
 
-Use the Node version in `.nvmrc`:
+```sh
+npm run start:bg   # Start development services in the background
+npm run stop       # Stop the services
+npm run logs       # Follow service logs
+npm run status     # Show container status
+npm run prod       # Serve the built frontend through nginx at localhost:8080
+npm run prod:stop  # Stop the production profile
+```
+
+## Run locally without Docker
+
+Use two terminals: one for the backend and one for the frontend. You need Python **3.12** and the Node.js version in `.nvmrc`.
+
+### Backend
+
+From the repository root:
+
+```sh
+cd backend
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python -m app.cli init-regions
+.venv/bin/python -m uvicorn app:app --host 127.0.0.1 --port 8000 --reload
+```
+
+The catalog initialization downloads Moon Trek polygons and generates the region/site GeoJSON files. The API documentation is available at http://localhost:8000/api/docs after startup.
+
+On Windows, replace `.venv/bin/python` with `.venv\Scripts\python.exe`. A Conda environment is also available in `backend/environment.yml`; see the [backend documentation](backend/README.md) for that setup and further dependency details.
+
+### Frontend
+
+In a second terminal, from the repository root:
 
 ```sh
 nvm use
@@ -58,53 +85,35 @@ npm install
 npm run dev
 ```
 
-Start the backend separately as described in its [README](backend/README.md). `npm run build`, `npm run lint` and `npm run preview` operate on the frontend workspace. To use synthetic examples explicitly:
+Open http://localhost:5173. Vite forwards `/api` to `http://localhost:8000` by default.
 
-```sh
-VITE_DATA_SOURCE=demo npm run dev
+Frontend configuration is documented in [frontend/.env.example](frontend/.env.example). Copy it to `frontend/.env.local` to customize settings. Set `MEOWRIZON_API_ORIGIN` if the backend runs at another address, then restart Vite.
+
+To explore synthetic examples without running the backend, set `VITE_DATA_SOURCE=demo` in `frontend/.env.local` and run `npm run dev`. Restore `VITE_DATA_SOURCE=api` to use backend calculations.
+
+## Project structure
+
+```text
+frontend/          React interface, Cesium globe and API client
+backend/app/       FastAPI service, acquisition, scientific calculations and CLI
+backend/catalog/   Versioned region and site definitions
+backend/config/    Data acquisition and analysis configurations
+backend/docs/      V1 CLI engine documentation
+backend/tests/     Backend tests
+backend/data/      Backend-local scientific data, caches and analysis results
+data/              Root catalog downloads and generated GeoJSON
+docs/              Project, scientific, API and validation documentation
 ```
 
-## Reproduce the CLI demo
-
-From the repository root:
-
-```sh
-docker compose run --rm --no-deps backend python -m app analyze --config config/analysis.demo.json
-docker compose run --rm --no-deps backend python -m app analyze --config config/analysis.demo.json --offline
-```
-
-Offline execution requires a complete cache. Results and manifests are written under `backend/data/analysis/`; commands, schemas, cache rules and validation procedures are in the [engine guide](backend/docs/engine-v1.md).
+Runtime datasets are ignored by Git. Docker stores catalog data in root `data/`, while native backend runs default to `backend/data/`. Scientific jobs and CLI analysis also use backend-local storage; details are in the backend guide.
 
 ## Documentation
 
-| Document | Scope |
-|---|---|
-| [Project decisions](docs/stato-decisioni.md) | Current implementation, scope and remaining work |
-| [Scientific criteria](docs/criteri-algoritmo.md) | Definitions, V1 requirements and deferred regional metrics |
-| [Sources and challenge scope](docs/fonti-e-perimetro-challenge.md) | Source policy and research limits |
-| [Data guide](docs/guida-dati.md) | Acquisition, units, frames and quality |
-| [Regions and sites](docs/siti-e-regioni.md) | Historical catalog and interpretation |
-| [API contract](docs/api-contract.md) | Implemented routes and job workflow |
-| [Data dictionary](docs/api-data-dictionary.md) | HTTP fields and distinction from CLI schemas |
-| [Validation review](docs/validazione-engine-v1-revisione.md) | Latest recorded scientific evidence and limits |
-| [Initial validation](docs/validazione-engine-v1.md) | Historical baseline retained for reproducibility |
-| [LROC protocol](docs/protocollo-validazione-lroc-v2.md) | Pending independent observational benchmark |
-
-The documentation review removed superseded implementation prompts, completed implementation/merge plans, the obsolete frontend audit and Query migration plan, archived HTTP schemas and full-flight brainstorming. Useful operational details are consolidated in the retained guides. Existing document paths are preserved for compatibility; their contents are English.
-
-## Repository layout
-
-```text
-frontend/          React, TypeScript, Vite and CesiumJS
-backend/app/       FastAPI, acquisition, terrain, ephemerides and CLI engine
-backend/catalog/   Versioned region/site definitions
-backend/config/    Acquisition and analysis configurations
-backend/schemas/   Versioned CLI JSON schemas
-backend/tests/     Backend tests
-backend/data/      Backend-local acquisition, prepared data, jobs and CLI analysis
-backend/docs/      CLI engine guide
-data/              Root catalog downloads and generated region/site GeoJSON
-docs/              Scientific specifications, API documentation and validation
-```
-
-There is no database. Runtime datasets are ignored by Git. Root catalog data and backend-local scientific data have different storage roots; see the [backend guide](backend/README.md). Scientific sources retain original product responsibility and provenance. NASA data provenance does not imply NASA approval of this application.
+- [Frontend documentation](frontend/README.md): interface, configuration, data modes, comparisons and rendering.
+- [Backend documentation](backend/README.md): setup, API jobs, data acquisition, storage and configuration.
+- [V1 CLI engine guide](backend/docs/engine-v1.md): analysis commands, schemas, caches and reproducibility.
+- [API contract](docs/api-contract.md) and [data dictionary](docs/api-data-dictionary.md): routes, job workflow and response fields.
+- [Scientific criteria](docs/criteri-algoritmo.md): calculation definitions and assumptions.
+- [Data guide](docs/guida-dati.md) and [regions and sites](docs/siti-e-regioni.md): sources, coordinates and catalog interpretation.
+- [Project status and decisions](docs/stato-decisioni.md): implementation scope and remaining work.
+- [Validation review](docs/validazione-engine-v1-revisione.md): scientific checks and current limitations.
