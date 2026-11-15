@@ -1,0 +1,1697 @@
+{
+ "$defs": {
+  "BodySeries": {
+   "additionalProperties": false,
+   "properties": {
+    "azimuth_deg": {
+     "items": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "title": "Azimuth Deg",
+     "type": "array"
+    },
+    "elevation_deg": {
+     "items": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "title": "Elevation Deg",
+     "type": "array"
+    },
+    "horizon_deg": {
+     "items": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "title": "Horizon Deg",
+     "type": "array"
+    },
+    "margin_deg": {
+     "items": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "title": "Margin Deg",
+     "type": "array"
+    },
+    "angular_radius_deg": {
+     "items": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "title": "Angular Radius Deg",
+     "type": "array"
+    },
+    "range_km": {
+     "items": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "title": "Range Km",
+     "type": "array"
+    },
+    "fraction_above_terrain": {
+     "items": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "title": "Fraction Above Terrain",
+     "type": "array"
+    },
+    "fraction_visible": {
+     "items": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "title": "Fraction Visible",
+     "type": "array"
+    }
+   },
+   "required": [
+    "azimuth_deg",
+    "elevation_deg",
+    "horizon_deg",
+    "margin_deg",
+    "angular_radius_deg",
+    "range_km",
+    "fraction_above_terrain",
+    "fraction_visible"
+   ],
+   "title": "BodySeries",
+   "type": "object"
+  },
+  "Comparison": {
+   "additionalProperties": false,
+   "properties": {
+    "kind": {
+     "enum": [
+      "same_point_across_dates",
+      "same_date_across_points"
+     ],
+     "title": "Kind",
+     "type": "string"
+    },
+    "key": {
+     "title": "Key",
+     "type": "string"
+    },
+    "rows": {
+     "items": {
+      "additionalProperties": true,
+      "type": "object"
+     },
+     "title": "Rows",
+     "type": "array"
+    },
+    "note": {
+     "title": "Note",
+     "type": "string"
+    }
+   },
+   "required": [
+    "kind",
+    "key",
+    "rows",
+    "note"
+   ],
+   "title": "Comparison",
+   "type": "object"
+  },
+  "HorizonResult": {
+   "additionalProperties": false,
+   "properties": {
+    "azimuth_start_deg": {
+     "title": "Azimuth Start Deg",
+     "type": "number"
+    },
+    "azimuth_step_deg": {
+     "title": "Azimuth Step Deg",
+     "type": "number"
+    },
+    "convention": {
+     "title": "Convention",
+     "type": "string"
+    },
+    "elevation_deg": {
+     "items": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "title": "Elevation Deg",
+     "type": "array"
+    },
+    "complete": {
+     "items": {
+      "type": "boolean"
+     },
+     "title": "Complete",
+     "type": "array"
+    },
+    "distance_m": {
+     "items": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "title": "Distance M",
+     "type": "array"
+    },
+    "directions": {
+     "title": "Directions",
+     "type": "integer"
+    },
+    "directions_complete": {
+     "title": "Directions Complete",
+     "type": "integer"
+    },
+    "status": {
+     "enum": [
+      "ok",
+      "unknown",
+      "approximate"
+     ],
+     "title": "Status",
+     "type": "string"
+    },
+    "reason": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Reason"
+    }
+   },
+   "required": [
+    "azimuth_start_deg",
+    "azimuth_step_deg",
+    "convention",
+    "elevation_deg",
+    "complete",
+    "distance_m",
+    "directions",
+    "directions_complete",
+    "status",
+    "reason"
+   ],
+   "title": "HorizonResult",
+   "type": "object"
+  },
+  "Interval": {
+   "additionalProperties": false,
+   "properties": {
+    "start_utc": {
+     "title": "Start Utc",
+     "type": "string"
+    },
+    "end_utc": {
+     "title": "End Utc",
+     "type": "string"
+    },
+    "start_elapsed_s": {
+     "title": "Start Elapsed S",
+     "type": "number"
+    },
+    "end_elapsed_s": {
+     "title": "End Elapsed S",
+     "type": "number"
+    },
+    "start_kind": {
+     "enum": [
+      "observed_transition",
+      "request_start",
+      "data_gap"
+     ],
+     "title": "Start Kind",
+     "type": "string"
+    },
+    "end_kind": {
+     "enum": [
+      "observed_transition",
+      "request_end",
+      "data_gap"
+     ],
+     "title": "End Kind",
+     "type": "string"
+    },
+    "truncated_left": {
+     "title": "Truncated Left",
+     "type": "boolean"
+    },
+    "truncated_right": {
+     "title": "Truncated Right",
+     "type": "boolean"
+    },
+    "observed_duration_s": {
+     "title": "Observed Duration S",
+     "type": "number"
+    },
+    "total_duration_s": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Total Duration S"
+    },
+    "duration_lower_bound_s": {
+     "title": "Duration Lower Bound S",
+     "type": "number"
+    },
+    "cause_at_start": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Cause At Start"
+    },
+    "cause_at_end": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Cause At End"
+    },
+    "peak_sun_fraction_covered_by_earth": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Peak Sun Fraction Covered By Earth"
+    },
+    "rate_metric": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Rate Metric"
+    },
+    "start_rate_per_hour": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Start Rate Per Hour"
+    },
+    "end_rate_per_hour": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "End Rate Per Hour"
+    }
+   },
+   "required": [
+    "start_utc",
+    "end_utc",
+    "start_elapsed_s",
+    "end_elapsed_s",
+    "start_kind",
+    "end_kind",
+    "truncated_left",
+    "truncated_right",
+    "observed_duration_s",
+    "total_duration_s",
+    "duration_lower_bound_s"
+   ],
+   "title": "Interval",
+   "type": "object"
+  },
+  "Measure": {
+   "additionalProperties": false,
+   "properties": {
+    "value": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Value"
+    },
+    "unit": {
+     "title": "Unit",
+     "type": "string"
+    },
+    "status": {
+     "enum": [
+      "ok",
+      "unknown",
+      "approximate"
+     ],
+     "title": "Status",
+     "type": "string"
+    },
+    "reason": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Reason"
+    }
+   },
+   "required": [
+    "value",
+    "unit",
+    "status"
+   ],
+   "title": "Measure",
+   "type": "object"
+  },
+  "PointResult": {
+   "additionalProperties": false,
+   "properties": {
+    "id": {
+     "title": "Id",
+     "type": "string"
+    },
+    "region": {
+     "title": "Region",
+     "type": "string"
+    },
+    "lat_deg": {
+     "title": "Lat Deg",
+     "type": "number"
+    },
+    "lon_east_deg": {
+     "title": "Lon East Deg",
+     "type": "number"
+    },
+    "x_m": {
+     "title": "X M",
+     "type": "number"
+    },
+    "y_m": {
+     "title": "Y M",
+     "type": "number"
+    },
+    "map_scale": {
+     "title": "Map Scale",
+     "type": "number"
+    },
+    "selection": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Selection"
+    },
+    "elevation": {
+     "$ref": "#/$defs/Measure"
+    },
+    "elevation_product": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Elevation Product"
+    },
+    "observer_height_m": {
+     "title": "Observer Height M",
+     "type": "number"
+    },
+    "observer_radius_m": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Observer Radius M"
+    },
+    "horizons_site_alt_km": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Horizons Site Alt Km"
+    },
+    "tiers": {
+     "items": {
+      "$ref": "#/$defs/TierUsed"
+     },
+     "title": "Tiers",
+     "type": "array"
+    },
+    "tier_seams": {
+     "items": {
+      "additionalProperties": true,
+      "type": "object"
+     },
+     "title": "Tier Seams",
+     "type": "array"
+    },
+    "slope": {
+     "$ref": "#/$defs/SlopeResult"
+    },
+    "horizon": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/HorizonResult"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "terrain_cache_key": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Terrain Cache Key"
+    },
+    "status": {
+     "enum": [
+      "ok",
+      "unknown",
+      "approximate"
+     ],
+     "title": "Status",
+     "type": "string"
+    },
+    "reason": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Reason"
+    }
+   },
+   "required": [
+    "id",
+    "region",
+    "lat_deg",
+    "lon_east_deg",
+    "x_m",
+    "y_m",
+    "map_scale",
+    "selection",
+    "elevation",
+    "elevation_product",
+    "observer_height_m",
+    "observer_radius_m",
+    "horizons_site_alt_km",
+    "tiers",
+    "tier_seams",
+    "slope",
+    "horizon",
+    "terrain_cache_key",
+    "status",
+    "reason"
+   ],
+   "title": "PointResult",
+   "type": "object"
+  },
+  "Remaining": {
+   "additionalProperties": false,
+   "description": "Tempo residuo da T della finestra attiva. 0 se a T la condizione è nota falsa.",
+   "properties": {
+    "value_s": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Value S"
+    },
+    "lower_bound_s": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Lower Bound S"
+    },
+    "status": {
+     "enum": [
+      "ok",
+      "unknown",
+      "approximate"
+     ],
+     "title": "Status",
+     "type": "string"
+    },
+    "reason": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Reason"
+    },
+    "end_kind": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "End Kind"
+    },
+    "cause": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Cause"
+    }
+   },
+   "required": [
+    "value_s",
+    "lower_bound_s",
+    "status",
+    "reason",
+    "end_kind"
+   ],
+   "title": "Remaining",
+   "type": "object"
+  },
+  "ScenarioResult": {
+   "additionalProperties": false,
+   "properties": {
+    "point_id": {
+     "title": "Point Id",
+     "type": "string"
+    },
+    "t_utc": {
+     "title": "T Utc",
+     "type": "string"
+    },
+    "window": {
+     "title": "Window",
+     "type": "string"
+    },
+    "duration_s": {
+     "title": "Duration S",
+     "type": "number"
+    },
+    "status": {
+     "enum": [
+      "ok",
+      "unknown",
+      "approximate"
+     ],
+     "title": "Status",
+     "type": "string"
+    },
+    "reason": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Reason"
+    },
+    "state_at_t": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/StateAtT"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "windows": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/Windows"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "first_dark": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/Interval"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "coverage": {
+     "additionalProperties": {
+      "type": "number"
+     },
+     "title": "Coverage",
+     "type": "object"
+    },
+    "totals_observed_s": {
+     "additionalProperties": {
+      "type": "number"
+     },
+     "title": "Totals Observed S",
+     "type": "object"
+    },
+    "series": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/Series"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "ephemeris": {
+     "additionalProperties": true,
+     "title": "Ephemeris",
+     "type": "object"
+    },
+    "series_cache_key": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Series Cache Key"
+    },
+    "notes": {
+     "items": {
+      "type": "string"
+     },
+     "title": "Notes",
+     "type": "array"
+    }
+   },
+   "required": [
+    "point_id",
+    "t_utc",
+    "window",
+    "duration_s",
+    "status",
+    "reason",
+    "state_at_t",
+    "windows",
+    "first_dark",
+    "coverage",
+    "totals_observed_s",
+    "series",
+    "ephemeris",
+    "series_cache_key",
+    "notes"
+   ],
+   "title": "ScenarioResult",
+   "type": "object"
+  },
+  "Series": {
+   "additionalProperties": false,
+   "properties": {
+    "step_s": {
+     "title": "Step S",
+     "type": "integer"
+    },
+    "utc": {
+     "items": {
+      "type": "string"
+     },
+     "title": "Utc",
+     "type": "array"
+    },
+    "elapsed_s": {
+     "items": {
+      "type": "number"
+     },
+     "title": "Elapsed S",
+     "type": "array"
+    },
+    "sun": {
+     "$ref": "#/$defs/BodySeries"
+    },
+    "earth": {
+     "$ref": "#/$defs/BodySeries"
+    },
+    "sun_earth_separation_deg": {
+     "items": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "title": "Sun Earth Separation Deg",
+     "type": "array"
+    },
+    "sun_fraction_covered_by_earth": {
+     "items": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "title": "Sun Fraction Covered By Earth",
+     "type": "array"
+    },
+    "sun_state": {
+     "items": {
+      "anyOf": [
+       {
+        "enum": [
+         "c3",
+         "reduced",
+         "dark"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "title": "Sun State",
+     "type": "array"
+    },
+    "earth_c3": {
+     "items": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "title": "Earth C3",
+     "type": "array"
+    }
+   },
+   "required": [
+    "step_s",
+    "utc",
+    "elapsed_s",
+    "sun",
+    "earth",
+    "sun_earth_separation_deg",
+    "sun_fraction_covered_by_earth",
+    "sun_state",
+    "earth_c3"
+   ],
+   "title": "Series",
+   "type": "object"
+  },
+  "SlopeResult": {
+   "additionalProperties": false,
+   "properties": {
+    "value_deg": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Value Deg"
+    },
+    "status": {
+     "enum": [
+      "ok",
+      "unknown",
+      "approximate"
+     ],
+     "title": "Status",
+     "type": "string"
+    },
+    "reason": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Reason"
+    },
+    "band": {
+     "anyOf": [
+      {
+       "type": "integer"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Band"
+    },
+    "band_label": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Band Label"
+    },
+    "support": {
+     "title": "Support",
+     "type": "string"
+    },
+    "diameter_m": {
+     "title": "Diameter M",
+     "type": "number"
+    },
+    "dem_product": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Dem Product"
+    },
+    "dem_pixel_m": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Dem Pixel M"
+    },
+    "n_pixels": {
+     "title": "N Pixels",
+     "type": "integer"
+    },
+    "valid_fraction": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Valid Fraction"
+    },
+    "rms_residual_m": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Rms Residual M"
+    },
+    "numeric_sensitivity_deg": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Numeric Sensitivity Deg"
+    },
+    "band_stable_under_sensitivity": {
+     "anyOf": [
+      {
+       "type": "boolean"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Band Stable Under Sensitivity"
+    },
+    "lola_count_product": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Lola Count Product"
+    },
+    "support_fraction_with_lola_shots": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Support Fraction With Lola Shots"
+    },
+    "dem_uncertainty": {
+     "title": "Dem Uncertainty",
+     "type": "string"
+    }
+   },
+   "required": [
+    "value_deg",
+    "status",
+    "reason",
+    "band",
+    "band_label",
+    "support",
+    "diameter_m",
+    "dem_product",
+    "dem_pixel_m",
+    "n_pixels",
+    "valid_fraction",
+    "rms_residual_m",
+    "numeric_sensitivity_deg",
+    "band_stable_under_sensitivity",
+    "lola_count_product",
+    "support_fraction_with_lola_shots",
+    "dem_uncertainty"
+   ],
+   "title": "SlopeResult",
+   "type": "object"
+  },
+  "SourceRecord": {
+   "additionalProperties": false,
+   "properties": {
+    "name": {
+     "title": "Name",
+     "type": "string"
+    },
+    "provider": {
+     "title": "Provider",
+     "type": "string"
+    },
+    "role": {
+     "title": "Role",
+     "type": "string"
+    },
+    "url": {
+     "title": "Url",
+     "type": "string"
+    },
+    "params": {
+     "anyOf": [
+      {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Params"
+    },
+    "sha256": {
+     "title": "Sha256",
+     "type": "string"
+    },
+    "bytes": {
+     "title": "Bytes",
+     "type": "integer"
+    },
+    "fetched_at_utc": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Fetched At Utc"
+    },
+    "stored_as": {
+     "title": "Stored As",
+     "type": "string"
+    },
+    "details": {
+     "anyOf": [
+      {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Details"
+    }
+   },
+   "required": [
+    "name",
+    "provider",
+    "role",
+    "url",
+    "sha256",
+    "bytes",
+    "fetched_at_utc",
+    "stored_as"
+   ],
+   "title": "SourceRecord",
+   "type": "object"
+  },
+  "StateAtT": {
+   "additionalProperties": false,
+   "properties": {
+    "utc": {
+     "title": "Utc",
+     "type": "string"
+    },
+    "sun_azimuth_deg": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Sun Azimuth Deg"
+    },
+    "sun_elevation_deg": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Sun Elevation Deg"
+    },
+    "sun_horizon_deg": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Sun Horizon Deg"
+    },
+    "sun_margin_deg": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Sun Margin Deg"
+    },
+    "sun_angular_radius_deg": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Sun Angular Radius Deg"
+    },
+    "f_sun_terrain": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "F Sun Terrain"
+    },
+    "f_sun": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "F Sun"
+    },
+    "sun_fraction_covered_by_earth": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Sun Fraction Covered By Earth"
+    },
+    "sun_state": {
+     "anyOf": [
+      {
+       "enum": [
+        "c3",
+        "reduced",
+        "dark"
+       ],
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Sun State"
+    },
+    "sun_c3": {
+     "anyOf": [
+      {
+       "type": "boolean"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Sun C3"
+    },
+    "sun_occultation_cause": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Sun Occultation Cause"
+    },
+    "earth_azimuth_deg": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Earth Azimuth Deg"
+    },
+    "earth_elevation_deg": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Earth Elevation Deg"
+    },
+    "earth_horizon_deg": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Earth Horizon Deg"
+    },
+    "earth_margin_deg": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Earth Margin Deg"
+    },
+    "earth_angular_radius_deg": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Earth Angular Radius Deg"
+    },
+    "f_earth": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "F Earth"
+    },
+    "earth_c3": {
+     "anyOf": [
+      {
+       "type": "boolean"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Earth C3"
+    },
+    "joint_c3": {
+     "anyOf": [
+      {
+       "type": "boolean"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Joint C3"
+    },
+    "remaining_sun_c3": {
+     "$ref": "#/$defs/Remaining"
+    },
+    "remaining_earth_c3": {
+     "$ref": "#/$defs/Remaining"
+    },
+    "remaining_joint_c3": {
+     "$ref": "#/$defs/Remaining"
+    },
+    "unknown_reasons": {
+     "items": {
+      "type": "string"
+     },
+     "title": "Unknown Reasons",
+     "type": "array"
+    }
+   },
+   "required": [
+    "utc",
+    "sun_azimuth_deg",
+    "sun_elevation_deg",
+    "sun_horizon_deg",
+    "sun_margin_deg",
+    "sun_angular_radius_deg",
+    "f_sun_terrain",
+    "f_sun",
+    "sun_fraction_covered_by_earth",
+    "sun_state",
+    "sun_c3",
+    "sun_occultation_cause",
+    "earth_azimuth_deg",
+    "earth_elevation_deg",
+    "earth_horizon_deg",
+    "earth_margin_deg",
+    "earth_angular_radius_deg",
+    "f_earth",
+    "earth_c3",
+    "joint_c3",
+    "remaining_sun_c3",
+    "remaining_earth_c3",
+    "remaining_joint_c3",
+    "unknown_reasons"
+   ],
+   "title": "StateAtT",
+   "type": "object"
+  },
+  "TierUsed": {
+   "additionalProperties": false,
+   "properties": {
+    "product": {
+     "title": "Product",
+     "type": "string"
+    },
+    "family": {
+     "title": "Family",
+     "type": "string"
+    },
+    "pixel_m": {
+     "title": "Pixel M",
+     "type": "number"
+    },
+    "inner_radius_m": {
+     "title": "Inner Radius M",
+     "type": "number"
+    },
+    "outer_radius_m": {
+     "title": "Outer Radius M",
+     "type": "number"
+    },
+    "radial_step_m": {
+     "title": "Radial Step M",
+     "type": "number"
+    },
+    "window_m": {
+     "items": {
+      "type": "number"
+     },
+     "title": "Window M",
+     "type": "array"
+    },
+    "valid_fraction": {
+     "title": "Valid Fraction",
+     "type": "number"
+    },
+    "tiles": {
+     "title": "Tiles",
+     "type": "integer"
+    }
+   },
+   "required": [
+    "product",
+    "family",
+    "pixel_m",
+    "inner_radius_m",
+    "outer_radius_m",
+    "radial_step_m",
+    "window_m",
+    "valid_fraction",
+    "tiles"
+   ],
+   "title": "TierUsed",
+   "type": "object"
+  },
+  "Windows": {
+   "additionalProperties": false,
+   "properties": {
+    "sun_c3": {
+     "items": {
+      "$ref": "#/$defs/Interval"
+     },
+     "title": "Sun C3",
+     "type": "array"
+    },
+    "earth_c3": {
+     "items": {
+      "$ref": "#/$defs/Interval"
+     },
+     "title": "Earth C3",
+     "type": "array"
+    },
+    "joint_c3": {
+     "items": {
+      "$ref": "#/$defs/Interval"
+     },
+     "title": "Joint C3",
+     "type": "array"
+    },
+    "below_c3": {
+     "items": {
+      "$ref": "#/$defs/Interval"
+     },
+     "title": "Below C3",
+     "type": "array"
+    },
+    "dark": {
+     "items": {
+      "$ref": "#/$defs/Interval"
+     },
+     "title": "Dark",
+     "type": "array"
+    },
+    "earth_over_sun_disc": {
+     "items": {
+      "$ref": "#/$defs/Interval"
+     },
+     "title": "Earth Over Sun Disc",
+     "type": "array"
+    },
+    "unknown": {
+     "items": {
+      "$ref": "#/$defs/Interval"
+     },
+     "title": "Unknown",
+     "type": "array"
+    }
+   },
+   "required": [
+    "sun_c3",
+    "earth_c3",
+    "joint_c3",
+    "below_c3",
+    "dark",
+    "earth_over_sun_disc",
+    "unknown"
+   ],
+   "title": "Windows",
+   "type": "object"
+  }
+ },
+ "additionalProperties": false,
+ "properties": {
+  "schema": {
+   "const": "meowrizon.analysis.result/1",
+   "default": "meowrizon.analysis.result/1",
+   "title": "Schema",
+   "type": "string"
+  },
+  "schema_version": {
+   "title": "Schema Version",
+   "type": "string"
+  },
+  "algorithm_version": {
+   "title": "Algorithm Version",
+   "type": "string"
+  },
+  "request": {
+   "additionalProperties": true,
+   "title": "Request",
+   "type": "object"
+  },
+  "conventions": {
+   "additionalProperties": true,
+   "title": "Conventions",
+   "type": "object"
+  },
+  "capabilities": {
+   "items": {
+    "type": "string"
+   },
+   "title": "Capabilities",
+   "type": "array"
+  },
+  "not_in_v1": {
+   "items": {
+    "type": "string"
+   },
+   "title": "Not In V1",
+   "type": "array"
+  },
+  "points": {
+   "items": {
+    "$ref": "#/$defs/PointResult"
+   },
+   "title": "Points",
+   "type": "array"
+  },
+  "scenarios": {
+   "items": {
+    "$ref": "#/$defs/ScenarioResult"
+   },
+   "title": "Scenarios",
+   "type": "array"
+  },
+  "comparisons": {
+   "items": {
+    "$ref": "#/$defs/Comparison"
+   },
+   "title": "Comparisons",
+   "type": "array"
+  },
+  "sources": {
+   "items": {
+    "$ref": "#/$defs/SourceRecord"
+   },
+   "title": "Sources",
+   "type": "array"
+  },
+  "limitations": {
+   "items": {
+    "type": "string"
+   },
+   "title": "Limitations",
+   "type": "array"
+  }
+ },
+ "required": [
+  "schema_version",
+  "algorithm_version",
+  "request",
+  "conventions",
+  "capabilities",
+  "not_in_v1",
+  "points",
+  "scenarios",
+  "comparisons",
+  "sources",
+  "limitations"
+ ],
+ "title": "AnalysisResult",
+ "type": "object"
+}

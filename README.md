@@ -1,5 +1,9 @@
 # Moonrizon
 
+> **Engine V1 implementato:** libreria Python, CLI e verifiche numeriche. Validazione osservativa ancora incompleta: vedere [rapporto corrente](docs/validazione-engine-v1-revisione.md) e [comandi engine](backend/docs/engine-v1.md). Le sezioni progettuali successive descrivono anche funzionalità rinviate.
+
+**Priorità approvata V1 (15/11/2026):** engine puntuale Python per 2–3 punti e date esplicite, con CLI/JSON e validazione; aggregazioni regionali, P50 e robustezza sono V2. HTTP scientifico e frontend seguono il nucleo. I dettagli estesi sotto non ampliano questo incarico: vedere il [piano V1](docs/piano-logica.md).
+
 Strumento per valutare rapidamente siti e date di allunaggio, sviluppato per il NASA Space Apps
 Challenge 2026, challenge
 [Lunar Landing Site Navigator](https://www.spaceappschallenge.org/2026/challenges/lunar-landing-site-navigator/).
@@ -218,12 +222,11 @@ generali appena approvate. La specifica completa è in
 |---|---|
 | [NASA, *Artemis Human Landing System Overview*, Space Apps 2025](https://ntrs.nasa.gov/api/citations/20250009323/downloads/ArtemisOverview2025IntSPAPPSChallenge.pdf) | Requisiti della configurazione studiata nel 2025: pendenza <10° su 100 m e precisione di atterraggio di 100 m sono grandezze distinte, non soglie universali |
 | [NASA, Scoville, *Artemis III EVA Mission Capability*](https://ntrs.nasa.gov/api/citations/20210026296/downloads/Scoville%20Final%20presentation%20-%20compressed.pptx.pdf) | Riferimento HLS di tolleranza almeno 8°, non limite massimo universale |
-| [LPSC 2022, sito di Blue Ghost M1](https://www.hou.usra.edu/meetings/lpsc2022/pdf/1390.pdf) | Vincoli specifici della selezione Blue Ghost; non equivalenti automaticamente alla pendenza media su 100 m |
-| [NASA, *VIPER Lunar Operations*](https://science.nasa.gov/mission/viper/lunar-operations/) e [VIPER Traverse Planning](https://www.hou.usra.edu/meetings/lpsc2022/pdf/2874.pdf) | Riferimenti specifici: pendenza nominale 15° con casi fino a 25–30°; 50 ore di sopravvivenza in ibernazione, circa 9 ore di attività all'ombra |
-| [Wueller et al. 2026, JGR Planets](https://agupubs.onlinelibrary.wiley.com/doi/10.1029/2025JE009434) | Siti illuminati con ombre permanenti raggiungibili nelle regioni Artemis |
-| [Gläser et al. 2014, Icarus](https://elib.dlr.de/94240) | Benchmark a Connecting Ridge: 92,27% di tempo con qualche luce a 2 m su un periodo di 19 anni; non un massimo universale né la nostra percentuale annuale con almeno metà disco visibile |
+| [NASA, Blue Ghost Mission One Press Kit](https://www.nasa.gov/wp-content/uploads/2025/01/np-2025-01-001-jsc-clps-firefly-press-kit-screen-508-1-10-25-final.pdf) | Contesto e riconoscimento degli ostacoli durante la discesa; nessun limite numerico universale di pendenza derivato dal documento |
+| [NASA, *VIPER Lunar Operations*](https://science.nasa.gov/mission/viper/lunar-operations/) e [NASA, VIPER Rover: specifiche 2024](https://ntrs.nasa.gov/api/citations/20240013291/downloads/PESTO-VIPER-intro.pdf) | Riferimenti specifici: pendenza nominale 15° con casi fino a 25–30°; 50 ore di sopravvivenza in ibernazione, circa 9 ore di attività all'ombra |
+| [Arizona Board of Regents / ASU, Gläser et al. 2014](https://experts.azregents.edu/en/publications/illumination-conditions-at-the-lunar-south-pole-using-high-resolu/) | Benchmark a Connecting Ridge: 92,27% di tempo con qualche luce a 2 m su un periodo di 19 anni; non un massimo universale né la nostra percentuale annuale con almeno metà disco visibile |
 | [Mazarico et al. 2011, Icarus](https://ntrs.nasa.gov/citations/20120010094) | Illuminazione dei poli dai dati LOLA: punto sul bordo di Shackleton illuminato 240 giorni di fila |
-| [NASA, Artemis III Site Selection Update, LPSC 2026](https://www.hou.usra.edu/meetings/lpsc2026/pdf/1901.pdf) | Regioni favorite se robuste rispetto alle date; la luce al polo si sposta di 2–3 settimane l'anno |
+| [NASA, Artemis III Site Selection Update, LPSC 2026](https://ntrs.nasa.gov/citations/20250011660) | Regioni favorite se robuste rispetto alle date; la luce al polo si sposta di 2–3 settimane l'anno |
 | [NASA Space Apps 2026, *Lunar Landing Site Navigator*](https://www.spaceappschallenge.org/2026/challenges/lunar-landing-site-navigator/) | Obiettivi della challenge |
 
 ### Interfaccia e confronto
@@ -232,7 +235,7 @@ generali appena approvate. La specifica completa è in
 |---|---|
 | [Moon Trek](https://trek.nasa.gov/moon/) ([WMTS](https://trek.nasa.gov/tiles/apidoc/trekAPI.html?body=moon)) | Mappe di sfondo nel frontend |
 | [QuickMap (LROC)](https://quickmap.lroc.im-ldi.com/) | Verifica manuale (Create Panorama, Visibility Analysis), non come fonte di dati |
-| [CSA, Moon Exploration](https://www.asc-csa.gc.ca/eng/astronomy/moon-exploration/) | Parte educativa |
+| [NASA Science, Moon](https://science.nasa.gov/moon/) | Fonte educativa NASA; sostituisce il precedente riferimento CSA |
 
 ## Riduzione dei dati
 
@@ -242,6 +245,8 @@ L'obiettivo è dare all'agente AI e al frontend pochi KB per sito invece di GB d
 
 Il percorso progettato cerca di condividere una tabella Horizons fra i siti. La query
 da verificare usa la Luna vista dal geocentro:
+
+**Solo V2:** questa tabella globale non è il percorso V1, che usa Horizons topocentrico diretto per punto.
 
 ```text
 COMMAND='301'  CENTER='500@399'  QUANTITIES='14,15,19,20'
@@ -347,3 +352,7 @@ in `backend/catalog/sites.toml`. Precisione delle coordinate e copertura DEM van
 qualificate prima di valutarli alla scala di 100 m. I servizi scientifici, il calcolo
 per coordinate personalizzate e l'integrazione successiva con il frontend restano da
 implementare. Questa revisione aggiorna solo la specifica.
+
+## Provenienza scientifica e perimetro della challenge
+
+Si adottano fonti NASA o istituzionali USA: agenzie federali, istituzioni pubbliche statunitensi e canali ufficiali dei prodotti NASA. Lo studio Gläser resta ricerca internazionale, citata attraverso Arizona Board of Regents / ASU, non una regola NASA. QuickMap è uno strumento facoltativo di consultazione, non una fonte numerica approvata in sé. Il [registro delle fonti e analisi della challenge](docs/fonti-e-perimetro-challenge.md) documenta sostituzioni equivalenti, limiti e funzionalità proposte per il rinvio. La documentazione delle librerie software resta distinta dalle fonti scientifiche.

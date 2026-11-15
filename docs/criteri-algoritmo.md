@@ -1,31 +1,55 @@
 # Criteri dell'algoritmo di valutazione
 
-**Specifiche approvate dal team il 15/11/2026, dopo la revisione scientifica.** Questo documento è il riferimento per i criteri dell'engine e prevale sulle precedenti proposte nei documenti collegati. Descrive il lavoro da implementare: non attesta che il motore sia già costruito o validato. In questo aggiornamento si modifica solo la documentazione; l'integrazione con il frontend viene dopo l'algoritmo.
+**Revisione fonti del 15/11/2026:** fonti scientifiche NASA o istituzionali USA, con responsabilità del prodotto dichiarata. Registro delle sostituzioni, lacune e perimetro minimo approvato in [fonti-e-perimetro-challenge.md](fonti-e-perimetro-challenge.md). Il perimetro minimo è ora approvato: le definizioni scientifiche restano valide, con consegna V1 e sviluppi V2 distinti qui sotto.
+
+**Specifiche e perimetro minimo V1 approvati dal team il 15/11/2026.** Questo documento è il riferimento per i criteri dell'engine e prevale sulle precedenti proposte nei documenti collegati. Descrive il lavoro da implementare: non attesta che il motore sia già costruito o validato. In questo aggiornamento si modifica solo la documentazione; l'integrazione con il frontend viene dopo l'algoritmo.
 
 Il programma risponde alla domanda:
 
-> **A un istante T, quali condizioni di luce, visibilità geometrica della Terra e pendenza offrono le regioni lunari, e come cambiano alle date vicine?**
+> **A un istante T, quali condizioni di luce, visibilità geometrica della Terra e pendenza offrono 2–3 punti nelle regioni di sviluppo, e come cambiano scegliendo date diverse?**
 
 Il confronto è generale e indipendente dal mezzo. Non certifica sicurezza d'atterraggio, percorribilità, autonomia o qualità radio. Le fonti scientifiche sono indicate come [F…]; le convenzioni applicative sono indicate come **Scelta del team**. Il piano di lavoro è in `docs/piano-logica.md`, il riepilogo in `docs/stato-decisioni.md`, i cataloghi in `docs/siti-e-regioni.md` e l'accesso ai dati in `docs/guida-dati.md`.
 
 ---
+
+## 0. Perimetro di consegna approvato
+
+**V1 = confronto puntuale**, prima dell'aggregazione regionale. I punti sono identificati all'interno di de Gerlache Rim 2 e Malapert Massif. La dimostrazione comprende almeno un punto per regione, complessivamente 2–3 punti, e almeno due date. Non si chiamano “rappresentativi” di tutta la regione né “migliori siti”. La posizione va scelta in modo riproducibile e verificata nel poligono e nel DEM; i centri geometrici sono possibili punti iniziali, non siti favorevoli per definizione.
+
+| Prima versione V1 | Rinviato a V2 | Escluso dall'engine generale |
+|---|---|---|
+| Orizzonte reale, effemeridi locali Sole/Terra, angoli e frazioni dei dischi | Scansione delle 13 regioni e analisi dei 16 siti globali | Sicurezza di atterraggio e percorribilità universale |
+| Finestre di luce, Terra e concomitanza, buio completo, eclissi e copertura | P50 annuale, indicatore ≥80% e benchmark pluriennali | Termica hardware, potenza, batterie, autonomia e link budget |
+| Pendenza su supporto circolare 100 m e quattro fasce | B(T) come insieme regionale, A5/A10/A15, aree e componenti connesse | Traiettorie, lancio, discesa e replay di missioni |
+| Confronto diretto degli stessi punti a date esplicitamente richieste | Scansione automatica ±1/2/3 giorni e intersezioni della stessa zona | Ranking globale, pesi universali, accessibilità PSR e quantità di ghiaccio |
+| Provenienza, incertezza, controlli numerici e riscontro osservativo | Agente AI, CAD, news, cataloghi educativi estesi | Soglie di sopravvivenza ricavate dalla sola luce |
+
+**Consegna tecnica V1:** libreria Python, configurazioni di esempio, CLI, risultati JSON versionati, cache e rapporto di validazione. L'integrazione HTTP e il frontend avvengono dopo la verifica del nucleo. Nessun endpoint regionale o adapter dei vecchi mock è necessario per completare questo incarico. La visualizzazione di orizzonte, astri e finestre resta necessaria alla consegna finale della challenge, non a questa fase di implementazione.
+
+**Input V1:** lista di punti con ID, coordinate e regione; uno o più istanti T esatti in UTC; durata positiva della finestra di analisi, uguale per gli scenari confrontati. La fixture dimostrativa usa 30 giorni, scelta applicativa e non durata della missione. Si confrontano intervalli [T, T + durata), mantenendo sia UTC assoluto sia tempo trascorso da T. Le date alternative sono esplicite, senza generare automaticamente sette scenari. Non si arrotonda T all'ora.
+
+**Osservatore V1:** 2 m sopra il DEM, dichiarati e fissi nel profilo. Le eventuali altezze diverse del client esistente non diventano richieste supportate implicitamente. La griglia regionale 100 × 100 m è rinviata; il supporto circolare di misura della pendenza di diametro 100 m rimane in V1.
+
+**Intervallo limitato:** V1 cerca eventi soltanto nella finestra richiesta e nella copertura reale. Non scarica automaticamente mesi aggiuntivi fino a trovare un evento. La mancata osservazione di un confine produce un intervallo troncato e un limite inferiore, non una durata totale inventata. Se il punto è già al buio a T, l'inizio precedente resta sconosciuto salvo dati aggiuntivi già disponibili; non è necessario cercarlo all'indietro.
+
+**Output rinviati:** P50, percentuali e aree regionali, componenti e robustezza aggregata non sono calcolati o riempiti con zero. Il manifest dichiara le capacità V1; il JSON V1 non promette campi V2. Un valore sconosciuto di una metrica V1 è invece `null` con stato e motivo.
 
 ## 1. Principi e fonti
 
 | Principio | Decisione e motivazione |
 |---|---|
 | Nessun profilo di veicolo | Misurare condizioni geometriche e topografiche. I limiti di singoli mezzi sono riferimenti contestualizzati, non soglie universali |
-| Nessun filtro automatico di pendenza | Nessuna regione viene esclusa perché supera 10°. Le fasce descrivono il terreno; le aree sotto diverse soglie permettono il confronto |
+| Nessun filtro automatico di pendenza | Nessun punto viene escluso perché supera 10°. Le fasce descrivono il terreno; aree regionali sotto diverse soglie solo in V2 |
 | Nessun vincitore assoluto | Restituire metriche confrontabili e ordinamenti espliciti per una metrica, senza punteggio globale né cascata obbligatoria fra criteri |
 | Data e ora esatte | Input T in UTC; non arrotondare l'istante scelto all'ora. Posizioni e visibilità cambiano con coordinate e tempo |
-| Misure fino all'evento | Nessuna durata di missione richiesta. Estendere la ricerca fino all'evento o al limite dei dati, dichiarando gli intervalli incompleti |
+| Finestra di analisi V1 | Nessuna durata di missione richiesta. Cercare gli eventi nella finestra esplicita, dichiarando i confini non osservati; ricerca estesa automatica rinviata |
 | Altezza di riferimento | Osservatore a 2 m dal terreno, **Scelta del team** geometrica comune ai confronti, non altezza universale di pannelli o antenne |
 | Campionamento iniziale | 1 ora per le effemeridi e 360 direzioni per l'orizzonte sono configurazioni iniziali, da sottoporre a convergenza e raffinamento; non garantiscono precisione degli eventi |
 | Riproducibilità | Cache locale dei dati reali, metadati e versioni. Mancanza di dati e risultati sintetici non devono diventare misure scientifiche |
 
 ### 1.1 Ruolo dei servizi
 
-- **NASA/JPL Horizons [F5, F32]**: unica fonte scelta per le effemeridi di Sole e Terra. La tabella globale proposta usa `COMMAND='301'`, `CENTER='500@399'`, `QUANTITIES='14,15,19,20'`: punti sub-osservatore/sub-solare, distanza Sole–Luna e distanza Terra–Luna. Queste quantità apparenti includono tempi luce riferiti all'osservatore geocentrico: non è dimostrato che una sola rotazione del frame e la parallasse restituiscano la vista lunare a T. Riconciliare epoche e correzioni e confrontare con query topocentriche Horizons; se il percorso globale non soddisfa le tolleranze, usare query topocentriche o vettori Horizons con trasformazioni validate. La fonte rimane Horizons. I precedenti esempi con `14,15,20` non contengono la distanza solare.
+- **NASA/JPL Horizons [F5, F32]**: unica fonte scelta per le effemeridi di Sole e Terra. **V1 usa query topocentriche dirette** con `COMMAND='10'` e `'399'`, `CENTER='coord@301'`, coordinate del punto e quota del DEM più 2 m, riferita al datum del servizio. Registrare configurazione, tempi, correzioni apparenti senza rifrazione atmosferica lunare, distanze e dimensioni angolari. Verificare nel manuale i parametri e le intestazioni prima di implementare il parser. La ricostruzione da quantità geocentriche `14,15,19,20` è un'ottimizzazione V2: richiederebbe riconciliazione di epoche e tempi luce, non una semplice rotazione del frame. Nessuna dipendenza SPICE/SpiceyPy in V1.
 - **NASA Moon Trek [F3]**: poligoni delle regioni, cataloghi, layer e prodotti numerici disponibili tramite API/ImageServer. Il nome del servizio è Moon Trek.
 - **NASA PDS / NASA PGDA, dati LRO-LOLA [F19]**: DEM numerici, conteggi, risoluzione effettiva, errori, pendenze e prodotti di riferimento, acquisibili direttamente dagli archivi. Le immagini di sfondo non sostituiscono le quote.
 - **LROC [F30]**: osservazioni per il confronto delle ombre e dell'illuminazione. Identificare strumento, prodotto e istante delle immagini.
@@ -35,9 +59,9 @@ Per ogni sorgente conservare URL, prodotto, versione, data di acquisizione, SHA-
 
 ### 1.2 Catalogo e scala dell'analisi
 
-Si parte dalle 13 regioni del **catalogo storico NASA 2022** disponibili in Moon Trek e dai 16 siti del catalogo locale. La lista non va presentata come catalogo operativo attuale completo. I siti possono essere esterni al settore polare e vengono confrontati separatamente dalle regioni.
+Il catalogo conserva 13 regioni del **catalogo storico NASA 2022** disponibili in Moon Trek e 16 siti locali. V1 analizza soltanto i 2–3 punti di sviluppo; la scansione delle regioni e l’analisi dei 16 siti sono V2. La lista non va presentata come catalogo operativo attuale completo. I siti possono essere esterni al settore polare e vengono confrontati separatamente dalle regioni.
 
-La griglia di aggregazione ha celle di **100 × 100 m**. La pendenza è stimata con un piano su una **finestra circolare di diametro 100 m**, centrata nel punto di campionamento della cella, coerentemente con il supporto del prodotto di confronto PGDA [F19]. Griglia, supporto della misura e dispersione d'atterraggio sono grandezze distinte. Le celle sono unità di campionamento, non piazzole certificate.
+**In V2**, la griglia di aggregazione ha celle di **100 × 100 m**. La pendenza è stimata con un piano su una **finestra circolare di diametro 100 m**, centrata nel punto di campionamento della cella, coerentemente con il supporto del prodotto di confronto PGDA [F19]. Griglia, supporto della misura e dispersione d'atterraggio sono grandezze distinte. Le celle sono unità di campionamento, non piazzole certificate.
 
 Per coordinate storiche incerte o centri di formazioni bersaglio, il risultato descrive la coordinata analizzata: non attribuirlo automaticamente al vero lander. Precisione della posizione e risoluzione del DEM devono essere compatibili con la metrica richiesta; in caso contrario quella metrica è **non valutabile alla scala richiesta**. Ricampionare un DEM grossolano non crea dettaglio nuovo.
 
@@ -84,28 +108,28 @@ Il buio completo non implica assenza di luce riflessa o una specifica temperatur
 
 ---
 
-## 3. I dieci criteri
+## 3. Criteri e versione di consegna
 
-| # | Criterio | Cosa si misura |
-|---|---|---|
-| 1 | Sole visibile a T | Stato C3, `fSunTerrain`, `fSun`, eventuale eclissi |
-| 2 | Terra visibile a T | Stato C3 e `fEarth`; non disponibilità radio |
-| 3 | Elevazione del Sole a T | Elevazione rispetto all'orizzontale e margine sul terreno, separati |
-| 4 | Elevazione della Terra a T | Elevazione rispetto all'orizzontale e margine sul terreno, separati |
-| 5 | Luce continua secondo C3 | Tempo residuo da T alla prima discesa di `fSun` sotto 0,5, con causa dell'interruzione |
-| 6 | Visibilità geometrica continua della Terra | Tempo residuo da T alla prima discesa di `fEarth` sotto 0,5 |
-| 7 | Buio e luce ridotta | Inizio, fine e durata del primo intervallo di buio completo; separatamente intervalli sotto C3 |
-| 8 | Pendenza | Valore in gradi, base di 100 m, fascia descrittiva e qualità/incertezza |
-| 9 | Illuminazione annua | Percentuale del tempo dell'anno UTC con `fSun ≥ 0,5`, copertura, calendario; evidenziazione ≥80% |
-| 10 | Sensibilità alle date | Metriche a T e T ±1, ±2, ±3 giorni: alternative regionali e persistenza della stessa zona |
+| # | Criterio | Cosa si misura | Versione |
+|---|---|---|---|
+| 1 | Sole visibile a T | Stato C3, `fSunTerrain`, `fSun`, eventuale eclissi | V1 |
+| 2 | Terra visibile a T | Stato C3 e `fEarth`; non disponibilità radio | V1 |
+| 3 | Elevazione del Sole a T | Elevazione rispetto all'orizzontale e margine sul terreno, separati | V1 |
+| 4 | Elevazione della Terra a T | Elevazione rispetto all'orizzontale e margine sul terreno, separati | V1 |
+| 5 | Luce continua secondo C3 | Tempo residuo da T alla prima discesa di `fSun` sotto 0,5, con causa dell'interruzione | V1 |
+| 6 | Visibilità geometrica continua della Terra | Tempo residuo da T alla prima discesa di `fEarth` sotto 0,5 | V1 |
+| 7 | Buio e luce ridotta | Inizio, fine e durata del primo intervallo di buio completo; separatamente intervalli sotto C3 | V1 |
+| 8 | Pendenza | Valore in gradi, base di 100 m, fascia descrittiva e qualità/incertezza | V1 |
+| 9 | Illuminazione annua | Percentuale del tempo dell'anno UTC con `fSun ≥ 0,5`, copertura, calendario; evidenziazione ≥80% | V2 |
+| 10 | Sensibilità alle date | V1: metriche alle date esplicite; V2: ±1/2/3 giorni, alternative regionali e persistenza della stessa zona | V1/V2 |
 
-Si conservano anche le prossime finestre di Sole, Terra e concomitanza. Una finestra di visualizzazione di circa 29,5 giorni non limita la ricerca degli eventi.
+V1 conserva le finestre di Sole, Terra e concomitanza osservate nella finestra richiesta. La fine della finestra non rappresenta un evento fisico.
 
 ### 3.1 Eventi e copertura temporale
 
 - Se il corpo è già sotto C3 a T, il tempo residuo della finestra attiva è **0** e si cerca la prossima finestra; una misura sconosciuta non vale 0.
 - Se T cade già nel buio, riportare la notte in corso e il tempo residuo. Una durata totale richiede anche l'inizio dell'evento; se non è coperto, segnalarlo come incompleto.
-- Cercare gli eventi con intervallo estendibile oltre un mese lunare, entro la copertura di dati reali disponibili. La fine di una cache non è un tramonto.
+- In V1 cercare gli eventi entro la finestra richiesta e la copertura disponibile. La fine della finestra o della cache non è un tramonto. L’estensione automatica è rinviata.
 - Se l'evento finale non è osservato, restituire fine sconosciuta, limite temporale esaminato e limite inferiore della durata verificata. Non assegnare una durata conclusa, zero o infinito.
 - Distinguere intervalli **completi**, **troncati all'inizio**, **troncati alla fine**, e **dati mancanti**. Un buco di dati interrompe la continuità verificabile.
 - Conservare tolleranza numerica degli eventi ed errore fisico stimato: una radice calcolata al minuto non implica conoscenza del terreno al minuto.
@@ -129,15 +153,15 @@ I confini sono **Scelta del team**, uguali per tutte le regioni e date. Mostrare
 
 Il piano va adattato in coordinate metriche locali coerenti con il terreno; metodo, supporto, gestione NoData e incertezza devono essere registrati. Non trasferire l'errore di una slope a scala pixel a quella su 100 m. Se l'incertezza attraversa una soglia, segnalare l'instabilità della classe. La slope media non rileva necessariamente piccoli crateri o massi.
 
-### 4.2 Durata del buio e perimetro termico
+### 4.2 Durata del buio V1 e riferimenti documentali
 
 **Nessun avviso universale rosso a 50 ore e nessun effetto sulla classifica.** Restano le durate degli eventi definite in 2.3 e 3.1.
 
-Le **50 ore** sono soltanto una nota di confronto con VIPER: lo studio operativo descrive sopravvivenza in una speciale modalità di ibernazione, distinta dalle circa 9 ore di normali operazioni all'ombra [F28]. Il riferimento non riguarda automaticamente ogni intervallo sotto il 50% del Sole, non garantisce sopravvivenza entro la soglia e non rappresenta un limite per un mezzo generico.
+Le **50 ore** restano nella bibliografia e non negli output principali V1. Sono soltanto una nota di confronto con VIPER: le specifiche NASA distinguono la sopravvivenza in ibernazione a bassa potenza dalle circa 9 ore di operazioni nelle PSR [F28]. Il riferimento non riguarda automaticamente ogni intervallo sotto il 50% del Sole, non garantisce sopravvivenza entro la soglia e non rappresenta un limite per un mezzo generico.
 
 **Modello termico escluso:** esistono dati ambientali NASA LRO Diviner sulle temperature della superficie [F27]. Per ricavare quelle dell'hardware servono geometria, materiali, isolamento, proprietà radiative, contatti con il suolo, dissipazione, riscaldatori e condizioni energetiche. L'engine generale non riceve questi parametri e non stima temperatura, autonomia o sopravvivenza. Anche potenza e ricarica richiederebbero un modello energetico specifico.
 
-### 4.3 Illuminazione annua (C6)
+### 4.3 Illuminazione annua (C6) — V2, non calcolare in V1
 
 La metrica principale è **P50**, la percentuale del tempo con `fSun ≥ 0,5` dal 1° gennaio 00:00 UTC al 1° gennaio successivo: 365 o 366 giorni. Si integra la durata degli intervalli, includendo eclissi e raffinamento degli eventi; non si assume che ogni campione rappresenti sempre un'ora intera.
 
@@ -151,7 +175,7 @@ Le PSR sono informazione scientifica separata, non un filtro o un peso. Non clas
 
 ---
 
-## 5. Dalle celle alla regione (C4)
+## 5. Dalle celle alla regione (C4) — V2, non implementare in V1
 
 ### 5.1 Insiemi geometrici e qualità
 
@@ -186,7 +210,9 @@ Affiancare area totale e area della maggiore componente; non imporre un'area min
 
 ---
 
-## 6. Confronto tra regioni (C5)
+## 6. Confronto per metriche: punti V1, regioni V2
+
+**V1 confronta solo risultati puntuali alla stessa durata di analisi; non produce statistiche o ordinamenti regionali.** Le regole sulle aree sotto si applicano a V2.
 
 **Adottato il confronto per metriche esplicite. Superata la cascata tenuta > area > luce > Terra.** Nessun punteggio composito, peso o vincitore assoluto viene prodotto come risultato scientifico.
 
@@ -198,9 +224,11 @@ Si possono evidenziare risultati per obiettivo, come “maggiore area sotto 5°�
 
 ---
 
-## 7. Sensibilità alle date (C7)
+## 7. Sensibilità alle date (C7): confronto diretto V1, aggregazione V2
 
-Valutare T e T ±1, ±2, ±3 giorni alla stessa ora UTC. L'estensione è una **Scelta del team**, non una finestra NASA universale. Restituire metriche per tutte le date, mantenendo espliciti eventuali buchi o date non valutabili.
+**V1:** ricalcolare i medesimi punti alle date esplicitamente richieste, con la stessa durata di analisi. Confrontare le serie e le finestre senza un indicatore sintetico di robustezza.
+
+**V2:** valutare T e T ±1, ±2, ±3 giorni alla stessa ora UTC. L'estensione è una **Scelta del team**, non una finestra NASA universale. Restituire metriche per tutte le date, mantenendo espliciti eventuali buchi o date non valutabili.
 
 Distinguere:
 
@@ -215,7 +243,7 @@ La slope resta costante; la percentuale annua cambia se una data vicina attraver
 
 ---
 
-## 8. Precisione e validazione prima della consegna
+## 8. Precisione e validazione prima della consegna V1
 
 | Controllo | Metodo ed evidenza richiesta |
 |---|---|
@@ -223,11 +251,11 @@ La slope resta costante; la percentuale annua cambia se una data vicina attraver
 | Slope | Piani sintetici di inclinazione nota e confronto con `LDRM_80S_50MPP_ADJ_SLP_100M.TIF` [F19], usando supporto, scala e georeferenziazione coerenti |
 | Orizzonte | Sfera liscia e ostacoli noti, poi profili reali; verificare terreno lontano e gestione dei bordi/NoData |
 | Disco ed eclissi | Casi di occultazione nulla/parziale/totale e sovrapposta, con confronto indipendente; causa e frazione conservate |
-| Convergenza | Confrontare 1° → 0,5° → 0,25°, passi temporali più fitti, risoluzioni e raggi del terreno; misurare cambiamenti in aree, percentuali ed eventi |
+| Convergenza | Confrontare 1° → 0,5° → 0,25°, passi temporali più fitti, risoluzioni e raggi del terreno; misurare in V1 cambiamenti in angoli, frazioni, slope ed eventi; aree e percentuali annue in V2 |
 | Eventi | Raffinare gli attraversamenti e controllare intervalli brevi anche quando gli estremi del passo orario hanno lo stesso stato; nessuna interpolazione di booleani |
-| Benchmark pubblicati | Riprodurre casi con coordinate, terreno, altezza, periodo e definizione identici; PGDA e Gläser non sono confronti intercambiabili [F7, F25] |
+| Benchmark pubblicati | In V1 confronto slope PGDA e riscontro osservativo LROC; riproduzione pluriennale Gläser/AVGVISIB rinviata a V2 [F7, F25] |
 | Osservazioni LROC | Confrontare ombre alle epoche reali; per medie temporali considerare anche WAC time-weighted e relativo campionamento [F30] |
-| Incertezza | Usare errori, risoluzione effettiva e cloni DEM disponibili [F19]; studiare stabilità di classi e aree senza trattare ogni errore come indipendente |
+| Incertezza | Usare errori, risoluzione effettiva e cloni DEM disponibili [F19]; studiare in V1 stabilità della slope, delle classi, delle frazioni e degli eventi; aree in V2 senza trattare ogni errore come indipendente |
 | Riproducibilità | Rapporto con casi, versione, scarti, tolleranze definite prima dell'esito e stato della verifica [F31] |
 
 Le tolleranze numeriche finali e la configurazione del terreno vicino/lontano sono da fissare e verificare nell'implementazione; non sono nuove soglie di idoneità. Una concordanza fra modelli che condividono lo stesso DEM non sostituisce il confronto con osservazioni. I controlli descritti nel prototipo esterno devono essere riproducibili nel progetto prima di dichiarare validato l'engine.
@@ -247,39 +275,19 @@ Le tolleranze numeriche finali e la configurazione del terreno vicino/lontano so
 
 ---
 
-## 10. Riassunto per chi scriverà il codice
+## 10. Condizioni di completamento V1
 
-```text
-input: T esatto in UTC
-configurazione dichiarata: griglia 100 m, fit circolare diametro 100 m,
-                          osservatore 2 m, C3 = 0,5
-fonti: JPL Horizons; Moon Trek; LOLA da PDS/PGDA; LROC per validazione
+- Libreria Python e CLI con schema JSON versionato, nessuna dipendenza dalla UI o da dati mock.
+- Configurazione dimostrativa di 2–3 punti identificati nelle due regioni, almeno due date e uguale finestra di 30 giorni; risultati reali con fonti tracciate.
+- Terreno riutilizzabile per punto; effemeridi topocentriche Horizons; profili, serie, frazioni, eclissi, finestre e pendenza conformi a questa specifica.
+- Copertura parziale, unknown e intervalli troncati espliciti. Controlli della qualità per metrica, senza dati sintetici usati per completare una demo reale.
+- Verifiche analitiche, unità/frame/parser Horizons, convergenza, confronto slope PGDA compatibile e almeno un riscontro osservativo LROC datato; rapporto con scarti e tolleranze fissate prima dei risultati.
+- Confrontare il parser con dati Horizons controllati verifica l'acquisizione: non è una validazione astronomica indipendente di Horizons. Validare separatamente geometria locale, dischi e terreno.
+- Accuratezza numerica e incertezza del terreno separate; nessuna promessa di continuità fra campioni senza verifica degli eventi brevi e convergenza.
+- Se una verifica richiesta non è eseguibile, consegnare quanto implementato e dichiarare il gate non completato; non chiamare validata l'intera V1.
+- Nessun calcolo annuale o regionale, frontend, nuovo endpoint scientifico HTTP, agente AI o modello di veicolo in questo incarico.
 
-per ogni punto di campionamento:
-  verificare copertura/qualità per ciascuna metrica
-  stimare slope e fascia [0,5), [5,10), [10,15), [15,+inf)
-  calcolare maschera con curvatura e verificare convergenza
-  calcolare azimut, elevazione orizzontale, H e margine e-H
-  integrare visibilità del disco: fSunTerrain, fSun (con eclissi), fEarth
-  sole = fSun >= 0,5; terra = fEarth >= 0,5
-  B = sole AND terra                       # nessun filtro di pendenza
-  distinguere buio completo fSun=0 e intervalli sotto C3
-  cercare eventi oltre un mese, fino al termine della copertura
-  conservare eventi completi/troncati, durata residua e dati mancanti
-  calcolare P50 sull'anno UTC completo (365/366 giorni), evidenziare >=80%
-  ripetere metriche dipendenti da T alle date +/-1,2,3 giorni
-
-per ogni regione:
-  area B, aree cumulative A5/A10/A15, distribuzione classi
-  km2 e percentuale con denominatore, copertura e incertezza
-  maggiore componente a 4 vicini per B e ciascuna soglia
-  alternative alle date e intersezioni della stessa zona, per verso
-  statistiche dei punti con ID; valori combinati solo dello stesso punto
-  nessuna esclusione automatica per slope, nessun punteggio globale
-
-confronto: metriche separate, ordinamento esplicito per metrica
-50 ore: sola nota contestuale VIPER; nessun allarme universale
-```
+Piano eseguibile: `docs/piano-logica.md`. Prompt di implementazione: `docs/prompt-claude-engine-v1.md`.
 
 ---
 
@@ -293,13 +301,12 @@ confronto: metriche separate, ordinamento esplicito per metrica
 - **[F12]** NASA Space Apps Challenge 2026, *Lunar Landing Site Navigator*. https://www.spaceappschallenge.org/2026/challenges/lunar-landing-site-navigator/
 - **[F19]** M. K. Barker, NASA PGDA, *A New View of the Lunar South Pole from LOLA*: DEM, qualità e slope con supporto circolare su base 100 m. https://pgda.gsfc.nasa.gov/products/90 ; prodotti a 5 m, errori e cloni per specifici siti: https://pgda.gsfc.nasa.gov/products/78
 - **[F20]** NASA, *VIPER Lunar Operations*. 15° come riferimento nominale, con capacità di affrontare anche 25–30° in determinate condizioni; non limite di ogni rover. https://science.nasa.gov/mission/viper/lunar-operations/
-- **[F21]** *Landing site selected for the Blue Ghost Mission 1*, LPSC 2022, abstract 1390. Riferimenti specifici della missione. https://www.hou.usra.edu/meetings/lpsc2022/pdf/1390.pdf
-- **[F22]** Williams et al., *Lunar-VISE Landing Site Selection and Characterization at Mons Gruithuisen Gamma*, PSJ (2026). Analisi di slope su base 4 m e vincoli CLPS contestualizzati. https://doi.org/10.3847/PSJ/ae7d2c
-- **[F24]** Wueller et al. (2026), JGR Planets. Ricerca internazionale su siti illuminati e PSR accessibili, non regola generale di selezione. https://doi.org/10.1029/2025JE009434
-- **[F25]** P. Gläser et al. (2014), *Illumination conditions at the lunar south pole using high resolution Digital Terrain Models from LOLA*, Icarus 243. Il 92,27% è riferito a uno specifico punto di Connecting Ridge a 2 m in uno studio di 19 anni, non a P50 annuale. https://elib.dlr.de/94240 ; https://doi.org/10.1016/j.icarus.2014.08.013
-- **[F26]** T. George et al. (NASA), *Artemis III Site Selection Update: Down-selection from 13 to 9 Candidate Regions*, LPSC 2026, abstract 1901. Analisi dipendente dall'architettura studiata, non prescrizione dell'ordinamento dell'engine. https://www.hou.usra.edu/meetings/lpsc2026/pdf/1901.pdf
+- **[F21]** NASA, *CLPS: Firefly Blue Ghost Mission One Press Kit* (2025). Contesto della missione e rilevamento di crateri, pendenze e rocce nella discesa. Non sostituisce quantitativamente i precedenti limiti di pendenza del paper LPSC 2022, qui ritirati. https://www.nasa.gov/wp-content/uploads/2025/01/np-2025-01-001-jsc-clps-firefly-press-kit-screen-508-1-10-25-final.pdf
+- **[F22]** USGS Publications Warehouse, Williams et al., *Lunar-VISE Landing Site Selection and Characterization at Mons Gruithuisen Gamma* (2026), record 70278944. Stesso studio, ora citato attraverso USGS; l'abstract istituzionale documenta il compromesso fra obiettivi scientifici e vincoli di missione. Il dettaglio del supporto di slope a 4 m non viene usato come requisito dell'engine. https://www.usgs.gov/publications/lunar-vise-landing-site-selection-and-characterization-mons-gruithuisen-gamma
+- **[F25]** Arizona Board of Regents / Arizona State University, scheda istituzionale di Gläser et al. (2014), *Illumination conditions at the lunar south pole using high resolution digital terrain models from LOLA*. Ricerca internazionale con autori NASA e ASU, non standard NASA. L'abstract conferma lo studio di 19 anni e il 92,27% a 2 m; resta distinto da P50 annuale. https://experts.azregents.edu/en/publications/illumination-conditions-at-the-lunar-south-pole-using-high-resolu/
+- **[F26]** T. George et al. (NASA), *Artemis III Site Selection Update: Down-selection from 13 to 9 Candidate Regions*, LPSC 2026, abstract 1901. Analisi dipendente dall'architettura studiata, non prescrizione dell'ordinamento dell'engine. https://ntrs.nasa.gov/citations/20250011660
 - **[F27]** NASA PDS Geosciences Node, *LRO Diviner Data and Services*. https://pds-geosciences.wustl.edu/missions/lro/diviner.htm
-- **[F28]** M. Shirley et al. (NASA Ames, SETI, Stanford), *VIPER Traverse Planning*, LPSC 2022, abstract 2874: 50 ore in ibernazione e 9 ore di normali operazioni all'ombra. https://www.hou.usra.edu/meetings/lpsc2022/pdf/2874.pdf
+- **[F28]** NASA NTRS, *2024 Planetary Science Technology Symposium*, presentazione VIPER, documento 20240013291, slide 2: 50 ore in ibernazione a bassa potenza e 9 ore di operazioni in PSR. https://ntrs.nasa.gov/api/citations/20240013291/downloads/PESTO-VIPER-intro.pdf
 - **[F29]** H. J. Fincannon, NASA Glenn, *Lunar Environment and Lunar Power Needs*: ombre topografiche ed eclissi terrestri nel contesto dell'alimentazione. https://ntrs.nasa.gov/api/citations/20205002224/downloads/Lunar%20Environment%20and%20Lunar%20Power%20Needs_2.pdf
 - **[F30]** LROC, *WAC Time-Weighted South Pole Illumination Map*. Osservazioni 2010–2011, copertura e pesatura temporale documentate. https://data.lroc.im-ldi.com/lroc/view_rdr/WAC_POLE_ILL_TWI_SOUTH
 - **[F31]** NASA-STD-7009B, *Standard for Models and Simulations*: riferimento metodologico per verifica, validazione e incertezza, non dichiarazione di conformità del progetto. https://standards.nasa.gov/standard/NASA/NASA-STD-7009

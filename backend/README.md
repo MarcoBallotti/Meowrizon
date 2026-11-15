@@ -1,8 +1,19 @@
 # Backend
 
-Python 3.12 e FastAPI, eseguito in Docker. Qui sta **tutta la logica** del progetto: dati, calcoli, confronto delle regioni, API e agente AI. Il frontend TypeScript si occupa solo della visualizzazione. Per l'avvio locale, il percorso dati predefinito è `backend/data/`.
+> **Stato effettivo dopo implementazione e revisione (15/11/2026):** engine puntuale V1 implementato; validazione osservativa ancora incompleta. Il [rapporto della revisione](../docs/validazione-engine-v1-revisione.md) documenta test, convergenza, classificazione e limiti. Le affermazioni storiche di engine non implementato non descrivono lo stato corrente. In questo branch i documenti scientifici seguono il perimetro V1 approvato.
+
+**Priorità approvata V1 (15/11/2026):** engine puntuale Python per 2–3 punti e date esplicite, con CLI/JSON e validazione; aggregazioni regionali, P50 e robustezza sono V2. HTTP scientifico e frontend seguono il nucleo. I dettagli estesi sotto non ampliano questo incarico: vedere il [piano V1](../docs/piano-logica.md).
+
+Python 3.12 e FastAPI, eseguito in Docker. Qui sta **tutta la logica** del progetto: dati, calcoli, confronto delle regioni, API e agente AI. Il frontend TypeScript si occupa solo della visualizzazione.
 
 Per ora ci sono le regioni Artemis III (`GET /api/regions`) e i siti di atterraggio (`GET /api/sites`); la valutazione non è ancora implementata (vedi `docs/piano-logica.md`). `GET /api/coverage` restituisce un catalogo vuoto finché non esiste un DEM preparato e verificato per l’analisi. Il prodotto scelto per i calcoli futuri è il GeoTIFF PGDA LOLA adjusted 20 m/pixel (`LDEM_80S_20MPP_ADJ`); la sua pubblicazione online da sola non lo rende disponibile per le analisi. Non c'è un database: i dati stanno in file in `data/`.
+
+**Specifica scientifica approvata il 15/11/2026:** [criteri-algoritmo.md](../docs/criteri-algoritmo.md)
+prevale sui precedenti appunti in `backend/docs/` e sulle ipotesi scientifiche del contratto
+client. L'engine è indipendente dal veicolo: fasce descrittive della pendenza [0°,5°),
+[5°,10°), [10°,15°), ≥15°, nessun filtro automatico a 10°, confronto per metriche senza
+punteggio globale. Questa revisione è documentale; engine e successiva integrazione
+del frontend non sono ancora implementati.
 
 **Specifica scientifica approvata il 15/11/2026:** [criteri-algoritmo.md](../docs/criteri-algoritmo.md)
 prevale sui precedenti appunti in `backend/docs/` e sulle ipotesi scientifiche del contratto
