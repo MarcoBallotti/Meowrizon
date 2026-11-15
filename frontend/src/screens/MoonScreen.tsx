@@ -7,18 +7,27 @@
 import { Minimize2, RotateCcw } from 'lucide-react'
 import { lazy, Suspense, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { provider } from '../api'
-import type { DemProduct } from '../api/types'
 import { formatLat, formatLon, formatUtcDate, formatUtcLong } from '../domain/format'
+import { polarHull } from '../domain/regionHull'
 import { rank, type AreaFilter, type Ranked, type RankBy } from '../domain/ranking'
 import { CUSTOM_SITE_NAME, normalizeLon, validateSite } from '../domain/sites'
-import type { GlobeFocus, GlobeMarker, RegionBands } from '../features/MoonGlobe'
+import type { GlobeFocus, GlobeMarker, RegionBands, RegionShape } from '../features/MoonGlobe'
 import { TopBar } from '../features/TopBar'
 import { loadRegionCatalog, loadSiteCatalog } from '../state/runner'
 import { goTo, setScenarioInput, setState, useStore, type Audience, type ScenarioInput } from '../state/store'
 import { ArrowIcon, Button, Card, DateDial, Field, Input, MonthCalendar, Segmented, Select, SpaceWindow, Toggle } from '../ui'
 
 const MoonGlobe = lazy(() => import('../features/MoonGlobe'))
-const EMPTY_PRODUCTS: DemProduct[] = []
+const NO_SHAPES: RegionShape[] = []
+
+/** Rings of [east longitude, latitude] from a GeoJSON Polygon or MultiPolygon. */
+function ringsOf(geometry: unknown): [number, number][][] {
+  const g = geometry as { type?: string; coordinates?: unknown }
+  const polygons = g?.type === 'Polygon' ? [g.coordinates] : g?.type === 'MultiPolygon' ? (g.coordinates as unknown[]) : []
+  return (polygons as number[][][][]).flatMap((polygon) =>
+    polygon.map((ring) => ring.map((p) => [p[0], p[1]] as [number, number])).filter((ring) => ring.length >= 3),
+  )
+}
 /** With the backend, catalog entries are told apart by id; the practice data uses names. */
 const API = provider.kind === 'api'
 
@@ -631,12 +640,12 @@ export function MoonScreen({ mode }: { mode: 'moon' | 'explore' }) {
   const [resetNonce, setResetNonce] = useState(0)
   const [hover, setHover] = useState('')
   const [zoomed, setZoomed] = useState(false)
-  const [showCoverage, setShowCoverage] = useState(false)
-  const demProducts = useStore((s) => s.coverage?.products) ?? EMPTY_PRODUCTS
   const planner = audience === 'planner'
   const results = mode === 'explore'
-  // Numbered badges when the answer is a ranking: the results, and the date view that leads to it.
-  const ranking = results || plan === 'date'
+  // Numbered badges only where the answer is a ranking: the results.
+  const ranking = results
+  // "By date" changes the day only: the sites stay on the Moon, greyed out.
+  const selectable = results || plan !== 'date'
 
   const ranked = useMemo(() => (catalog ? rank(catalog.regions, rankBy, area) : []), [catalog, rankBy, area])
 
@@ -676,6 +685,16 @@ export function MoonScreen({ mode }: { mode: 'moon' | 'explore' }) {
       southPoleLat: south.length ? -Math.floor(Math.min(...south) / 5) * 5 : null,
       equatorialLat: equator.length ? Math.ceil(Math.max(...equator) / 5) * 5 : null,
     }
+  }, [catalog])
+
+  // The Artemis III candidate regions as the backend serves them: real outlines.
+  // One strong outline for the area they span, and inside it each region as
+  // NASA publishes it (a small square), filled lightly with a thin edge.
+  const shapes = useMemo<RegionShape[]>(() => {
+    const regions = (catalog?.locations ?? []).map((r) => ({ id: r.id, rings: ringsOf(r.geometry) })).filter((r) => r.rings.length > 0)
+    const hull = polarHull(regions.flatMap((r) => r.rings))
+    if (!hull) return NO_SHAPES
+    return [{ id: 'artemis-iii', rings: [hull], label: `Artemis III candidate regions · ${regions.length}` }, ...regions.map((r) => ({ ...r, filled: true }))]
   }, [catalog])
 
   const resetView = () => {
@@ -734,8 +753,8 @@ export function MoonScreen({ mode }: { mode: 'moon' | 'explore' }) {
                 lightMs={realLight ? input.startMs : null}
                 regions={showRegions ? bands : null}
                 resetNonce={resetNonce}
-                showCoverage={planner && showCoverage}
-                coverageProducts={demProducts}
+                regionShapes={showRegions ? shapes : NO_SHAPES}
+                selectable={selectable}
                 onPickMarker={pickMarker}
                 onPickPoint={(site) => setScenarioInput('A', { site, siteName: null })}
                 onHover={planner ? setHover : undefined}
@@ -749,17 +768,7 @@ export function MoonScreen({ mode }: { mode: 'moon' | 'explore' }) {
               <Toggle checked={showRegions} onChange={setShowRegions} onDark>
                 Regions
               </Toggle>
-              {planner && (
-                <Toggle checked={showCoverage} onChange={setShowCoverage} onDark>
-                  DEM coverage
-                </Toggle>
-              )}
             </div>
-            {planner && showCoverage && !demProducts.some((p) => p.available) && (
-              <span role="status" className="ui-space-caption moon-coverage-note">
-                No prepared DEM coverage available
-              </span>
-            )}
 
             {results ? (
               zoomed && (

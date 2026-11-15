@@ -110,7 +110,7 @@
   padding: 0 var(--s-6);
   border-radius: var(--r-card);
   font-family: var(--font-display);
-  font-size: var(--title-s);
+  font-size: var(--text-m);
 }
 
 .ui-button.is-block {

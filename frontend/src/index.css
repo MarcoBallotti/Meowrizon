@@ -62,10 +62,10 @@
   --text-s: 16px;
   --text-m: 18px;
   --text-l: 20px;
-  --title-s: 24px;
-  --title-m: 32px;
-  --display-s: 40px;
-  --display-m: 56px;
+  --title-s: 20px;
+  --title-m: 26px;
+  --display-s: 34px;
+  --display-m: 48px;
 
   /* Shape */
   --r-window: 24px;
@@ -107,10 +107,10 @@
 @media (max-width: 720px) {
   :root {
     --text-l: 18px;
-    --title-s: 22px;
-    --title-m: 28px;
-    --display-s: 32px;
-    --display-m: 40px;
+    --title-s: 19px;
+    --title-m: 24px;
+    --display-s: 28px;
+    --display-m: 36px;
     --r-window: 16px;
   }
 }
@@ -120,10 +120,10 @@
   :root {
     --text-m: 16px;
     --text-l: 16px;
-    --title-s: 20px;
-    --title-m: 24px;
-    --display-s: 28px;
-    --display-m: 32px;
+    --title-s: 18px;
+    --title-m: 22px;
+    --display-s: 26px;
+    --display-m: 30px;
     --s-5: 16px;
     --s-6: 16px;
     --s-7: 24px;
@@ -148,10 +148,10 @@
     --text-s: 18px;
     --text-m: 22px;
     --text-l: 24px;
-    --title-s: 30px;
-    --title-m: 40px;
-    --display-s: 52px;
-    --display-m: 72px;
+    --title-s: 26px;
+    --title-m: 34px;
+    --display-s: 44px;
+    --display-m: 60px;
     --s-3: 24px;
     --s-4: 24px;
     --s-5: 32px;

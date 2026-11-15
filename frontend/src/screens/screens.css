@@ -2236,11 +2236,6 @@
   grid-template-columns: 28px minmax(0, 1fr) auto;
 }
 
-.moon-coverage-note {
-  position: absolute;
-  left: 16px;
-  top: 76px;
-}
 
 .terrain-panorama { position: absolute; inset: 0; display: flex; flex-direction: column; color: #d8e1ef; padding: 16px; gap: 10px; background: #111622; overflow: auto; }
 .terrain-panorama-controls { display: flex; justify-content: space-between; gap: 16px; padding-right: 48px; }

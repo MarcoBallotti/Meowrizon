@@ -6,10 +6,12 @@
  */
 import {
   ArcType,
+  CameraEventType,
   Cartesian2,
   Cartesian3,
   Color,
   ConstantPositionProperty,
+  ConstantProperty,
   Credit,
   DirectionalLight,
   Ellipsoid,
@@ -22,6 +24,7 @@ import {
   LabelStyle,
   Math as CesiumMath,
   NearFarScalar,
+  PolygonHierarchy,
   SceneTransforms,
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
@@ -31,7 +34,7 @@ import {
 } from 'cesium'
 import 'cesium/Build/Cesium/Widgets/widgets.css'
 import { useEffect, useRef, useState } from 'react'
-import type { DemProduct, SiteCoordinates } from '../api/types'
+import type { SiteCoordinates } from '../api/types'
 import { subSolarPoint } from '../domain/approxEphemeris'
 import { formatLat, formatLon } from '../domain/format'
 import { normalizeLon } from '../domain/sites'
@@ -50,14 +53,19 @@ const SPACE = Color.fromCssColorString('#0b0c1a')
 const SITE_FILL = Color.fromCssColorString('#6cc4f5')
 const SITE_RIM = Color.fromCssColorString('#12507c')
 const REGION_LINE = Color.fromCssColorString('#a9dcfa')
-
-const NO_PRODUCTS: DemProduct[] = []
+/** Sites that cannot be chosen in the current step: same disc, in grey. */
+const SITE_OFF_FILL = Color.fromCssColorString('#9a9fb0')
+const SITE_OFF_RIM = Color.fromCssColorString('#3a3e4e')
+const SITE_OFF_LABEL = Color.fromCssColorString('#b4b9c8')
 
 const svgUri = (svg: string) => `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`
 
-const RING = svgUri(
-  '<svg xmlns="http://www.w3.org/2000/svg" width="56" height="56"><circle cx="28" cy="28" r="20" fill="none" stroke="#0b0d1a" stroke-width="8" stroke-opacity="0.5"/><circle cx="28" cy="28" r="20" fill="none" stroke="#ffffff" stroke-width="4"/><circle cx="28" cy="28" r="9" fill="#6cc4f5" stroke="#12507c" stroke-width="4"/></svg>',
-)
+const ringImage = (fill: string, rim: string) =>
+  svgUri(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="56" height="56"><circle cx="28" cy="28" r="20" fill="none" stroke="#0b0d1a" stroke-width="8" stroke-opacity="0.5"/><circle cx="28" cy="28" r="20" fill="none" stroke="#ffffff" stroke-width="4"/><circle cx="28" cy="28" r="9" fill="${fill}" stroke="${rim}" stroke-width="4"/></svg>`,
+  )
+const RING = ringImage('#6cc4f5', '#12507c')
+const RING_OFF = ringImage('#9a9fb0', '#3a3e4e')
 
 /**
  * A fixed star field behind the globe: dots of different size and brightness,
@@ -82,6 +90,18 @@ export interface RegionBands {
   /** Half-width of the equatorial band, degrees. */
   equatorialLat: number | null
 }
+
+/** The real outline of a region: closed rings of [east longitude, latitude] in degrees. */
+export interface RegionShape {
+  id: string
+  rings: [number, number][][]
+  /** Written once, at the northernmost point of the outline. */
+  label?: string
+  /** A single region: lightly filled, with a thin edge. */
+  filled?: boolean
+}
+
+const NO_SHAPES: RegionShape[] = []
 
 /** Numbered badge for ranked regions. The leader is indigo. */
 function rankBadge(n: number): string {
@@ -192,30 +212,30 @@ interface MoonGlobeProps {
   regions: RegionBands | null
   /** Change it to put the camera back on the current framing. */
   resetNonce: number
-  /** Latitude limits of the prepared DEM products, shown on demand (engineers). */
-  showCoverage?: boolean
-  coverageProducts?: DemProduct[]
+  /** Real region outlines (the Artemis III candidate regions); drawn instead of the bands. */
+  regionShapes?: RegionShape[]
+  /** False while the step does not let you choose a site: grey dots, clicks ignored. */
+  selectable?: boolean
   onPickMarker: (id: string) => void
   onPickPoint: (site: SiteCoordinates) => void
   onHover?: (text: string) => void
 }
 
-export default function MoonGlobe({ markers, selected, focus, lightMs, regions, resetNonce, showCoverage = false, coverageProducts = NO_PRODUCTS, onPickMarker, onPickPoint, onHover }: MoonGlobeProps) {
+export default function MoonGlobe({ markers, selected, focus, lightMs, regions, regionShapes = NO_SHAPES, resetNonce, selectable = true, onPickMarker, onPickPoint, onHover }: MoonGlobeProps) {
   const container = useRef<HTMLDivElement>(null)
   const viewerRef = useRef<Viewer | null>(null)
   const ring = useRef<Entity | null>(null)
   const markerEntities = useRef<Map<string, Entity>>(new Map())
   const regionEntities = useRef<Entity[]>([])
-  const coverage = useRef<Entity[]>([])
-  const handlers = useRef({ onPickMarker, onPickPoint, onHover })
+  const handlers = useRef({ onPickMarker, onPickPoint, onHover, selectable })
   // The selection chip is HTML (crisp, rounded), so it is placed on the screen each frame.
   const chip = useRef<HTMLDivElement>(null)
   const chipAnchor = useRef<Cartesian3 | null>(null)
   const [imageryError, setImageryError] = useState(false)
 
   useEffect(() => {
-    handlers.current = { onPickMarker, onPickPoint, onHover }
-  }, [onPickMarker, onPickPoint, onHover])
+    handlers.current = { onPickMarker, onPickPoint, onHover, selectable }
+  }, [onPickMarker, onPickPoint, onHover, selectable])
 
   useEffect(() => {
     if (!container.current) return
@@ -305,6 +325,7 @@ export default function MoonGlobe({ markers, selected, focus, lightMs, regions, 
       return { latDeg: CesiumMath.toDegrees(c.latitude), lonEastDeg: normalizeLon(CesiumMath.toDegrees(c.longitude)) }
     }
     handler.setInputAction((e: ScreenSpaceEventHandler.PositionedEvent) => {
+      if (!handlers.current.selectable) return
       const picked = viewer.scene.pick(e.position) as { id?: Entity } | undefined
       for (const [id, ent] of markerEntities.current) {
         if (picked?.id === ent) {
@@ -322,10 +343,30 @@ export default function MoonGlobe({ markers, selected, focus, lightMs, regions, 
       handlers.current.onHover?.(p ? `${formatLat(p.latDeg, 2)}  ${formatLon(p.lonEastDeg, 2)}` : '')
     }, ScreenSpaceEventType.MOUSE_MOVE)
 
+    // Wheel zoom runs straight along the line of sight, so whatever is at the
+    // centre of the window stays there: the Moon only comes closer or moves away.
+    // (Cesium's own wheel zoom aims at the pointer and slides the Moon sideways.)
+    const controller = viewer.scene.screenSpaceCameraController
+    controller.zoomEventTypes = [CameraEventType.PINCH]
+    const canvas = viewer.scene.canvas
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault()
+      const camera = viewer.camera
+      const centre = new Cartesian2(canvas.clientWidth / 2, canvas.clientHeight / 2)
+      const hit = camera.pickEllipsoid(centre, MOON)
+      const range = hit ? Cartesian3.distance(camera.position, hit) : Cartesian3.magnitude(camera.position)
+      const delta = e.deltaMode === 1 ? e.deltaY * 40 : e.deltaY
+      const next = Math.min(8_000_000, Math.max(controller.minimumZoomDistance, range * Math.exp(delta * 0.0015)))
+      camera.move(camera.direction, range - next)
+      viewer.scene.requestRender()
+    }
+    canvas.addEventListener('wheel', onWheel, { passive: false })
+
     viewer.camera.setView(HOME)
 
     const entities = markerEntities.current
     return () => {
+      canvas.removeEventListener('wheel', onWheel)
       viewer.scene.postRender.removeEventListener(placeChip)
       handler.destroy()
       viewer.destroy()
@@ -350,13 +391,13 @@ export default function MoonGlobe({ markers, selected, focus, lightMs, regions, 
             })
           : viewer.entities.add({
               position,
-              point: { pixelSize: 13, color: SITE_FILL, outlineColor: SITE_RIM, outlineWidth: 3 },
+              point: { pixelSize: 13, color: selectable ? SITE_FILL : SITE_OFF_FILL, outlineColor: selectable ? SITE_RIM : SITE_OFF_RIM, outlineWidth: 3 },
               label: {
                 text: m.label,
                 // Drawn at 2x and scaled down by half: the text stays sharp on dense screens.
                 font: `600 30px ${FONT}`,
                 scale: 0.5,
-                fillColor: Color.WHITE,
+                fillColor: selectable ? Color.WHITE : SITE_OFF_LABEL,
                 outlineColor: SPACE,
                 outlineWidth: 8,
                 style: LabelStyle.FILL_AND_OUTLINE,
@@ -368,8 +409,9 @@ export default function MoonGlobe({ markers, selected, focus, lightMs, regions, 
             })
       markerEntities.current.set(m.id, e)
     }
+    if (ring.current?.billboard) ring.current.billboard.image = new ConstantProperty(selectable ? RING : RING_OFF)
     viewer.scene.requestRender()
-  }, [markers])
+  }, [markers, selectable])
 
   // Selection ring and label; hide the plain marker underneath it.
   useEffect(() => {
@@ -383,7 +425,7 @@ export default function MoonGlobe({ markers, selected, focus, lightMs, regions, 
       setShow(ent, id !== selected.id || m?.rank !== undefined)
     }
     viewer.scene.requestRender()
-  }, [selected.latDeg, selected.lonEastDeg, selected.id, markers])
+  }, [selected.latDeg, selected.lonEastDeg, selected.id, markers, selectable])
 
   // Camera: a short straight dolly, never a rotation (motion sickness).
   const focusKey = focus ? `${focus.latDeg},${focus.lonEastDeg},${focus.distanceM},${focus.screen?.join(',') ?? ''}` : ''
@@ -432,9 +474,49 @@ export default function MoonGlobe({ markers, selected, focus, lightMs, regions, 
     viewer.scene.requestRender()
   }, [resetNonce])
 
-  // Region outlines: the parallels that bound the catalogue's two areas.
-  const southLat = regions?.southPoleLat ?? null
-  const equatorLat = regions?.equatorialLat ?? null
+  // Region outlines. With real shapes, each region is drawn as it is; without
+  // them, the parallels that bound the catalogue's two areas stand in.
+  const southLat = regionShapes.length ? null : (regions?.southPoleLat ?? null)
+  const equatorLat = regionShapes.length ? null : (regions?.equatorialLat ?? null)
+  const shapeEntities = useRef<Entity[]>([])
+  useEffect(() => {
+    const viewer = viewerRef.current
+    if (!viewer) return
+    for (const e of shapeEntities.current) viewer.entities.remove(e)
+    shapeEntities.current = regionShapes.flatMap((shape) =>
+      shape.rings.map((ring, i) =>
+        viewer.entities.add({
+          position: Cartesian3.fromDegrees(...ring.reduce((top, p) => (p[1] > top[1] ? p : top)), 0, MOON),
+          label:
+            shape.label && i === 0
+              ? {
+                  text: shape.label,
+                  font: `600 28px ${FONT}`,
+                  scale: 0.5,
+                  fillColor: Color.fromCssColorString('#d9eefc'),
+                  outlineColor: SPACE,
+                  outlineWidth: 8,
+                  style: LabelStyle.FILL_AND_OUTLINE,
+                  verticalOrigin: VerticalOrigin.BOTTOM,
+                  pixelOffset: new Cartesian2(0, -24),
+                  disableDepthTestDistance: Number.POSITIVE_INFINITY,
+                }
+              : undefined,
+          // The area outline is the strong line; a region inside it is a light fill with a thin edge.
+          polyline: {
+            positions: Cartesian3.fromDegreesArray(ring.flat(), MOON),
+            width: shape.filled ? 1.5 : 2.5,
+            arcType: ArcType.GEODESIC,
+            material: shape.filled ? REGION_LINE.withAlpha(0.9) : REGION_LINE,
+          },
+          polygon: shape.filled
+            ? { hierarchy: new PolygonHierarchy(Cartesian3.fromDegreesArray(ring.flat(), MOON)), material: SITE_FILL.withAlpha(0.22), arcType: ArcType.GEODESIC }
+            : undefined,
+        }),
+      ),
+    )
+    viewer.scene.requestRender()
+  }, [regionShapes])
   useEffect(() => {
     const viewer = viewerRef.current
     if (!viewer) return
@@ -464,39 +546,6 @@ export default function MoonGlobe({ markers, selected, focus, lightMs, regions, 
     )
     viewer.scene.requestRender()
   }, [southLat, equatorLat])
-
-  // DEM coverage: the latitude limits of every prepared product, hidden until asked for.
-  useEffect(() => {
-    const viewer = viewerRef.current
-    if (!viewer) return
-    for (const entity of coverage.current) viewer.entities.remove(entity)
-    coverage.current = coverageProducts.filter((p) => p.available).flatMap((p) => [
-      { lat: p.latMinDeg, label: p.title }, { lat: p.latMaxDeg, label: p.title },
-    ]).filter((c) => Math.abs(c.lat) < 90).map((c) =>
-      viewer.entities.add({
-        show: false,
-        polyline: { positions: parallel(c.lat), width: 1.5, arcType: ArcType.RHUMB, material: Color.fromCssColorString('#9fb8ff').withAlpha(0.7) },
-        position: Cartesian3.fromDegrees(0, c.lat, 0, MOON),
-        label: {
-          text: c.label,
-          font: `500 24px "JetBrains Mono", ui-monospace, monospace`,
-          scale: 0.5,
-          fillColor: Color.fromCssColorString('#cfdcff'),
-          outlineColor: SPACE,
-          outlineWidth: 6,
-          style: LabelStyle.FILL_AND_OUTLINE,
-          verticalOrigin: VerticalOrigin.BOTTOM,
-          pixelOffset: new Cartesian2(0, -4),
-        },
-      }),
-    )
-    viewer.scene.requestRender()
-  }, [coverageProducts])
-
-  useEffect(() => {
-    for (const e of coverage.current) setShow(e, showCoverage)
-    viewerRef.current?.scene.requestRender()
-  }, [showCoverage, coverageProducts])
 
   return (
     <div className="moon-globe">
