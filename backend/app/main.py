@@ -20,6 +20,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app import __version__
+from app.api.coverage import router as coverage_router
 from app.api.health import router as health_router
 from app.api.regions import router as regions_router
 from app.core.config import get_settings
@@ -67,6 +68,7 @@ def create_app(data_settings: DataSettings | None = None) -> FastAPI:
     )
 
     app.include_router(health_router, prefix=API_PREFIX)
+    app.include_router(coverage_router, prefix=API_PREFIX)
     app.include_router(regions_router, prefix=API_PREFIX)
     app.include_router(data_router)  # ha già il prefisso /api/data
 

@@ -5,9 +5,8 @@ from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 
-# backend/app/core/config.py -> backend/ e radice del repository
+# backend/app/core/config.py -> backend/
 _BACKEND_DIR = Path(__file__).resolve().parents[2]
-_REPO_ROOT = _BACKEND_DIR.parent
 
 DEFAULT_HORIZONS_API_URL = "https://ssd.jpl.nasa.gov/api/horizons.api"
 DEFAULT_MOONTREK_BASE_URL = "https://trek.nasa.gov/moon"
@@ -34,7 +33,7 @@ def _split_list(value: str) -> tuple[str, ...]:
 def load_settings() -> Settings:
     """Legge la configurazione dall'ambiente, con i default per lo sviluppo locale."""
     return Settings(
-        data_dir=Path(os.environ.get("MEOWRIZON_DATA_DIR", _REPO_ROOT / "data")),
+        data_dir=Path(os.environ.get("MEOWRIZON_DATA_DIR", _BACKEND_DIR / "data")),
         catalog_dir=Path(os.environ.get("MEOWRIZON_CATALOG_DIR", _BACKEND_DIR / "catalog")),
         horizons_api_url=os.environ.get("HORIZONS_API_URL", DEFAULT_HORIZONS_API_URL),
         moontrek_base_url=os.environ.get("MOONTREK_BASE_URL", DEFAULT_MOONTREK_BASE_URL),

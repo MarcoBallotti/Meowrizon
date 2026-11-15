@@ -62,7 +62,10 @@ class AppTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(len(sources["default"]), 12)
             self.assertEqual((await self.client.get("/api/data/datasets")).json(), [])
             network.assert_not_called()
-        self.assertEqual((await self.client.get("/api/coverage")).status_code, 404)
+        self.assertEqual(
+            (await self.client.get("/api/coverage")).json(),
+            {"origin": "engine", "products": []},
+        )
 
     async def test_http_collection_creates_local_files_and_filtered_samples(self):
         with patch.object(

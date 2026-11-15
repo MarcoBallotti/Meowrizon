@@ -1,8 +1,8 @@
 # Backend
 
-Python 3.12 e FastAPI, eseguito in Docker. Qui sta **tutta la logica** del progetto: dati, calcoli, classifica delle regioni, API e agente AI. Il frontend TypeScript si occupa solo della visualizzazione.
+Python 3.12 e FastAPI, eseguito in Docker. Qui sta **tutta la logica** del progetto: dati, calcoli, classifica delle regioni, API e agente AI. Il frontend TypeScript si occupa solo della visualizzazione. Per l'avvio locale, il percorso dati predefinito è `backend/data/`.
 
-Per ora ci sono le regioni Artemis III (`GET /api/regions`) e i siti di atterraggio (`GET /api/sites`); la valutazione non è ancora implementata (vedi `docs/piano-logica.md`). Non c'è un database: i dati stanno in file in `data/`.
+Per ora ci sono le regioni Artemis III (`GET /api/regions`) e i siti di atterraggio (`GET /api/sites`); la valutazione non è ancora implementata (vedi `docs/piano-logica.md`). `GET /api/coverage` restituisce un catalogo vuoto finché non esiste un DEM preparato e verificato per l'analisi. Il prodotto scelto per i calcoli futuri è il GeoTIFF PGDA LOLA adjusted 20 m/pixel (`LDEM_80S_20MPP_ADJ`); la sua pubblicazione online da sola non lo rende disponibile per le analisi. Non c'è un database: i dati stanno in file in `data/`.
 
 - `app/main.py`: crea l'applicazione, configura il CORS e registra i router.
 - `app/cli.py`: comandi da terminale (`init-regions`).
@@ -17,6 +17,10 @@ Per ora ci sono le regioni Artemis III (`GET /api/regions`) e i siti di atterrag
 - `tests/`: test con pytest; `tests/fixtures/` contiene la risposta reale di Moon Trek.
 
 ## Regioni e siti
+
+### Stato dell'integrazione frontend (verifica del 15/11/2026)
+
+Con `VITE_DATA_SOURCE=api`, il proxy Vite inoltra correttamente le richieste al backend: `/api/regions` restituisce 13 regioni (2 attive), `/api/sites` 16 siti, `/api/coverage` zero DEM pronti. Il client invia poi `POST /api/terrain-analyses`, che attualmente risponde 404 perché il motore scientifico non è implementato. Il ranking nel frontend carica ancora `public/mock/regions.json` anche in modalità API: quei punteggi non provengono dai dati NASA. Di conseguenza, la build del frontend e il catalogo reale sono verificati, mentre uno scenario reale completo non lo è ancora.
 
 Le regioni sono solo quelle candidate di Artemis III. Il catalogo `catalog/regions.toml` decide quali usare (`active`), il limite del settore e la dimensione delle celle; i contorni non si scrivono a mano.
 
